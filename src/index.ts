@@ -37,6 +37,9 @@ export type { AuthorizeParams } from "./urls.js";
 // The account UI surface (WP-PKG-2). Also available at "@carisma/site-account/ui".
 export * from "./ui/index.js";
 
+// Step 3 of 3 (WP-PKG-3). Also available at "@carisma/site-account/booking".
+export * from "./booking/index.js";
+
 /**
  * Build marker. WP-LOC-3's distribution-channel proof bumps this string and checks it
  * appears verbatim in the consumer's node_modules/@carisma/site-account/dist AND in

@@ -24,6 +24,10 @@
       "types": "./dist/ui/index.d.ts",
       "import": "./dist/ui/index.js"
     },
+    "./booking": {
+      "types": "./dist/booking/index.d.ts",
+      "import": "./dist/booking/index.js"
+    },
     "./urls": {
       "types": "./dist/urls.d.ts",
       "import": "./dist/urls.js"
