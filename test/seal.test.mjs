@@ -42,6 +42,14 @@ test("a cookie sealed for another rpId is rejected (AAD binds the relying party)
 test("a tampered ciphertext is rejected (GCM auth tag)", () => {
   const token = seal(payload, K1, RP);
   const [head, iv, ct, tag] = [token.split(":")[0], ...token.split(":")[1].split(".")];
-  const flipped = ct.slice(0, -1) + (ct.slice(-1) === "A" ? "B" : "A");
+  // Flip a bit in the actual ciphertext BYTES, not a base64url character. A base64url
+  // char can carry don't-care trailing bits (here ct is 97 bytes, 97 % 3 == 1, so the
+  // final char has only 2 significant bits), making a char swap a silent no-op ~26% of
+  // seals and this gate flaky. A byte-level flip always alters the ciphertext, so GCM
+  // must reject it on every run.
+  const bytes = Buffer.from(ct, "base64url");
+  bytes[0] ^= 0xff;
+  const flipped = bytes.toString("base64url");
+  assert.notEqual(flipped, ct, "the tamper must actually change the ciphertext");
   assert.equal(unseal(`${head}:${iv}.${flipped}.${tag}`, { primary: K1 }, RP), null);
 });

@@ -47,8 +47,11 @@ const server = http.createServer(async (req, res) => {
   const outHeaders = {};
   response.headers.forEach((v, k) => { if (k !== "set-cookie") outHeaders[k] = v; });
   const setCookies = response.headers.getSetCookie?.() || [];
+  // Emit all Set-Cookie headers in writeHead itself. Appending them AFTER writeHead
+  // throws ERR_HTTP_HEADERS_SENT and crashes the harness on every cookie-clearing
+  // response (garbage cookie, 401), which is exactly the response the live probe needs.
+  if (setCookies.length) outHeaders["set-cookie"] = setCookies;
   res.writeHead(response.status, outHeaders);
-  for (const c of setCookies) res.appendHeader("set-cookie", c);
   const text = await response.text();
   res.end(text);
 });
