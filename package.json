@@ -19,6 +19,14 @@
     "./seal": {
       "types": "./dist/seal/index.d.ts",
       "import": "./dist/seal/index.js"
+    },
+    "./ui": {
+      "types": "./dist/ui/index.d.ts",
+      "import": "./dist/ui/index.js"
+    },
+    "./urls": {
+      "types": "./dist/urls.d.ts",
+      "import": "./dist/urls.js"
     }
   },
   "files": [
@@ -31,8 +39,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist",
-    "prepack": "npm run clean && npm run build",
-    "test": "npm run build && node --test test/*.test.mjs",
+    "verify:boundary": "node scripts/verify-account-boundary.mjs",
+    "prepack": "npm run clean && npm run build && npm run verify:boundary",
+    "test": "npm run build && npm run verify:boundary && node --test test/*.test.mjs",
+    "demo:page": "node scripts/demo-page-server.mjs",
     "pack:local": "bash scripts/pack-local.sh"
   },
   "devDependencies": {

@@ -4,6 +4,7 @@ import { COOKIES, parseCookies, serializeCookie, clearCookie } from "./cookies.j
 import { maskProfile } from "./profile.js";
 import { appendSetSession, json } from "./http.js";
 import { pkcePair, randomToken, safeNext, signService } from "./pkce.js";
+import { buildAuthorizeUrl, callbackRedirectUri } from "../urls.js";
 
 interface TxnPlaintext {
   v: 1;
@@ -14,7 +15,7 @@ interface TxnPlaintext {
 }
 
 function redirectUri(_cfg: ResolvedConfig, origin: string): string {
-  return `${origin}/api/auth/callback`;
+  return callbackRedirectUri(origin);
 }
 
 /**
@@ -34,16 +35,11 @@ export function makeStart(cfg: ResolvedConfig) {
     const txn: TxnPlaintext = { v: 1, state, verifier, next, keep };
     const sealedTxn = seal(txn, cfg.sessionSecret, cfg.rpId);
 
-    const authUrl = new URL(`${cfg.identityOrigin.replace(/\/+$/, "")}/authorize`);
-    authUrl.searchParams.set("response_type", "code");
-    authUrl.searchParams.set("client_id", cfg.clientId);
-    authUrl.searchParams.set("redirect_uri", redirectUri(cfg, origin));
-    authUrl.searchParams.set("state", state);
-    authUrl.searchParams.set("code_challenge", challenge);
-    authUrl.searchParams.set("code_challenge_method", "S256");
-    authUrl.searchParams.set("prompt", prompt);
+    // The identity-origin /authorize URL is assembled in urls.ts — the ONE place an
+    // identity URL is built (scripts/verify-account-boundary.mjs enforces it).
+    const authUrl = buildAuthorizeUrl(cfg, { origin, state, challenge, prompt });
 
-    const headers = new Headers({ "cache-control": "private, no-store", location: authUrl.toString() });
+    const headers = new Headers({ "cache-control": "private, no-store", location: authUrl });
     headers.append(
       "set-cookie",
       serializeCookie(COOKIES.txn, sealedTxn, {
