@@ -74,6 +74,23 @@ test("valid cookie + backend 200 -> signedIn:true, email masked, full address ne
   assert.equal(raw.includes("jane.doe@gmail.com"), false, "the full email never reaches the browser");
 });
 
+test("UNWRAP /profile: the backend house envelope {success,data} is read, not the flat wrapper", async () => {
+  // The REAL backend answers every read as {success,data,message}; maskProfile reads
+  // firstName/lastName/email flat, so without the unwrap the card shows empty initials.
+  const enveloped = () =>
+    new Response(
+      JSON.stringify({ success: true, message: "ok", data: { firstName: "Jane", lastName: "Doe", email: "jane.doe@gmail.com", countryCode: "+356", phone: "99000000" } }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  const routes = createAccountRoutes(baseCfg(async () => enveloped()));
+  const res = await routes.session(req(sessionCookie()));
+  const body = JSON.parse(await res.text());
+  assert.equal(body.signedIn, true);
+  assert.equal(body.profile.firstName, "Jane", "firstName is read from data, not the envelope");
+  assert.equal(body.profile.initials, "JD", "initials come from the unwrapped names, not empty");
+  assert.equal(body.profile.emailMasked, "j***@gmail.com");
+});
+
 test("backend 401 -> the sealed cookie and hints are cleared", async () => {
   const routes = createAccountRoutes(baseCfg(async () => new Response("{}", { status: 401, headers: { "content-type": "application/json" } })));
   const res = await routes.session(req(sessionCookie()));

@@ -6,12 +6,18 @@ import type { UnsealKeys } from "../seal/index.js";
  *   rpId/clientId  <- IDENTITY_CLIENT_ID          identityOrigin <- IDENTITY_ORIGIN
  *   clientSecret   <- IDENTITY_CLIENT_SECRET       sessionSecret  <- SITE_SESSION_SECRET
  *   carismasoftApiUrl <- CARISMASOFT_API_URL       sessionSecretPrev <- SITE_SESSION_SECRET_PREV
- * fetchImpl and now are injection seams for tests and are never set in production.
+ *   keyVersion     <- IDENTITY_KEY_VERSION (default 1)
+ * `clientSecret` is the per-client service key (HEX): IDENTITY_CLIENT_SECRET =
+ * HMAC-SHA256(ACCOUNT_SERVICE_ROOT, "carisma:service:<clientId>:v<keyVersion>"); the site
+ * never holds ACCOUNT_SERVICE_ROOT. It signs the token exchange with that key + keyVersion
+ * (routes/pkce.signService). fetchImpl and now are injection seams for tests, never set in production.
  */
 export interface AccountRoutesConfig {
   rpId: string;
   clientId: string;
   clientSecret: string;
+  /** Version of the per-client service key, sent as X-Carisma-Key-Version. Default 1. */
+  keyVersion?: number;
   identityOrigin: string;
   carismasoftApiUrl: string;
   sessionSecret: string;
@@ -39,6 +45,7 @@ export function resolveConfig(cfg: AccountRoutesConfig): ResolvedConfig {
     rpId: cfg.rpId,
     clientId: cfg.clientId ?? cfg.rpId,
     clientSecret: cfg.clientSecret ?? "",
+    keyVersion: cfg.keyVersion ?? 1,
     identityOrigin: cfg.identityOrigin ?? "",
     carismasoftApiUrl: cfg.carismasoftApiUrl.replace(/\/+$/, ""),
     sessionSecret: cfg.sessionSecret,

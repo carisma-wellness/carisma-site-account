@@ -11,6 +11,22 @@ export function json(body: unknown, status = 200, extra?: Record<string, string>
 }
 
 /**
+ * Unwrap the CarismaSoft house envelope {success:true,data,message} to its flat `data`.
+ * EVERY backend reply is enveloped (shared/utils/apiResponse.successResponse), while the
+ * session/exchange builders read tokens and profile fields FLAT — so a token exchange
+ * finds no session and /profile renders a card with an empty name unless the reply is
+ * unwrapped here. A non-enveloped body, an error body {success:false}, or an array
+ * (never a house envelope) passes through untouched.
+ */
+export function unwrapEnvelope(body: unknown): unknown {
+  if (body && typeof body === "object" && !Array.isArray(body)) {
+    const o = body as Record<string, unknown>;
+    if (o.success === true && "data" in o) return o.data;
+  }
+  return body;
+}
+
+/**
  * THE load-bearing predicate. The session/proxy layer clears the sealed cookie and
  * the hints only when this returns true. It returns true for EXACTLY one status: 401.
  *

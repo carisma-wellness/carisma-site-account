@@ -2,7 +2,7 @@ import type { ResolvedConfig } from "./config.js";
 import { seal, unseal } from "../seal/index.js";
 import { COOKIES, parseCookies, serializeCookie, clearCookie } from "./cookies.js";
 import { maskProfile } from "./profile.js";
-import { appendSetSession, json } from "./http.js";
+import { appendSetSession, json, unwrapEnvelope } from "./http.js";
 import { pkcePair, randomToken, safeNext, signService } from "./pkce.js";
 import { buildAuthorizeUrl, callbackRedirectUri } from "../urls.js";
 
@@ -30,7 +30,10 @@ export function makeStart(cfg: ResolvedConfig) {
     const prompt = url.searchParams.get("prompt") === "create" ? "create" : "login";
     const keep = url.searchParams.get("keep") === "1";
 
-    const state = randomToken(24);
+    // 32 bytes -> 43 base64url chars. The identity origin's validateAuthorizeParams
+    // requires BASE64URL_43 and bounces a shorter state (randomToken(24) is 32 chars)
+    // straight back to the callback as error=invalid_request, so the card never loads.
+    const state = randomToken(32);
     const { verifier, challenge } = pkcePair();
     const txn: TxnPlaintext = { v: 1, state, verifier, next, keep };
     const sealedTxn = seal(txn, cfg.sessionSecret, cfg.rpId);
@@ -57,17 +60,38 @@ export function makeStart(cfg: ResolvedConfig) {
 /** Exchange an authorization code at POST /auth/token (service-authenticated). */
 async function exchangeCode(cfg: ResolvedConfig, code: string, verifier: string, origin: string) {
   const path = "/auth/token";
+  // camelCase, and ONLY the five keys tokenExchangeSchema admits — the backend's Joi
+  // schema is `.unknown(false)`, so a snake_case body (or one extra key) is a 400
+  // VALIDATION_ERROR before the exchange runs.
   const body = JSON.stringify({
-    grant_type: "authorization_code",
+    grantType: "authorization_code",
     code,
-    code_verifier: verifier,
-    client_id: cfg.clientId,
-    redirect_uri: redirectUri(cfg, origin),
+    codeVerifier: verifier,
+    clientId: cfg.clientId,
+    redirectUri: redirectUri(cfg, origin),
   });
-  const ts = Math.floor(cfg.now() / 1000);
-  const svc = signService(cfg.clientId, cfg.clientSecret, "POST", path, body, ts);
+  const fullUrl = cfg.carismasoftApiUrl + path;
+  // The backend signs+verifies over req.originalUrl, which carries the /api/v1 mount
+  // baked into carismasoftApiUrl. Sign that exact pathname, never the bare /auth/token.
+  let pathWithQuery = path;
   try {
-    const res = await cfg.fetchImpl(cfg.carismasoftApiUrl + path, {
+    const u = new URL(fullUrl);
+    pathWithQuery = u.pathname + u.search;
+  } catch {
+    /* a relative carismasoftApiUrl (tests): fall back to the sub-path */
+  }
+  const svc = signService({
+    clientId: cfg.clientId,
+    serviceKeyHex: cfg.clientSecret,
+    keyVersion: cfg.keyVersion,
+    method: "POST",
+    pathWithQuery,
+    body,
+    clientIp: "127.0.0.1",
+    ts: Math.floor(cfg.now() / 1000),
+  });
+  try {
+    const res = await cfg.fetchImpl(fullUrl, {
       method: "POST",
       headers: { "content-type": "application/json", ...svc },
       body,
@@ -79,7 +103,8 @@ async function exchangeCode(cfg: ResolvedConfig, code: string, verifier: string,
     } catch {
       /* non-JSON */
     }
-    return { status: res.status, body: parsed };
+    // {success,data,message} -> data; sessionFromExchange reads user/tokens flat.
+    return { status: res.status, body: unwrapEnvelope(parsed) };
   } catch {
     return { status: 0, body: null };
   }

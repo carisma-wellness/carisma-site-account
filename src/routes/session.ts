@@ -5,7 +5,7 @@ import { COOKIES, parseCookies } from "./cookies.js";
 import { upstream } from "./upstream.js";
 import { maskProfile } from "./profile.js";
 import type { RefreshResult } from "./refresh.js";
-import { json, jsonClearing, appendSetSession, shouldClearSession, NO_STORE_HEADERS } from "./http.js";
+import { json, jsonClearing, appendSetSession, shouldClearSession, unwrapEnvelope, NO_STORE_HEADERS } from "./http.js";
 
 /**
  * GET /api/auth/session  — the only route that knows whether this browser is signed in.
@@ -64,7 +64,9 @@ export function makeSession(cfg: ResolvedConfig, refresh: (sid: string, rt: stri
       return json({ signedIn: true, initials: sess.initials ?? null, stale: true }, 200);
     }
 
-    const profile = maskProfile(prof.body);
+    // The backend answers /profile as {success,data:{firstName,...}}; maskProfile reads
+    // the fields flat, so unwrap the house envelope first or the card shows empty initials.
+    const profile = maskProfile(unwrapEnvelope(prof.body));
     const body: Record<string, unknown> = {
       signedIn: true,
       initials: sess.initials ?? profile.initials ?? null,
