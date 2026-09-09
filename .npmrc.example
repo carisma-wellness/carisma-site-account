@@ -1,0 +1,4 @@
+# GitHub Packages registry for @carisma scope. The token is injected at deploy time
+# (WP-INF-7 / DEFER_TO_DEPLOY), never committed. Local installs use the packed tarball.
+@carisma:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_PACKAGES_TOKEN}

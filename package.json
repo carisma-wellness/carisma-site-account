@@ -1,0 +1,45 @@
+{
+  "name": "@carisma/site-account",
+  "version": "0.1.0-local.1",
+  "description": "Shared BFF + sealed-cookie kit that makes a Carisma brand website a relying party of the unified member-login identity origin.",
+  "license": "UNLICENSED",
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./routes": {
+      "types": "./dist/routes/index.d.ts",
+      "import": "./dist/routes/index.js"
+    },
+    "./seal": {
+      "types": "./dist/seal/index.d.ts",
+      "import": "./dist/seal/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "prepack": "npm run clean && npm run build",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "pack:local": "bash scripts/pack-local.sh"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "typescript": "5.6.3"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
+}

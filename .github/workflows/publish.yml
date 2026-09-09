@@ -1,0 +1,27 @@
+# AUTHORED, NOT RUN (charter Sec.1 + Sec.6). Publishes @carisma/site-account to GitHub
+# Packages on a version tag. Deferred to the cutover wave (WP-INF-7): the registry token
+# lives in the org, no runner is granted locally, and nothing in this programme pushes.
+name: publish
+on:
+  push:
+    tags:
+      - "v*"
+permissions:
+  contents: read
+  packages: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@carisma"
+      - run: npm ci
+      - run: npm run build
+      - run: node --test test/*.test.mjs
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
