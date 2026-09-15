@@ -1,0 +1,1074 @@
+<title>Ascending Numbness Dossier</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#f2f6f7; --surface:#fff; --surface-2:#e9eff1;
+  --ink:#121a1e; --muted:#55666e; --faint:#7d8d94;
+  --rule:#cfdadf; --rule-strong:#a8b8bf;
+  --accent:#0d5b63; --accent-soft:#e0eef0;
+  --red:#a81f16; --red-soft:#fbeae8;
+  --amber:#8a5a00; --amber-soft:#fcf3e2;
+  --green:#1c6438; --green-soft:#e6f2ea;
+  --serif:"IBM Plex Serif",Georgia,"Times New Roman",serif;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0e1316; --surface:#151d21; --surface-2:#1d272c;
+  --ink:#dfe7ea; --muted:#9aacb3; --faint:#78898f;
+  --rule:#27343a; --rule-strong:#3a4a51;
+  --accent:#49aab2; --accent-soft:#12292c;
+  --red:#f08b80; --red-soft:#2c1614;
+  --amber:#e0aa55; --amber-soft:#2a1f0e;
+  --green:#71c793; --green-soft:#12261a;
+}}
+:root[data-theme="dark"]{
+  --paper:#0e1316; --surface:#151d21; --surface-2:#1d272c;
+  --ink:#dfe7ea; --muted:#9aacb3; --faint:#78898f;
+  --rule:#27343a; --rule-strong:#3a4a51;
+  --accent:#49aab2; --accent-soft:#12292c;
+  --red:#f08b80; --red-soft:#2c1614;
+  --amber:#e0aa55; --amber-soft:#2a1f0e;
+  --green:#71c793; --green-soft:#12261a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+  font-size:16px;line-height:1.62;-webkit-text-size-adjust:100%}
+.wrap{max-width:860px;margin:0 auto;padding-inline:20px;padding-block:0 96px}
+
+/* masthead */
+.mast{border-bottom:2px solid var(--ink);padding-block:34px 18px;margin-bottom:8px}
+.mast .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);margin:0 0 14px}
+.mast h1{font-family:var(--serif);font-weight:600;font-size:clamp(28px,6vw,44px);
+  line-height:1.12;margin:0 0 12px;text-wrap:balance;letter-spacing:-.01em}
+.mast .sub{font-size:17px;color:var(--muted);margin:0;max-width:60ch}
+.metastrip{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:20px;
+  font-family:var(--mono);font-size:11.5px;color:var(--faint);letter-spacing:.04em}
+.metastrip b{color:var(--ink);font-weight:500}
+
+/* disclaimer */
+.disclaimer{border:1px solid var(--rule);background:var(--surface);
+  padding:16px 18px;margin-block:22px;font-size:14px;color:var(--muted)}
+.disclaimer strong{color:var(--ink)}
+
+/* nav */
+nav.toc{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  padding-block:18px;margin-block:26px}
+nav.toc h2{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--faint);margin:0 0 12px;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:2px 26px;counter-reset:t}
+nav.toc li{counter-increment:t;font-size:14.5px;display:flex;gap:10px;align-items:baseline}
+nav.toc li::before{content:counter(t,decimal-leading-zero);font-family:var(--mono);
+  font-size:11px;color:var(--accent);flex:none}
+nav.toc a{color:var(--ink);text-decoration:none;border-bottom:1px solid transparent;padding-bottom:1px}
+nav.toc a:hover{border-bottom-color:var(--accent);color:var(--accent)}
+
+/* sections */
+section{margin-block:46px;scroll-margin-top:24px}
+.snum{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--accent);
+  text-transform:uppercase;display:block;margin-bottom:9px}
+h2.sec{font-family:var(--serif);font-weight:600;font-size:clamp(22px,4vw,30px);
+  line-height:1.2;margin:0 0 6px;padding-bottom:12px;border-bottom:1px solid var(--rule-strong);
+  text-wrap:balance}
+h3{font-family:var(--sans);font-weight:600;font-size:17.5px;margin:30px 0 8px;letter-spacing:-.005em}
+h4{font-family:var(--mono);font-weight:500;font-size:11.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--muted);margin:24px 0 8px}
+p{margin:0 0 14px;max-width:68ch}
+ul,ol{max-width:68ch;padding-left:22px;margin:0 0 14px}
+li{margin-bottom:7px}
+a{color:var(--accent)}
+strong{font-weight:600}
+em.q{font-style:italic;color:var(--muted)}
+
+/* callouts — border-led, no shadow, radius only on pills */
+.panel{border:1px solid var(--rule);border-left:3px solid var(--accent);
+  background:var(--surface);padding:16px 18px;margin-block:20px;max-width:68ch}
+.panel.red{border-left-color:var(--red);background:var(--red-soft)}
+.panel.amber{border-left-color:var(--amber);background:var(--amber-soft)}
+.panel.green{border-left-color:var(--green);background:var(--green-soft)}
+.panel p:last-child,.panel ul:last-child,.panel ol:last-child{margin-bottom:0}
+.panel .plabel{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;
+  text-transform:uppercase;font-weight:500;display:block;margin-bottom:8px}
+.panel .plabel{color:var(--accent)}
+.panel.red .plabel{color:var(--red)}
+.panel.amber .plabel{color:var(--amber)}
+.panel.green .plabel{color:var(--green)}
+
+/* the one bold moment: urgency banner */
+.urgent{border:2px solid var(--red);background:var(--red-soft);padding:22px 24px;margin-block:28px}
+.urgent .plabel{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--red);font-weight:500;display:block;margin-bottom:12px}
+.urgent h2{font-family:var(--serif);font-size:clamp(20px,4vw,26px);font-weight:600;
+  margin:0 0 12px;line-height:1.22;color:var(--ink);text-wrap:balance}
+.urgent p{max-width:66ch}
+.urgent p:last-child{margin-bottom:0}
+
+/* pills */
+.pill{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
+  text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid currentColor;
+  white-space:nowrap;font-weight:500;line-height:1.5}
+.p-vh{color:var(--red)} .p-h{color:var(--amber)}
+.p-m{color:var(--accent)} .p-l{color:var(--faint)}
+.g-high{color:var(--green)} .g-mod{color:var(--accent)}
+.g-low{color:var(--amber)} .g-vlow{color:var(--red)}
+
+/* tables */
+.tw{overflow-x:auto;margin-block:22px;border:1px solid var(--rule);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
+caption{text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);padding:12px 14px;border-bottom:1px solid var(--rule)}
+th{text-align:left;font-family:var(--mono);font-weight:500;font-size:10.5px;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
+  padding:10px 14px;border-bottom:1px solid var(--rule-strong);vertical-align:bottom;background:var(--surface-2)}
+td{padding:11px 14px;border-bottom:1px solid var(--rule);vertical-align:top;line-height:1.5}
+tbody tr:last-child td{border-bottom:none}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td b{font-weight:600}
+
+/* ordered workup steps */
+ol.steps{list-style:none;padding:0;counter-reset:s;max-width:none}
+ol.steps>li{counter-increment:s;display:grid;grid-template-columns:34px 1fr;gap:14px;
+  padding-block:14px;border-top:1px solid var(--rule);margin:0}
+ol.steps>li::before{content:counter(s);font-family:var(--mono);font-size:13px;
+  color:var(--accent);padding-top:2px;font-variant-numeric:tabular-nums}
+ol.steps>li:first-child{border-top:none}
+.steps .why{color:var(--muted);font-size:14px;margin:4px 0 0}
+
+/* checklist the family can tick */
+.check{list-style:none;padding:0;margin-block:16px}
+.check li{display:flex;gap:11px;align-items:flex-start;padding-block:9px;
+  border-bottom:1px solid var(--rule);margin:0}
+.check input{margin:4px 0 0;flex:none;accent-color:var(--accent);width:16px;height:16px}
+.check label{cursor:pointer;font-size:15px}
+.check .hint{display:block;color:var(--muted);font-size:13.5px;margin-top:3px}
+
+/* citation */
+.cite{font-family:var(--mono);font-size:11.5px;color:var(--faint);letter-spacing:.01em}
+.refs{font-size:13.5px;color:var(--muted)}
+.refs li{margin-bottom:9px}
+.unver{color:var(--amber);font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+
+footer{border-top:2px solid var(--ink);margin-top:56px;padding-top:20px;
+  font-size:13.5px;color:var(--muted)}
+
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:520px){
+  body{font-size:15.5px}
+  .metastrip{gap:4px 14px}
+  ol.steps>li{grid-template-columns:24px 1fr;gap:10px}
+}
+@media print{
+  body{background:#fff;color:#000;font-size:10.5pt}
+  nav.toc,.themetoggle{display:none}
+  section{page-break-inside:avoid;margin-block:22px}
+  .tw{overflow:visible;border-color:#999}
+  table{min-width:0;font-size:9pt}
+  .urgent{border-color:#000}
+  a{color:#000;text-decoration:none}
+}
+</style>
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">Multidisciplinary case dossier &middot; prepared for clinical consultation</p>
+  <h1>Bilateral Ascending Numbness at 80</h1>
+  <p class="sub">A structured diagnostic and treatment analysis of one year of symmetric, posture-provoked, ascending lower-limb sensory loss in an 80-year-old woman with type&nbsp;2 diabetes, thyroid disease, cardiovascular risk and polypharmacy.</p>
+  <div class="metastrip">
+    <span>Compiled <b>15 September 2026</b></span>
+    <span>Contributors <b>7 specialist reviews + cross-examination</b></span>
+    <span>Status <b>Pre-consultation working document</b></span>
+  </div>
+</header>
+
+<div class="disclaimer">
+  <strong>What this document is.</strong> A research and preparation aid, written to make one medical appointment substantially more productive. It is not a diagnosis, not a prescription, and not a substitute for examining the patient &mdash; several conclusions here cannot be reached without a physical examination and blood results that nobody currently has. <strong>Nothing in it should be used to start, stop, or change any prescribed medication.</strong> Every medication item is framed as a question for the prescriber. Take it to her doctors and work through it with them.
+</div>
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#summary">Executive summary</a></li>
+    <li><a href="#ranked">Most likely explanations, ranked</a></li>
+    <li><a href="#danger">Dangerous diagnoses to exclude</a></li>
+    <li><a href="#standing">Why standing triggers it</a></li>
+    <li><a href="#knee">Why the knee matters</a></li>
+    <li><a href="#matrix">Consensus diagnosis matrix</a></li>
+    <li><a href="#meds">Medication and polypharmacy</a></li>
+    <li><a href="#diabetes">Diabetes-specific analysis</a></li>
+    <li><a href="#thyroid">Thyroid-specific analysis</a></li>
+    <li><a href="#spine">Spine-specific analysis</a></li>
+    <li><a href="#vascular">Vascular analysis</a></li>
+    <li><a href="#nutrition">Nutritional and deficiency analysis</a></li>
+    <li><a href="#glp1">GLP-1 and weight-loss analysis</a></li>
+    <li><a href="#exam">The examination to insist on</a></li>
+    <li><a href="#tests">Tests in exact order</a></li>
+    <li><a href="#treatment">Treatments with strongest evidence</a></li>
+    <li><a href="#emerging">Emerging and unconventional options</a></li>
+    <li><a href="#overhyped">Overhyped and unsupported</a></li>
+    <li><a href="#now">Next 24&ndash;72 hours</a></li>
+    <li><a href="#weeks">Next 2&ndash;4 weeks</a></li>
+    <li><a href="#rehab">Three-month rehabilitation</a></li>
+    <li><a href="#questions">Questions for the physician</a></li>
+    <li><a href="#gaps">Information still needed</a></li>
+    <li><a href="#prognosis">Prognosis and expectations</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</nav>
+
+<div class="urgent">
+  <span class="plabel">Urgent safety assessment &mdash; read first</span>
+  <h2>This needs medical assessment within days, not at the next routine appointment</h2>
+  <p>Three things changed at once: the numbness crossed <strong>above the knees</strong> for the first time, it began appearing <strong>while walking</strong> rather than only while standing still, and she reports that her <strong>legs are not supporting her</strong>. That is a decompensating picture, not a stable one. A one-year history must not be allowed to make it look reassuring.</p>
+  <p>All seven reviews agreed this is <strong>urgent but not, on the information available, an emergency</strong>. What converts it to an emergency is the list below.</p>
+</div>
+
+<section id="emergency">
+  <span class="snum">Emergency criteria</span>
+  <h2 class="sec">Go to an emergency department today if any of these appear</h2>
+  <p>These are not hypothetical. In a patient with a bilateral, progressive, ascending deficit, each one signals a lesion where the delay before treatment determines whether the damage becomes permanent.</p>
+  <div class="panel red">
+    <span class="plabel">Same-day emergency &mdash; do not wait for an appointment</span>
+    <ul>
+      <li><strong>Any new bladder or bowel change</strong> &mdash; inability to pass urine, leaking, losing the sensation of needing to go, or new faecal incontinence. This is the single most important red flag.</li>
+      <li><strong>Numbness of the saddle area</strong> &mdash; the groin, genitals, inner thighs or the area you sit on.</li>
+      <li><strong>New or rapidly worsening leg weakness</strong> &mdash; foot dragging, knees buckling, inability to rise from a chair without using her arms.</li>
+      <li><strong>A band of altered sensation around the trunk</strong> &mdash; chest or abdomen. This indicates the spinal cord rather than the nerves.</li>
+      <li><strong>Severe back pain that wakes her at night</strong>, or back pain with fever.</li>
+      <li><strong>A suddenly cold, pale or mottled, painful foot or leg</strong> &mdash; acute loss of blood supply; irreversible damage occurs within hours.</li>
+      <li><strong>Any foot wound, blister, black area or ulcer that is not healing</strong> &mdash; however small, and <em>especially if painless</em>.</li>
+      <li><strong>A fall with a head strike</strong>, particularly if she takes a blood thinner.</li>
+      <li><strong>New confusion</strong>, or symptoms of severe low blood sugar.</li>
+    </ul>
+  </div>
+  <p>Put this list on the fridge. The family should know it without looking it up.</p>
+</section>
+<section id="summary">
+  <span class="snum">Section 01</span>
+  <h2 class="sec">Executive summary</h2>
+  <p>Seven specialist reviews were run independently and then cross-examined against each other. They converged on one formulation and disagreed productively about its weighting.</p>
+  <div class="panel">
+    <span class="plabel">The consensus formulation</span>
+    <p>This is most likely <strong>not one disease</strong>. It is a <strong>background length-dependent polyneuropathy</strong> (diabetes is the obvious candidate but not the only one, and possibly not the main one) <strong>plus a second, posture-dependent mechanism</strong> layered on top &mdash; most plausibly lumbar spinal narrowing, a blood-pressure drop on standing, or both &mdash; <strong>plus a third, separate problem of muscle loss</strong> that is being reported as part of the same symptom but is not neurological at all.</p>
+    <p>Three distinct problems, three different treatments, three different specialists. Treating only the diabetes will fail.</p>
+  </div>
+  <h3>The four findings that should change what happens next</h3>
+  <ol>
+    <li><strong>There are reversible causes that have probably not been excluded.</strong> Vitamin B12 deficiency produces this exact syndrome &mdash; symmetric, ascending, large-fibre sensory loss with the sensation of not feeling the ground. The endocrinology review judged it a <em>better</em> fit to her described phenotype than diabetic neuropathy. A normal serum B12 does not exclude it; methylmalonic acid is required. If her thyroid disease is Hashimoto's, her risk is higher still.</li>
+    <li><strong>An over-the-counter supplement may be causing or worsening it.</strong> High-dose vitamin B6 causes a sensory neuropathy that mimics this presentation and is reversible on stopping. The products that contain it are marketed for &ldquo;nerve support&rdquo; and &ldquo;tingling feet&rdquo; &mdash; meaning a family can cause this while trying to treat it. Two independent reviews ranked auditing this as a top action.</li>
+    <li><strong>Her symptoms may be worsening <em>because</em> her diabetes control improved.</strong> Rapid falls in HbA1c can trigger an acute iatrogenic neuropathy. This reframes &ldquo;no improvement despite treatment&rdquo; as possibly &ldquo;worse because of the speed of treatment&rdquo; &mdash; and it is testable from records that already exist.</li>
+    <li><strong>The best-evidenced treatment available to her is not a drug.</strong> Supervised balance and strength exercise reduces falls by roughly a quarter on high-certainty evidence from nearly 13,000 people. No medication, supplement or device in this dossier comes close to that. Her chief complaints &mdash; losing the ground under her feet, legs not holding her &mdash; are balance and strength outcomes, not pain outcomes.</li>
+  </ol>
+  <h3>What is realistically achievable</h3>
+  <p>Stated plainly, because the distinction governs every decision below. <strong>Lost sensation is the hardest thing to recover and may not return.</strong> If a deficiency or a toxic supplement is found and corrected early, meaningful sensory recovery is genuinely possible. If this is established diabetic nerve damage, the realistic goal is to <em>stop the progression</em>, not reverse it. But <strong>walking, standing tolerance, stability, confidence and independence can all improve substantially even if the numbness never does</strong> &mdash; and that is where the strongest evidence sits.</p>
+</section>
+
+<section id="ranked">
+  <span class="snum">Section 02</span>
+  <h2 class="sec">Most likely explanations, ranked</h2>
+  <ol class="steps">
+    <li><div><strong>Length-dependent polyneuropathy &mdash; present in almost any reading</strong> <span class="pill p-vh">very high</span><p class="why">Toes first, symmetric, ascending as a graded stocking. Diabetes is the default explanation, but the tempo is wrong for it: reaching the knees in about twelve months is faster than typical diabetic neuropathy, which usually takes five to fifteen years. That tempo is itself the argument for looking harder at B12, thiamine, B6 excess, paraproteins and inflammatory causes.</p></div></li>
+    <li><div><strong>A second, posture-dependent mechanism on top &mdash; spinal, haemodynamic, or both</strong> <span class="pill p-h">high</span><p class="why">Required to explain why standing provokes it. The candidates are lumbar canal narrowing (relieved by bending forward) and a blood-pressure drop on standing (relieved within seconds of sitting). These are distinguished at the bedside, not by argument.</p></div></li>
+    <li><div><strong>Sarcopenia and lean-mass loss &mdash; explaining &ldquo;my legs won't support me&rdquo;</strong> <span class="pill p-h">high</span><p class="why">A quarter or more of weight lost on a GLP-1 is lean tissue. At 80, that can cross a disability threshold. This does not cause numbness, but it plausibly causes a large share of the instability &mdash; and it is measurable and treatable. Sensory failure is worse in the dark; strength failure shows up rising from a chair.</p></div></li>
+    <li><div><strong>Vitamin B12 deficiency, including metformin- and PPI-related</strong> <span class="pill p-h">high</span><p class="why">Fits the large-fibre, proprioceptive phenotype better than diabetes does. Cheap, treatable, and progressive if missed. Requires B12 <em>with</em> methylmalonic acid.</p></div></li>
+    <li><div><strong>Vitamin B6 toxicity from supplements</strong> <span class="pill p-m">moderate if any supplement exposure</span><p class="why">Conditional: negligible if she takes no supplements, a leading candidate if she takes a &ldquo;nerve support&rdquo; product. It is the one item on this list that could be a complete and reversible explanation, and it is free to check.</p></div></li>
+    <li><div><strong>Thyroid dysregulation &mdash; over-replacement more than under</strong> <span class="pill p-m">moderate</span><p class="why">Weight loss lowers the levothyroxine requirement while the dose stays fixed. Over-replacement causes atrial fibrillation, bone loss and muscle weakness &mdash; which would worsen exactly her presenting complaint.</p></div></li>
+    <li><div><strong>Other medication and metabolic contributors</strong> <span class="pill p-m">moderate</span><p class="why">Orthostatic drugs, amlodipine-related foot swelling altering sensation, kidney function overestimated by creatinine, electrolyte disturbance, and &mdash; if present &mdash; amiodarone or long-term nitrofurantoin, which are genuine causes of neuropathy.</p></div></li>
+    <li><div><strong>Paraproteinaemia / monoclonal gammopathy</strong> <span class="pill p-m">moderate</span><p class="why">Prevalence rises steeply past 70. Named by the AAN as one of only three highest-yield tests in this presentation. Requires immunofixation, not protein electrophoresis alone.</p></div></li>
+    <li><div><strong>Treatment-induced neuropathy of diabetes</strong> <span class="pill p-l">low probability, high test value</span><p class="why">Mechanistically compelling and highly relevant to the GLP-1, but two reviewers argued against it as the primary explanation: classical cases are acute and severely <em>painful</em> with autonomic features, whereas her course is gradual and her complaint is numbness. Low probability &mdash; but uniquely worth testing, because it costs nothing but pulling the HbA1c record, and if positive it changes how fast her diabetes should be treated.</p></div></li>
+    <li><div><strong>Kidney disease, thiamine, folate, copper, vitamin E, alcohol</strong> <span class="pill p-l">low to moderate</span><p class="why">Individually unlikely, collectively worth one blood draw. Alcohol must be asked about directly and non-judgementally &mdash; it produces a near-identical picture and is among the most commonly missed contributors at this age.</p></div></li>
+    <li><div><strong>CIDP, cord compression, myelopathy, dural AV fistula</strong> <span class="pill p-l">low</span><p class="why">Low probability, high consequence, and all treatable. They are why the examination in section 14 matters and why imaging should not be narrowly scoped. See section 03.</p></div></li>
+    <li><div><strong>Peripheral arterial disease as the <em>cause</em></strong> <span class="pill p-l">low</span><p class="why">Roughly 3&ndash;5%. Standing-still provocation is the wrong trigger for arterial disease, which needs muscular work. But see section 11: it is likely enough to be <em>present</em> that it must still be excluded, for entirely separate reasons.</p></div></li>
+  </ol>
+  <div class="panel amber">
+    <span class="plabel">The anchoring trap</span>
+    <p>The most likely diagnostic error in this case is &ldquo;she is diabetic, therefore this is diabetic neuropathy.&rdquo; The ADA's own <em>Standards of Care</em> state that diabetic neuropathy is a <strong>diagnosis of exclusion</strong>, and that non-diabetic neuropathies occur in people with diabetes and <em>may be treatable</em>. In the population-based Rochester study, about 10% of neurological deficit in people with diabetes was attributable to non-diabetic causes &mdash; and her atypical features mean that figure understates the risk here.</p>
+  </div>
+</section>
+
+<section id="danger">
+  <span class="snum">Section 03</span>
+  <h2 class="sec">Dangerous diagnoses that must be excluded</h2>
+  <p>Each of these is individually unlikely. Each is treatable. Each becomes permanent if missed. They are the reason this warrants assessment in days rather than months.</p>
+  <div class="tw">
+    <table>
+      <caption>Low probability, high consequence</caption>
+      <thead><tr><th>Diagnosis</th><th>Why it is on the list</th><th>What excludes it</th></tr></thead>
+      <tbody>
+        <tr><td><b>Cauda equina compression</b></td><td>Bilateral progressive lower-limb deficit is the presentation. Recovery depends directly on how quickly it is decompressed.</td><td>Saddle sensation, anal tone, post-void bladder scan &mdash; <b>mandatory at this visit</b>, plus urgent MRI if any abnormality.</td></tr>
+        <tr><td><b>Spinal cord compression</b><br><span class="cite">tumour, myeloma, metastasis, abscess, fracture</span></td><td>An ascending deficit with a sharp upper border is a cord pattern, not a nerve pattern.</td><td>Looking for a sensory level on the trunk, brisk knee jerks, upgoing toes. Whole-spine MRI if any are present.</td></tr>
+        <tr><td><b>Cervical or thoracic myelopathy</b></td><td>Genuinely presents with legs before hands &mdash; the leg fibres sit most peripherally in the cord and are compressed first. Ossified ligament in the lower thoracic spine causes exactly this picture.</td><td>Hoffmann sign, brisk reflexes, clonus, spastic gait. Cervical and thoracic MRI &mdash; and CT if ossification is suspected, which MRI under-calls.</td></tr>
+        <tr><td><b>Spinal dural arteriovenous fistula</b></td><td>The prototype of slowly progressive, <b>exertion- and posture-provoked</b> myelopathy in an older patient. Typically missed for 10&ndash;15 months &mdash; exactly her window. <b>It is treatable, and outcome depends on time to treatment.</b> Probability ~2&ndash;3%.</td><td>Whole-spine T2 looking for cord signal change and dorsal flow voids; MR angiography, then catheter angiography if suggestive. Costs nothing extra if she is already in the scanner.</td></tr>
+        <tr><td><b>Vitamin B12 deficiency with cord involvement</b></td><td>Causes dorsal-column and corticospinal damage together, mimicking both neuropathy and myelopathy. Becomes irreversible if untreated.</td><td>B12 with methylmalonic acid; full blood count with MCV; intrinsic-factor antibodies.</td></tr>
+        <tr><td><b>CIDP</b><span class="cite"> inflammatory, treatable</span></td><td>Immune-mediated and <b>responds to treatment</b> &mdash; the most important &ldquo;don't miss&rdquo; among the neuropathies. Can overlap with diabetes.</td><td>Global loss of reflexes, weakness both proximal and distal; nerve conduction studies showing demyelination.</td></tr>
+        <tr><td><b>Amyloidosis / paraproteinaemic neuropathy</b></td><td>Serious, systemic, and commonly missed. AL amyloid involves the heart.</td><td>Immunofixation electrophoresis; free light chains.</td></tr>
+        <tr><td><b>Silent peripheral arterial disease</b></td><td>Not the cause of her symptoms, but in an insensate diabetic foot it is the direct path to ulceration and amputation.</td><td>Pulses plus <b>toe-brachial index</b> &mdash; a normal ankle-brachial index does not exclude it (section 11).</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+<section id="standing">
+  <span class="snum">Section 04</span>
+  <h2 class="sec">Why standing triggers it &mdash; the most informative feature in the whole case</h2>
+  <p>This is the detail that should drive the consultation, because it is the one finding that ordinary diabetic nerve damage <em>cannot easily explain</em>.</p>
+  <p>Diabetic neuropathy is structural, fixed damage to the longest nerve fibres. It is therefore <strong>constant</strong> &mdash; classically worse at night and at rest. It does not switch on after five minutes of standing and switch off when she sits down. A symptom governed by <strong>posture</strong> requires a mechanism that changes with posture, and there are only three:</p>
+  <div class="tw">
+    <table>
+      <caption>The three posture-dependent mechanisms</caption>
+      <thead><tr><th>Mechanism</th><th>What happens on standing</th><th>How it declares itself</th></tr></thead>
+      <tbody>
+        <tr><td><b>Mechanical nerve compression</b><br><span class="cite">lumbar spinal stenosis</span></td><td>Standing arches the lower back. Extension narrows the spinal canal: the ligament buckles inward, discs bulge, facet joints override. The nerve bundle is squeezed and its drainage veins congest.</td><td>Relief requires <strong>bending forward</strong>, not merely stopping. Leaning on a trolley or worktop extends her range.</td></tr>
+        <tr><td><b>Blood-pressure failure</b><br><span class="cite">orthostatic hypotension</span></td><td>Blood pools in the legs; the reflex that should tighten vessels and speed the heart fails &mdash; from diabetic autonomic nerve damage, from medication, or from dehydration and weight loss.</td><td>Builds over 1&ndash;3 minutes of standing, clears within <em>seconds</em> of sitting. Often with light-headedness or visual greying.</td></tr>
+        <tr><td><b>Venous and mechanical loading</b><br><span class="cite">the neuropathy's own provocation</span></td><td>Upright posture raises ankle venous pressure toward a 80&ndash;100&nbsp;mmHg column. Tissue swelling reduces perfusion of nerves already at an ischaemic margin; body weight fatigues damaged pressure sensors in the soles.</td><td>Gradual, end-of-day predominance, improves with elevation. Worse with obesity and immobility.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="panel amber">
+    <span class="plabel">Where the specialists disagreed &mdash; and why it matters</span>
+    <p>The neurologist initially argued that no metabolic diagnosis can explain posture dependence, making spinal stenosis the active driver. The spine specialist pushed back: small-fibre and early large-fibre neuropathies <em>are</em> commonly provoked by prolonged weight-bearing, so the standing trigger is <strong>suggestive but not specific</strong>. That disagreement is unresolved on the current information &mdash; and it is resolved not by argument but by three bedside tests in section&nbsp;14.</p>
+  </div>
+  <div class="panel">
+    <span class="plabel">The one question worth more than most tests</span>
+    <p>Ask her precisely this, and write down the answer: <em class="q">&ldquo;When it comes on while you are standing, what makes it go away &mdash; sitting down, leaning forward onto something, or just stopping and staying upright?&rdquo;</em></p>
+    <p><strong>Relief by bending forward</strong> &rarr; points to the spine. <strong>Relief within seconds of sitting, with light-headedness</strong> &rarr; points to blood pressure. <strong>Relief from simply standing still after walking</strong> &rarr; points to arteries. The three answers send the investigation in three different directions, and the distinction is free.</p>
+  </div>
+</section>
+
+<section id="knee">
+  <span class="snum">Section 05</span>
+  <h2 class="sec">Why crossing above the knee matters</h2>
+  <p>It matters because it distinguishes between three quite different situations, and because it is the objective evidence that this is progressing rather than static.</p>
+  <ol>
+    <li><strong>A neuropathy advancing up the leg.</strong> Nerve fibres die back from the tip, so the numb zone climbs as a graded stocking with no sharp upper border. Reaching the knees in roughly twelve months is <em>faster than typical</em> diabetic neuropathy, which usually takes five to fifteen years &mdash; and that tempo is itself a reason to look for an additional cause.</li>
+    <li><strong>Higher nerve roots being recruited.</strong> As spinal narrowing worsens, the roots supplying the thigh (L2&ndash;L4) join those supplying the foot. This tracks worsening compression.</li>
+    <li><strong>A true sensory level &mdash; the concerning one.</strong> If the numbness has a <em>sharp upper edge</em> that can be mapped as a line, and especially if it extends onto the trunk, the problem is the spinal cord itself, not the leg nerves. This changes both the urgency and which part of the spine must be scanned.</li>
+  </ol>
+  <div class="panel">
+    <span class="plabel">Do this at home tonight, and again in a month</span>
+    <p>With a soft pencil or washable marker, and something lightly scratchy (a folded paper edge), map the <strong>upper border of reduced sensation on each leg</strong> and measure it in centimetres from the kneecap. Write the date. Repeat monthly.</p>
+    <p>This costs nothing and creates the objective progression record that no clinic has. &ldquo;The border rose 9&nbsp;cm in six weeks&rdquo; is a fact a neurologist must act on; &ldquo;it seems to be getting worse&rdquo; is not. Also note whether the border is <strong>gradual or sharp</strong> &mdash; a sharp, mappable line is a finding to report promptly.</p>
+  </div>
+</section>
+<section id="matrix">
+  <span class="snum">Section 06</span>
+  <h2 class="sec">Consensus diagnosis matrix</h2>
+  <p>Likelihood bands were committed by the neurology reviewer <em>after</em> cross-examination against the spine, vascular, pharmacology and endocrine reviews. They express the probability of <strong>contributing</strong>, not of being the sole cause &mdash; multiple entries are expected to be true at once.</p>
+  <div class="panel amber">
+    <span class="plabel">How to read &ldquo;low&rdquo;</span>
+    <p><strong>Low does not mean ignorable.</strong> Monoclonal gammopathy, cord compression and dural AV fistula are all low-probability and stay on the test list precisely because the consequence of missing them is permanent.</p>
+  </div>
+  <div class="tw">
+    <table>
+      <caption>Consensus matrix &mdash; 26 entities assessed</caption>
+      <thead><tr><th>Diagnosis</th><th>Likelihood</th><th>Supports it</th><th>Argues against</th><th>Test that settles it</th><th>Urgency</th><th>If treated</th></tr></thead>
+      <tbody>
+        <tr><td><b>Diabetic distal symmetric polyneuropathy</b></td><td><span class="pill p-vh">very high</span></td><td>Symmetric, toes-first, length-dependent, ascending; diabetes present</td><td>Posture dependence atypical; 12-month tempo faster than usual (normally 5&ndash;15 yr)</td><td>Clinical + nerve conduction studies; retinal exam and urine albumin as corroboration</td><td>Routine</td><td>Progression can be slowed; <b>lost sensation not restored</b></td></tr>
+        <tr><td><b>Large-fibre neuropathy</b><span class="cite"> the functionally decisive component</span></td><td><span class="pill p-vh">very high</span></td><td>Cannot feel feet on the ground; unsteadiness; legs feel unreliable</td><td>&mdash;</td><td>Vibration, joint-position sense, Romberg, nerve conduction</td><td>Urgent &mdash; drives fall risk</td><td>Balance training compensates well even without sensory recovery</td></tr>
+        <tr><td><b>Lumbar central canal stenosis</b><span class="cite"> radiographically present</span></td><td><span class="pill p-h">high</span></td><td>Age base rate; standing/extension provocation; central stenosis is the one symmetric pattern</td><td>96% of <em>asymptomatic</em> 80-year-olds show degeneration &mdash; presence &ne; causation</td><td>MRI lumbar spine <b>plus standing flexion&ndash;extension X-rays</b></td><td>Weeks</td><td>Decompression improves walking distance; <b>numbness improves least</b></td></tr>
+        <tr><td><b>Vitamin B12 deficiency</b><span class="cite"> incl. metformin- and PPI-related</span></td><td><span class="pill p-h">high</span></td><td>Fits the large-fibre ascending phenotype better than diabetes; metformin likely; Hashimoto's association</td><td>Would expect anaemia or raised MCV in some cases</td><td><b>B12 + methylmalonic acid</b> (serum B12 alone is insufficient), folate, FBC, intrinsic-factor antibodies</td><td><b>Days</b></td><td><b>Potentially reversible if caught early; irreversible if left</b></td></tr>
+        <tr><td><b>Small-fibre neuropathy</b></td><td><span class="pill p-h">high</span></td><td>Common component in diabetes; affects temperature and pain fibres</td><td>Not the dominant complaint here</td><td>Normal nerve conduction does <em>not</em> exclude it &mdash; needs skin biopsy or quantitative sensory testing</td><td>Routine</td><td>Symptom control only</td></tr>
+        <tr><td><b>Orthostatic hypotension</b><span class="cite"> contributor to instability</span></td><td><span class="pill p-h">high</span></td><td>Exact trigger match (standing); diabetic autonomic neuropathy; weight loss on unchanged BP drugs</td><td>Does not explain a fixed, ascending sensory deficit</td><td><b>Lying &amp; standing BP + pulse at 1 and 3 min</b>, extended to 5&ndash;10 min</td><td><b>Days</b> &mdash; 3-minute test</td><td>Often substantially improvable by dose adjustment</td></tr>
+        <tr><td><b>Sarcopenia / lean-mass loss</b><span class="cite"> contributor to weakness</span></td><td><span class="pill p-h">high</span></td><td>&ldquo;Legs won't support her&rdquo;; 25%+ of GLP-1 weight loss is lean tissue; age 80</td><td>Does not cause numbness at all</td><td>Grip strength, gait speed, 5&times; sit-to-stand, SPPB; DXA/bioimpedance</td><td>Weeks</td><td><b>Genuinely reversible</b> with protein + resistance training</td></tr>
+        <tr><td><b>Combined neuropathy + stenosis</b><span class="cite"> &ldquo;double crush&rdquo;</span></td><td><span class="pill p-m">moderate</span><span class="cite"> revised down from very high</span></td><td>Only construct explaining both the stocking ascent and the posture dependence</td><td>The ascent itself cannot be stenosis; not an evidence-based entity</td><td>MRI + nerve conduction together</td><td>Weeks</td><td>Each component treated separately</td></tr>
+        <tr><td><b>Neurogenic claudication as active mechanism</b></td><td><span class="pill p-m">moderate</span></td><td>Standing-still provocation; now also walking</td><td>Standing provocation is not specific; no pain reported; symmetry atypical</td><td><b>The relief-profile question</b> + post-exertional exam + bicycle vs treadmill test</td><td>Weeks</td><td>Physiotherapy first; decompression if it fails</td></tr>
+        <tr><td><b>Vitamin B6 toxicity</b></td><td><span class="pill p-m">moderate</span><span class="cite"> revised up from low</span></td><td>&ldquo;Nerve support&rdquo; supplements contain 50&ndash;100 mg; families buy them for exactly these symptoms; high prior probability of exposure</td><td>Causes a non-length-dependent pattern often involving the <b>hands</b>; a pure stocking with normal hands fits less well</td><td><b>Read every label and total the mg</b>; serum B6 / pyridoxal-5-phosphate</td><td><b>Today &mdash; free</b></td><td><b>Potentially complete reversal on stopping</b></td></tr>
+        <tr><td><b>Degenerative spondylolisthesis L4/5</b></td><td><span class="pill p-m">moderate</span></td><td>Strong predilection for elderly women; midline-symmetric; worsens in standing</td><td>&mdash;</td><td><b>Standing flexion&ndash;extension X-rays</b> &mdash; supine MRI systematically under-calls the slip</td><td>Weeks</td><td>Decompression; fusion only for proven instability</td></tr>
+        <tr><td><b>Bilateral lumbosacral radiculopathy</b></td><td><span class="pill p-m">moderate</span></td><td>Would give bilateral foot symptoms</td><td>Exact symmetry; stocking ascent above knees</td><td>MRI + EMG with paraspinal sampling</td><td>Weeks</td><td>Variable</td></tr>
+        <tr><td><b>Other nutritional deficiency</b><span class="cite"> thiamine, copper, vitamin E, folate</span></td><td><span class="pill p-m">moderate</span></td><td>Reduced intake on a GLP-1; diuretics deplete thiamine; copper mimics B12</td><td>Copper and E need malabsorption, bariatric surgery or zinc excess</td><td>Whole-blood thiamine, copper + caeruloplasmin + zinc, &alpha;-tocopherol, folate</td><td>Days</td><td><b>Reversible if corrected early</b></td></tr>
+        <tr><td><b>Thyroid dysregulation</b><span class="cite"> over-replacement more than under</span></td><td><span class="pill p-m">moderate</span></td><td>Weight loss lowers levothyroxine need while dose stays fixed; GLP-1 alters absorption</td><td>Thyroid neuropathy needs overt, untreated hypothyroidism &mdash; she is on replacement</td><td><b>TSH <em>and</em> free T4</b> with age-adjusted range; TPO antibodies</td><td>Days</td><td>Correcting over-replacement may improve <b>strength</b>, not sensation</td></tr>
+        <tr><td><b>Electrolyte abnormality</b></td><td><span class="pill p-m">moderate</span></td><td>GLP-1 nausea, poor intake, diuretics, PPI</td><td>Rarely causes a fixed ascending deficit</td><td>Sodium, potassium, magnesium, calcium, phosphate</td><td>Days</td><td>Readily correctable</td></tr>
+        <tr><td><b>CKD / uraemic neuropathy</b></td><td><span class="pill p-m">moderate</span></td><td>Age, diabetes, cardiovascular disease; GLP-1 dehydration risk</td><td>Usually needs advanced kidney failure</td><td><b>eGFR using cystatin C</b> &mdash; creatinine overestimates function in low muscle mass</td><td>Days</td><td>Progression slowed; also governs safe drug dosing</td></tr>
+        <tr><td><b>Peripheral arterial disease</b><span class="cite"> as primary cause</span></td><td><span class="pill p-l">low</span><span class="cite"> ~3&ndash;5%; but ~30&ndash;40% likely present</span></td><td>Risk profile is high; diabetic PAD is often silent</td><td>Standing still doesn't raise muscle oxygen demand; numbness not cramping pain; symmetric</td><td>Pulses + <b>toe-brachial index</b> &mdash; ankle-brachial index has only ~35% sensitivity in diabetes</td><td><b>Weeks &mdash; but must be done</b></td><td>Not the cause; but finding it prevents ulceration and amputation</td></tr>
+        <tr><td><b>Medication-induced neuropathy</b><span class="cite"> other than B6</span></td><td><span class="pill p-l">low</span></td><td>Polypharmacy; amiodarone and long-term nitrofurantoin are real causes</td><td>Depends entirely on the actual list, which is unknown</td><td>Full dispensing history 24 months; ask about past chemotherapy</td><td>Days</td><td>Often improves after withdrawal &mdash; <b>prescriber decision only</b></td></tr>
+        <tr><td><b>CIDP</b></td><td><span class="pill p-l">low</span></td><td>Treatable and can overlap with diabetes; rapid progression</td><td>Would expect weakness and global loss of reflexes</td><td>Nerve conduction showing demyelination; CSF</td><td>Weeks</td><td><b>Treatable &mdash; the most important neuropathy not to miss</b></td></tr>
+        <tr><td><b>Monoclonal gammopathy / AL amyloidosis</b></td><td><span class="pill p-l">low</span></td><td>Prevalence rises steeply past 70; named by AAN as a top-three test</td><td>No systemic features reported</td><td><b>Immunofixation electrophoresis</b> (not SPEP alone) + free light chains</td><td>Weeks</td><td>Serious but treatable; amyloid involves the heart</td></tr>
+        <tr><td><b>Cervical / thoracic myelopathy</b></td><td><span class="pill p-l">low</span></td><td>Genuinely presents with legs before hands; ascending course fits</td><td>No hand symptoms reported; standing provocation unusual</td><td>Hoffmann, brisk reflexes, clonus &rarr; cervical + thoracic MRI; CT if ossification</td><td><b>Urgent if any UMN sign</b></td><td>Decompression is time-sensitive</td></tr>
+        <tr><td><b>Spinal cord compression</b><span class="cite"> tumour, myeloma, abscess, fracture</span></td><td><span class="pill p-l">low</span></td><td>Progressive bilateral ascending deficit</td><td>No night pain, fever or trunk level reported</td><td>Sensory level on trunk &rarr; whole-spine MRI with contrast</td><td><b>Emergency if signs present</b></td><td>Outcome depends directly on speed</td></tr>
+        <tr><td><b>Spinal dural AV fistula</b></td><td><span class="pill p-l">low</span><span class="cite"> ~2&ndash;3%</span></td><td>Prototype of progressive, <b>exertion- and posture-provoked</b> myelopathy in the elderly; typically missed 10&ndash;15 months &mdash; her exact window</td><td>Male predominance 4&ndash;5:1; usually more motor and with early bladder involvement</td><td>Whole-spine T2 for cord signal + dorsal flow voids; MRA; then catheter angiography</td><td>Urgent if MRI suggestive</td><td><b>Treatable, and outcome depends on symptom duration</b></td></tr>
+        <tr><td><b>Spinal epidural lipomatosis</b></td><td><span class="pill p-l">low</span></td><td>Obesity is the classic risk factor; compresses symmetrically over several levels</td><td>Weight loss should have improved it &mdash; and has not</td><td>Sagittal and axial <b>T1</b> MRI; must be specifically requested</td><td>Weeks</td><td>Improves with weight loss; rarely needs surgery</td></tr>
+        <tr><td><b>Treatment-induced neuropathy of diabetes</b></td><td><span class="pill p-l">low</span></td><td>Highly relevant to a GLP-1; would explain worsening nerves alongside improving numbers</td><td>Classical cases are acute and severely <b>painful</b> with autonomic features; her course is gradual and painless</td><td><b>Every HbA1c with its date</b> vs GLP-1 start and escalations &mdash; free, from existing records</td><td>Days <span class="cite">(records only)</span></td><td>Partially reversible over ~18 months; argues for slower glycaemic lowering</td></tr>
+        <tr><td><b>Alcohol-related neuropathy</b></td><td><span class="pill p-l">low</span><span class="cite"> history unknown</span></td><td>Produces a near-identical picture; among the most commonly missed at this age</td><td>Not yet asked</td><td>Direct, non-judgemental history in units per week; MCV, LFTs</td><td>Days</td><td>Progression halts on cessation</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+<section id="meds">
+  <span class="snum">Section 07</span>
+  <h2 class="sec">Medication and polypharmacy review</h2>
+  <div class="panel red">
+    <span class="plabel">Before reading further</span>
+    <p><strong>Nothing here is an instruction to stop, reduce or hold any medication.</strong> Several drugs in this territory &mdash; levothyroxine, beta-blockers, anticoagulants, insulin &mdash; are dangerous to stop abruptly. Every item below is a <strong>question for the prescriber</strong>. The exact medication list is unknown, so this is a framework to apply once it is in hand.</p>
+  </div>
+  <h3>Drugs that genuinely cause neuropathy &mdash; and those wrongly blamed</h3>
+  <div class="tw">
+    <table>
+      <caption>Causal strength, not reputation</caption>
+      <thead><tr><th>Drug</th><th>Link to neuropathy</th><th>Mechanism / note</th></tr></thead>
+      <tbody>
+        <tr><td><b>High-dose vitamin B6</b> (supplements)</td><td><span class="pill p-vh">established</span></td><td>Sensory neuronopathy of the dorsal root ganglion. Regulators disagree tenfold on the safe ceiling &mdash; the European authority's 2023 opinion set a tolerable upper intake of <b>12 mg/day</b> with neuropathy as the critical effect, while the US limit is 100 mg/day. Neuropathy is documented at 24&ndash;40 mg/day in some individuals. <b>Audit this first.</b></td></tr>
+        <tr><td><b>Amiodarone</b></td><td><span class="pill p-vh">established</span></td><td>Accumulates in Schwann cells; can mimic CIDP; often improves after withdrawal. <b>If her &ldquo;cardiovascular drug&rdquo; is amiodarone, this rises sharply in priority.</b></td></tr>
+        <tr><td><b>Nitrofurantoin</b> (long-term)</td><td><span class="pill p-vh">established</span></td><td>Distal sensorimotor, can be irreversible. Risk rises in kidney impairment. Long-term prophylaxis in older women is the classic scenario &mdash; ask specifically.</td></tr>
+        <tr><td><b>Metronidazole, fluoroquinolones, colchicine, phenytoin, linezolid</b></td><td><span class="pill p-vh">established</span></td><td>The FDA requires labelling for <em>potentially irreversible</em> neuropathy with fluoroquinolones. Colchicine causes neuro<em>myo</em>pathy, concentrated in kidney impairment.</td></tr>
+        <tr><td><b>Past chemotherapy</b> (any era)</td><td><span class="pill p-vh">established</span></td><td>Platinums, taxanes, vinca alkaloids, bortezomib, thalidomide. Ask even about treatment decades ago.</td></tr>
+        <tr><td><b>Metformin</b></td><td><span class="pill p-h">established, indirect</span></td><td>Not neurotoxic. Causes neuropathy only via <b>B12 depletion</b> &mdash; it interferes with B12 absorption in the ileum. Dose-dependence is better established than duration-dependence. <b>The answer is to check B12 and supplement, not to stop metformin.</b></td></tr>
+        <tr><td><b>Proton pump inhibitors</b></td><td><span class="pill p-h">indirect</span></td><td>B12 and magnesium depletion. Ask whether there is still an indication or whether it is legacy.</td></tr>
+        <tr><td><b>Loop diuretics</b></td><td><span class="pill p-m">indirect</span></td><td>Urinary thiamine loss &mdash; and thiamine deficiency itself causes a symmetric distal sensory neuropathy.</td></tr>
+        <tr><td><b>Amlodipine</b> and other dihydropyridines</td><td><span class="pill p-l">no neuropathy link</span></td><td>But <b>dose-dependent ankle and foot swelling</b> produces a tight, heavy, wooden, altered-sensation feeling that patients describe as numbness, genuinely impairs proprioception, and ruins footwear fit. <b>Plausible amplifier, and dose-reversible.</b></td></tr>
+        <tr><td><b>Statins</b></td><td><span class="pill p-l">not supported</span></td><td><b>Commonly blamed; the evidence does not support it.</b> A 2021 meta-analysis found no significant association with incident peripheral neuropathy. What statins <em>do</em> cause is muscle aching and weakness, which gets mislabelled as neuropathy. <b>Stopping her statin would remove proven cardiovascular protection and is very unlikely to touch the numbness.</b> Check CK if there is any aching; otherwise leave it alone.</td></tr>
+        <tr><td><b>Gabapentin / pregabalin</b></td><td><span class="pill p-l">treat, don't cause</span></td><td>But they cause dizziness, sedation, ataxia, swelling and <b>falls</b>, and are entirely kidney-cleared. In a woman whose presenting problem is instability, these can make her worse. See section 16.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>The cascade nobody checks</h3>
+  <div class="panel amber">
+    <span class="plabel">GLP-1 &rarr; dehydration &rarr; kidney injury &rarr; drug accumulation</span>
+    <p>Nausea, vomiting or poor fluid intake cause volume depletion, which causes pre-renal kidney injury. A fall in kidney function then raises blood levels of <strong>metformin</strong> (lactic acidosis), <strong>gabapentin and pregabalin</strong> (sedation, ataxia, falls &mdash; precisely the drugs likely to be <em>added</em> for her numbness), <strong>digoxin</strong>, <strong>SGLT2 inhibitors</strong> and <strong>anticoagulants</strong>. <strong>The result looks neurological</strong> &mdash; worsening unsteadiness, heavy legs, confusion &mdash; when it is drug accumulation. Ask the prescriber for sick-day rules and a plan for checking kidney function during dose escalation.</p>
+  </div>
+  <h3>De-prescribing priorities &mdash; ranked, with the question to ask</h3>
+  <ol class="steps">
+    <li><div><strong>Any B6-containing supplement or &ldquo;nerve support&rdquo; product</strong><p class="why">&ldquo;Exactly how much pyridoxine am I getting per day from <em>all</em> products combined, and should it stop?&rdquo; The only item that might be a complete explanation.</p></div></li>
+    <li><div><strong>Metformin</strong><p class="why">&ldquo;Can we check methylmalonic acid, not just B12? Should I take B12 supplementation regardless?&rdquo; <em>Do not stop metformin &mdash; supplement B12.</em></p></div></li>
+    <li><div><strong>Sulfonylurea or insulin alongside the GLP-1</strong><p class="why">&ldquo;Were these reduced when the GLP-1 started, and again as my weight fell? What is my hypoglycaemia risk?&rdquo; Low blood sugar at 80 presents as unsteadiness and falls, not sweating &mdash; and a beta-blocker masks it further.</p></div></li>
+    <li><div><strong>The whole antihypertensive load, especially alpha-blockers and nitrates</strong><p class="why">&ldquo;Can we do lying-and-standing BP before deciding? Is my target still right at 80 with neuropathy and fall risk?&rdquo; Weight loss predictably lowers the requirement &mdash; doses right at her old weight are now excessive.</p></div></li>
+    <li><div><strong>Amlodipine</strong><p class="why">&ldquo;Could this be causing my foot swelling and the heavy, wooden feeling? Is a lower dose or alternative reasonable?&rdquo;</p></div></li>
+    <li><div><strong>Beta-blocker</strong><p class="why">&ldquo;Is there still a clear indication? It blunts my ability to defend blood pressure on standing and masks low blood sugar.&rdquo; <em>Never stop abruptly.</em></p></div></li>
+    <li><div><strong>Any PPI, sedative, benzodiazepine, Z-drug, opioid or anticholinergic &mdash; including over-the-counter sleep and allergy products</strong><p class="why">Cumulative anticholinergic and sedative burden drives falls and confusion. <em>Taper, never stop abruptly.</em></p></div></li>
+    <li><div><strong>Levothyroxine dose and timing</strong><p class="why">&ldquo;Can we check TSH <em>and</em> free T4? Should the dose change given my weight loss, and am I timing it correctly around the GLP-1, calcium, iron and any PPI?&rdquo;</p></div></li>
+    <li><div><strong>Things possibly missing</strong><p class="why">Vitamin D, B12 if deficient, thiamine if on a long-term loop diuretic, adequate protein, bone protection &mdash; plus the non-drug essentials: podiatry, a formal falls assessment, physiotherapy, a home hazard review and a vision check.</p></div></li>
+  </ol>
+</section>
+<section id="diabetes">
+  <span class="snum">Section 08</span>
+  <h2 class="sec">Diabetes-specific analysis</h2>
+  <p>Diabetic neuropathy is almost certainly <em>part</em> of this picture. The question is whether it is being allowed to explain too much.</p>
+  <h3>How well it actually fits</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Supports diabetic neuropathy</th><th>Argues against it as the whole story</th></tr></thead>
+      <tbody><tr>
+        <td>Symmetric, distal, toes-first, length-dependent, ascending. Loss of large-fibre and proprioceptive function. Diabetes present. Obesity and raised triglycerides are <em>independent</em> neuropathy drivers in their own right.</td>
+        <td><b>Posture dependence</b> &mdash; diabetic neuropathy is constant, classically worse at night and at rest, not switched on by standing. <b>Tempo</b> &mdash; toes to above the knees in 12 months, against a typical 5&ndash;15 years. <b>&ldquo;Legs won't support her&rdquo;</b> &mdash; a strength and proprioception statement that pure neuropathy rarely produces this fast.</td>
+      </tr></tbody>
+    </table>
+  </div>
+  <div class="panel green">
+    <span class="plabel">The cheap test of whether diabetes is the culprit at all</span>
+    <p>Neuropathy, retinopathy and nephropathy share the same microvascular substrate and travel together. <strong>Request the dilated retinal exam report and a urine albumin:creatinine ratio.</strong> Documented retinopathy or albuminuria makes microvascular diabetic neuropathy substantially more probable. <strong>Their absence &mdash; especially if her diabetes duration is short &mdash; weakens the diabetic attribution considerably</strong> and should redirect effort toward B12, B6, paraproteins and the spine.</p>
+  </div>
+  <h3>Glycaemic control: what it can and cannot do</h3>
+  <p>This is the most important place not to overclaim. The Cochrane review of enhanced glucose control for diabetic neuropathy found <strong>high-quality evidence of benefit in type 1 diabetes</strong> &mdash; but in <strong>type 2</strong>, the reduction in clinical neuropathy <strong>did not reach statistical significance</strong>. The large trials (ACCORD, ADVANCE, VADT) did not demonstrate meaningful neuropathy benefit from intensification, and ACCORD showed excess mortality in the intensive arm.</p>
+  <div class="panel red">
+    <span class="plabel">Therefore</span>
+    <p><strong>Driving her HbA1c down is not a credible treatment for her neuropathy, and at 80 it carries real harm.</strong> The ADA target for an older adult with complex health and functional impairment is <strong>under 8.0%</strong>, with avoidance of hypoglycaemia explicitly prioritised over numerical tightness. If health status is judged poor, the ADA position is to drop the numerical target entirely and simply avoid hypoglycaemia and symptomatic hyperglycaemia. <strong>An HbA1c of 6.5% in this woman is a red flag, not an achievement</strong> &mdash; and warrants a de-intensification review.</p>
+  </div>
+  <h3>Treatment-induced neuropathy of diabetes &mdash; the paradox worth testing</h3>
+  <p>Rapid correction of long-standing high glucose can trigger an acute neuropathy. The mechanism is thought to be an energy crisis in the small nerve fibres and their microvasculature &mdash; the same phenomenon as the well-known early worsening of retinopathy after rapid glycaemic correction, in a different tissue.</p>
+  <div class="panel amber">
+    <span class="plabel">A disagreement between reviewers, stated honestly</span>
+    <p>The risk rises steeply with the size of the HbA1c fall over three months &mdash; that direction is agreed and is the actionable point. <strong>But two reviewers extracted different figures from the same paper:</strong> one read roughly 20% risk at a 2&ndash;3 point fall and over 80% above 4 points; the other read roughly 10% at 2 points, 50% at 4 points and over 90% at 5 points. Both agree about 11% of the studied cohort met the criteria. <strong>The treating team should read the source directly rather than rely on either figure.</strong></p>
+  </div>
+  <p><strong>Two reviewers also argued this does not fit her.</strong> Classical cases are <em>acute</em> and severely <em>painful</em> with prominent autonomic features; her course is gradual over a year and her complaint is numbness. So it is a low-probability hypothesis &mdash; but uniquely worth testing, because it costs only the retrieval of existing records, and a positive answer changes how fast her diabetes should be treated from here.</p>
+  <p><strong>What to bring:</strong> every HbA1c with its date, the GLP-1 start date and every escalation, and weights with dates. Plot symptom worsening against the curve. A fall of more than 2 points with symptom escalation inside about 8 weeks supports it; a stable HbA1c, or symptoms clearly predating the GLP-1, largely refutes it.</p>
+</section>
+
+<section id="thyroid">
+  <span class="snum">Section 09</span>
+  <h2 class="sec">Thyroid-specific analysis</h2>
+  <p>Hypothyroid neuropathy is real but requires <em>overt, untreated</em> hypothyroidism, and is typically mild. She is on replacement. As a primary explanation: <strong>low</strong>. But the thyroid matters here for two other reasons, one of which may be the most useful clue in the case.</p>
+  <h3>The over-replacement trap</h3>
+  <p>Levothyroxine dosing is weight-based. <strong>Successful weight loss lowers her requirement while the dose stays fixed</strong> &mdash; and the GLP-1's delayed gastric emptying additionally alters how the drug is absorbed. The result drifts toward over-replacement, which in an elderly cardiac patient means <strong>atrial fibrillation and stroke risk, accelerated bone loss and fracture, and a myopathy causing proximal weakness</strong> &mdash; which would worsen exactly her presenting complaint.</p>
+  <ul>
+    <li><strong>Check TSH <em>and</em> free T4, not TSH alone.</strong> They can dissociate: a normal TSH with a high free T4 still indicates tissue over-exposure.</li>
+    <li><strong>Use an age-adjusted range.</strong> TSH rises physiologically with age; reported upper limits reach roughly 6&ndash;7 mIU/L in the over-70s. <strong>A TSH of 5&ndash;6 at 80 may be entirely normal and does not by itself justify increasing her dose.</strong> Aim for the upper half of the age-adjusted range, not the lower.</li>
+    <li><strong>Recheck 6&ndash;8 weeks after every GLP-1 escalation and every 5&ndash;10% of body weight lost.</strong></li>
+    <li><strong>Fixed timing</strong> &mdash; fasting, 30&ndash;60 minutes before food, and at least 4 hours from calcium, iron and magnesium; PPIs also reduce absorption.</li>
+  </ul>
+  <div class="panel green">
+    <span class="plabel">The genuinely useful clue &mdash; ask what kind of thyroid disease she has</span>
+    <p>If it is <strong>Hashimoto's (autoimmune)</strong>, she is at increased risk of other autoimmune conditions &mdash; notably <strong>autoimmune atrophic gastritis and pernicious anaemia</strong>, which cause <strong>B12 deficiency</strong>. And B12 deficiency produces precisely her syndrome: symmetric, ascending, large-fibre sensory loss with lost position sense, unsteadiness, and the feeling of not sensing the ground. The endocrinology reviewer's assessment was that <strong>this fits her described phenotype better than diabetic neuropathy does</strong>. Metformin and any PPI stack onto the same risk.</p>
+    <p><strong>So: add TPO antibodies, intrinsic-factor and parietal-cell antibodies, and coeliac serology to the blood panel.</strong> Cheap, fast, and potentially the answer.</p>
+  </div>
+  <p><strong>Would correcting thyroid status restore her sensation?</strong> Realistically, probably not much. If she is under-replaced, correction may improve energy, muscle power and cramps over 3&ndash;6 months. If she is over-replaced, dose <em>reduction</em> may meaningfully improve proximal strength and reduce her atrial fibrillation risk &mdash; which could matter more for &ldquo;my legs won't hold me&rdquo; than anything sensory. The point of checking is to remove a modifiable aggravator and avoid iatrogenic harm.</p>
+</section>
+
+<section id="spine">
+  <span class="snum">Section 10</span>
+  <h2 class="sec">Spine-specific analysis</h2>
+  <p>This section carries the case's central unresolved disagreement, and it is worth understanding rather than papering over.</p>
+  <h3>The mechanism, and the honest counter-argument</h3>
+  <p>Standing increases the inward curve of the lower back. Extension narrows the spinal canal by several routes at once: the ligament buckles inward, discs bulge backward, and the facet joints override into the space where the nerve roots run. Two mechanisms are then proposed &mdash; <strong>venous congestion</strong> (the valveless epidural veins cannot drain past the compressed segment, causing swelling and impaired nutrition of the nerve roots) and <strong>arterial insufficiency</strong> (compression plus the metabolic demand of active roots outstrips their blood supply). Flexion reverses all of it. This is why the symptom is <em>postural</em> rather than <em>activity</em>-dependent, and why relief requires bending rather than merely stopping.</p>
+  <div class="panel amber">
+    <span class="plabel">The debate, and where it landed</span>
+    <p>The neurologist initially argued no metabolic diagnosis can explain posture dependence. Challenged, it <strong>withdrew that claim as too strong</strong> &mdash; venous pooling and mechanical loading of the soles in an obese diabetic genuinely can aggravate nerves already at an ischaemic margin. But it <strong>rebutted</strong> the counter-claim that length-dependent neuropathy is &ldquo;notoriously provoked by prolonged standing,&rdquo; noting it could find no guideline or trial support for standing provocation as a recognised feature of diabetic neuropathy, which is classically worse at rest and at night.</p>
+    <p><strong>Net result:</strong> stenosis <em>contributing</em> 45&ndash;55%; stenosis as the <em>sole</em> cause only 5&ndash;8%. The ascent above the knee almost certainly is <strong>not</strong> stenosis &mdash; a graded stocking migrating upward is dying-back nerve disease, whereas stenosis intensifies within fixed territories. And the disagreement is <strong>unresolved on current information</strong> because the brief only <em>assumed</em> that sitting relieves her. Hence the one question in section 04.</p>
+  </div>
+  <h3>What to look for on imaging, and what to ignore</h3>
+  <div class="panel red">
+    <span class="plabel">The single most important caveat in this dossier</span>
+    <p>Among <strong>asymptomatic</strong> 80-year-olds, roughly <strong>96% have disc degeneration and 84% have disc bulges</strong>. <strong>Degenerative change at 80 is the default state of the human spine, not an explanation.</strong> A report reading &ldquo;multilevel degenerative change with moderate canal narrowing&rdquo; is the <em>expected</em> finding and means nothing on its own. Attribution requires the severity, level, side and posture-dependence to match the clinical syndrome. <strong>The specific error to guard against is anchoring on an incidental stenosis and never diagnosing the treatable cause.</strong></p>
+  </div>
+  <p>Named lesions worth asking the radiologist to comment on specifically, because they are treatable and commonly under-reported: <strong>degenerative spondylolisthesis at L4/5</strong> (strong predilection for elderly women, and only visible on <em>standing</em> films), <strong>epidural lipomatosis</strong> (obesity-related, symmetric, needs axial T1), <strong>synovial cyst</strong>, <strong>ossified ligament in the thoracic spine</strong> (devastating to miss; CT sees it better than MRI), and <strong>cord signal change with dorsal flow voids</strong> suggesting a dural AV fistula.</p>
+  <h3>Treatment, and what surgery honestly delivers</h3>
+  <p><strong>Conservative care first is well supported and is the right starting point.</strong> A randomised trial found structured physiotherapy and surgical decompression produced no significant difference in symptoms or function at two years in patients willing to be randomised.</p>
+  <ul>
+    <li><strong>Epidural steroid injections: not supported.</strong> A 400-patient trial in the <em>New England Journal of Medicine</em> found steroid plus local anaesthetic gave <strong>minimal or no benefit over local anaesthetic alone</strong> at six weeks. In a diabetic, the steroid also causes days-to-weeks of raised blood sugar, and repeated injections cost bone density. Defensible as a <em>single</em> diagnostic trial &mdash; if a targeted injection abolishes her standing-provoked numbness, that localises the source. Not as a programme.</li>
+    <li><strong>If surgery is considered: decompression alone, not fusion.</strong> Two 2016 trials disagreed, but a further randomised trial in 2021 found decompression alone non-inferior to decompression plus fusion even in degenerative spondylolisthesis. <strong>Fusion should be reserved for documented instability</strong> &mdash; a mobile slip on standing flexion&ndash;extension films &mdash; not the mere presence of a slip on MRI. Registry data in the over-80s are reassuring: more than 70% reach a meaningful improvement and severe complications are not increased, though 3-month complications rise to around 12%, mostly urinary infections.</li>
+    <li><strong>Interspinous spacers: advise against.</strong> No difference in pain or disability versus decompression, with more reoperations.</li>
+    <li><strong>The evidence is openly contradictory and should be presented that way.</strong> The SPORT trial favoured surgery through four years; a 2016 Cochrane review concluded &ldquo;no clear benefit&rdquo; with a 10&ndash;24% surgical side-effect rate against none reported for conservative care.</li>
+  </ul>
+  <div class="panel red">
+    <span class="plabel">The answer the family will ask for</span>
+    <p><strong>Decompression is an operation for walking distance and for leg pain. It is not an operation for numbness.</strong> Published follow-up shows numbness improves least of all symptoms, mostly in the first two weeks, and significantly less than pain does. <strong>Diabetes and a longer pre-operative symptom duration both predict <em>persistent</em> numbness &mdash; and she has both.</strong> The honest promise is: &ldquo;you will probably stand and walk further before symptoms start, and any leg pain should settle; your feet will probably still feel numb.&rdquo; Promising restored sensation would be dishonest, and dashed expectation is the commonest cause of dissatisfaction after this operation.</p>
+  </div>
+  <div class="panel green">
+    <span class="plabel">A treatment that doubles as a diagnostic test</span>
+    <p>Trial a <strong>four-wheeled rollator with a seat</strong> and formally record her walking distance and standing time before and after. A rollator induces exactly the forward trunk lean that decompresses a narrowed canal. <strong>If it markedly extends her range, that is real evidence for a postural spinal mechanism.</strong> If it helps only by providing support without changing her symptom-onset distance, the mechanism is probably not extension-dependent. It costs nothing and answers a question an MRI cannot.</p>
+  </div>
+</section>
+
+<section id="vascular">
+  <span class="snum">Section 11</span>
+  <h2 class="sec">Vascular analysis</h2>
+  <p>The vascular reviewer's verdict: peripheral arterial disease as the <strong>primary cause is about 3&ndash;5%</strong>; the probability it is <strong>present</strong> is about 30&ndash;40%. Both numbers matter, for different reasons.</p>
+  <h3>Why it is not the explanation</h3>
+  <p>Arterial claudication is an oxygen supply-and-demand problem <em>in muscle</em>. It requires <strong>work</strong>. Standing still barely raises calf oxygen demand, so arterial disease does not come on while standing motionless &mdash; and it is relieved by simply <em>stopping</em>, without needing to sit or bend. Her pattern is the opposite. Arterial disease also causes cramping <em>pain</em>, not numbness as the dominant complaint, and it is rarely so symmetric.</p>
+  <h3>Why it must still be excluded</h3>
+  <p>Because in a diabetic it is frequently <strong>silent</strong>: sensory and autonomic neuropathy blunts or abolishes the ischaemic pain that would normally warn her. Diabetic atherosclerosis also preferentially attacks the small vessels below the knee, so <strong>the pulses at the groin and behind the knee can feel normal while the foot is critically underperfused</strong>. In an insensate foot, unrecognised arterial disease is the direct pathway to ulceration, infection and amputation. Finding it also changes her cardiovascular management.</p>
+  <div class="panel red">
+    <span class="plabel">The test result that misleads</span>
+    <p><strong>A normal ankle-brachial index does not exclude arterial disease in a diabetic.</strong> Calcification in the artery walls makes the vessels resist compression, so the cuff pressure needed to occlude them <em>overestimates</em> the true pressure &mdash; giving falsely normal or falsely high readings. One accuracy study found <strong>sensitivity of only about 35%</strong> in diabetes. An index of 1.1 in this patient is not reassurance.</p>
+    <p><strong>Ask for the toe-brachial index</strong> &mdash; the digital arteries escape this calcification. Abnormal is 0.70 or below. European guidance specifically recommends it in diabetes and kidney disease, and in anyone with a normal resting ankle index but persisting suspicion.</p>
+  </div>
+  <h3>Orthostatic and venous mechanisms &mdash; where vascular medicine genuinely does apply</h3>
+  <p>Standing raises ankle venous pressure toward a hydrostatic column of 80&ndash;100 mmHg; obesity and a weak calf pump worsen it, and the resulting tissue swelling can compress small nerve fibres. But venous disease has a signature this case has not yet shown: worse at the end of the day, relieved by <em>elevation</em>, with varicosities and skin staining. Rated a contributor in perhaps 15&ndash;25%, mostly by adding swelling and discomfort.</p>
+  <p><strong>Orthostatic hypotension is the important one.</strong> Defined as a sustained fall of 20 mmHg systolic or 10 mmHg diastolic within three minutes of standing. It is near-inevitable in this patient: diabetic autonomic neuropathy impairs the reflex; GLP-1 therapy lowers blood pressure and causes mild volume depletion; and <strong>antihypertensive doses that were correct at her pre-weight-loss weight are now excessive</strong>. It will not explain a fixed ascending sensory deficit &mdash; but it is probably <strong>the dominant driver of her fall risk</strong>, and it is fixable.</p>
+  <h3>Same-day vascular referral</h3>
+  <div class="panel red">
+    <span class="plabel">Limb-threatening</span>
+    <ul>
+      <li>Rest pain in the foot or toes without walking.</li>
+      <li><strong>Night pain that wakes her and is relieved by hanging the foot out of bed</strong> &mdash; this is ischaemic rest pain.</li>
+      <li>Any ulcer, blister, black spot or non-healing wound &mdash; <strong>painless ones are more dangerous, not less</strong>.</li>
+      <li>Black tissue on any toe or the heel.</li>
+      <li>A suddenly cold, pale or mottled, pulseless, painful limb &mdash; <strong>emergency department now</strong>; irreversible muscle injury within hours.</li>
+    </ul>
+  </div>
+  <h3>Vascular risk management that applies regardless of the diagnosis</h3>
+  <p>High-intensity statin therapy (and note: this is an argument for <em>keeping</em> the statin); single antiplatelet therapy if arterial disease is confirmed; <strong>blood pressure targeted to her <em>standing</em> reading, not just seated</strong>; relaxed, individualised glycaemic targets with hypoglycaemia avoided; smoking status established and cessation supported if relevant; and <strong>structured foot protection</strong> &mdash; podiatry referral, daily inspection including between the toes, never barefoot, no hot water bottles or radiators, professional nail care, properly fitted footwear, and a pre-agreed route to be seen within 24 hours if any new lesion appears. If arterial disease <em>is</em> confirmed, supervised exercise therapy is first-line with good evidence, though recumbent cycling or water-based work may be needed if her limitation turns out to be neurogenic.</p>
+</section>
+<section id="nutrition">
+  <span class="snum">Section 12</span>
+  <h2 class="sec">Nutritional and deficiency analysis</h2>
+  <p>This is where the reversible causes live, and where a GLP-1 in an 80-year-old creates genuine risk. Appetite suppression reduces intake by roughly a fifth to two-fifths, and the shortfall is rarely nutritionally proportionate &mdash; nausea narrows the diet toward carbohydrate and away from protein and micronutrients.</p>
+  <div class="tw">
+    <table>
+      <caption>Deficiencies and excesses worth excluding</caption>
+      <thead><tr><th>Nutrient</th><th>Why here</th><th>Test</th><th>Reversible?</th></tr></thead>
+      <tbody>
+        <tr><td><b>Vitamin B12</b><span class="cite"> deficiency</span></td><td>Causes this exact syndrome. Metformin depletes it; PPIs deplete it; Hashimoto's raises pernicious-anaemia risk; reduced meat intake on a GLP-1 compounds it.</td><td><b>B12 + methylmalonic acid</b>, folate, FBC/MCV, intrinsic-factor antibodies</td><td><b>Yes &mdash; substantially if early, irreversible if left</b></td></tr>
+        <tr><td><b>Vitamin B6</b><span class="cite"> excess</span></td><td>The mirror image: too much causes neuropathy. Routinely present at 50&ndash;100 mg in &ldquo;nerve support&rdquo; products.</td><td>Total the labels; serum B6 / pyridoxal-5-phosphate</td><td><b>Yes &mdash; potentially fully, on stopping</b></td></tr>
+        <tr><td><b>Thiamine (B1)</b></td><td>Dry beriberi is a close phenotypic mimic &mdash; ascending, length-dependent sensory neuropathy. Loop diuretics cause urinary loss; poor intake and vomiting compound it.</td><td>Whole-blood thiamine; low threshold to treat empirically while awaiting</td><td><b>Yes</b></td></tr>
+        <tr><td><b>Protein</b></td><td>The dominant nutritional problem. Inadequate intake plus GLP-1 lean-mass loss drives the sarcopenia behind &ldquo;my legs won't support me.&rdquo;</td><td>Dietitian assessment in g/kg/day; albumin; grip strength</td><td><b>Yes &mdash; with resistance training</b></td></tr>
+        <tr><td><b>Vitamin D</b></td><td>Deficiency causes proximal myopathy and falls independent of any neuropathy.</td><td>25-OH vitamin D, corrected calcium, PTH, ALP</td><td>Yes &mdash; for <b>strength</b> and bone, not sensation</td></tr>
+        <tr><td><b>Magnesium, potassium, sodium, calcium, phosphate</b></td><td>GI losses, diuretics, PPIs, poor intake. Cause cramps, weakness, unsteadiness.</td><td>Full electrolyte panel</td><td>Yes</td></tr>
+        <tr><td><b>Copper</b></td><td>Deficiency causes a myeloneuropathy that mimics B12, with spastic gait plus sensory ataxia. Consider if bariatric surgery, malabsorption or zinc supplementation.</td><td>Copper + caeruloplasmin + zinc</td><td><b>Yes if early</b></td></tr>
+        <tr><td><b>Vitamin E, folate, iron</b></td><td>Lower probability; cheap to include in the same draw. Vitamin E needs fat malabsorption.</td><td>&alpha;-tocopherol, folate, ferritin/iron studies</td><td>Yes</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="panel green">
+    <span class="plabel">The distinction that decides whether B12 is worth anything</span>
+    <p><strong>Treating a genuine deficiency and supplementing a replete person are completely different interventions.</strong> Correcting a real deficiency is potentially the highest-value thing available to her. Supplementing someone who is already replete has <strong>no good evidence of benefit</strong> &mdash; the main trial often cited for B12 in neuropathy <em>required entry B12 below 400 pmol/L</em>, so it supports correcting low-normal levels, not dosing the replete. Test first.</p>
+  </div>
+  <h3>Muscle preservation protocol &mdash; prescribable now</h3>
+  <ul>
+    <li><strong>Protein 1.2&ndash;1.5 g/kg/day.</strong> The PROT-AGE consensus recommends at least 1.0&ndash;1.2 g/kg/day over 65, and 1.2&ndash;1.5 with chronic disease; ESPEN concurs at 1.2&ndash;1.5 for acute or chronic illness. She has diabetes, cardiovascular disease and active weight loss, so she belongs in the higher band. Use adjusted or ideal body weight in obesity. <strong>Check kidney function first</strong> &mdash; significant CKD needs specialist input on this target.</li>
+    <li><strong>Distribute it: roughly 25&ndash;30 g of good-quality protein at each of three meals</strong>, not one protein-heavy dinner &mdash; older muscle is anabolically resistant and needs a per-meal threshold. <em>(The per-meal and leucine thresholds are standard in the sarcopenia literature; one reviewer could not verify the primary source, so treat the exact numbers as conventional rather than proven.)</em></li>
+    <li><strong>Protein first at every meal</strong> &mdash; the practical adaptation to GLP-1 early satiety. Add a whey or dairy supplement if meals fall short, and take protein within about an hour after resistance training.</li>
+    <li><strong>Resistance training 2&ndash;3 times weekly is the non-optional other half.</strong> Protein without loading does not preserve muscle.</li>
+    <li><strong>Vitamin D</strong> 800&ndash;1000 IU daily if deficient. <strong>Avoid high-dose intermittent bolus regimens &mdash; they are associated with <em>more</em> falls.</strong></li>
+    <li><strong>Monitor:</strong> grip strength (under 16 kg in women is low), gait speed (0.8 m/s or less), 5&times; sit-to-stand, SARC-F, and body composition at baseline and six months. <strong>If grip strength or gait speed is falling, the weight loss is failing regardless of what the scale says.</strong></li>
+  </ul>
+</section>
+
+<section id="glp1">
+  <span class="snum">Section 13</span>
+  <h2 class="sec">GLP-1 and weight-loss analysis</h2>
+  <p>Six specific questions, answered directly.</p>
+  <h3>Is the GLP-1 relevant to her neurological symptoms?</h3>
+  <p><strong>Indirectly, yes &mdash; in four ways</strong>, none of which is direct nerve toxicity: reduced intake risking B12, thiamine and protein inadequacy; lean-mass loss driving sarcopenia and instability; blood-pressure lowering plus volume depletion on unchanged antihypertensive doses causing orthostatic symptoms on standing; and, if it drove a fast HbA1c fall, the treatment-induced neuropathy route. <strong>Her symptoms began around a year ago and may predate the drug</strong> &mdash; the timeline must be established before any of this is attributed.</p>
+  <h3>Do GLP-1s protect nerves in humans?</h3>
+  <div class="panel red">
+    <span class="plabel">No &mdash; and this should not be implied</span>
+    <p>The animal and mechanistic data look supportive, but the one randomised human trial designed for this endpoint (exenatide versus insulin glargine, 46 patients, 18 months, matched HbA1c) found <strong>no significant difference</strong> in clinical neuropathy, nerve fibre density, autonomic measures, nerve conduction or quality of life. A recent meta-analysis reports improved nerve conduction velocity across heterogeneous studies &mdash; a surrogate endpoint, hypothesis-generating only. <strong>A GLP-1 cannot be prescribed as a neuropathy treatment, and her symptoms should not be expected to improve because of it.</strong> Both reviewers who examined this said so independently.</p>
+  </div>
+  <h3>How much of the weight lost is muscle?</h3>
+  <p>The direction is solid; the exact figure is contested. The tirzepatide DXA substudy showed roughly <strong>26% of weight lost was lean tissue</strong>. The semaglutide figure is frequently quoted as ~40%, but one reviewer could trace that specific proportion only to secondary summaries and flagged it as unverified &mdash; so the honest range is <strong>roughly a quarter to two-fifths</strong>, with the precise number uncertain.</p>
+  <p><strong>Why this matters far more at 80 than at 50:</strong> she starts from lower absolute muscle mass and poorer muscle quality, regains lean mass poorly after weight loss, and sits close to the thresholds at which strength loss becomes inability to rise from a chair or climb stairs. A 50-year-old absorbs a 5 kg lean loss; an 80-year-old may cross a disability threshold with it.</p>
+  <div class="panel">
+    <span class="plabel">Distinguishing strength failure from sensory failure &mdash; and why it matters</span>
+    <p><strong>Sensory failure:</strong> unsteadiness worse in the dark and with eyes closed; not knowing where the feet are. <strong>Strength failure:</strong> difficulty rising from a chair, climbing stairs, legs giving way after loading &mdash; which matches her standing- and walking-provoked pattern well. Both may coexist. <strong>The second one is genuinely reversible.</strong> If proximal power is reduced, the answer is not more neuropathy workup; it is protein and resistance training.</p>
+  </div>
+  <h3>Could weight loss help?</h3>
+  <p><strong>Yes, genuinely &mdash; and this is an argument for continuing.</strong> Reduced spinal loading (directly relevant if canal narrowing is the postural driver), better mobility, less joint load, improved insulin sensitivity, improved sleep apnoea, better blood pressure and lipids. Central obesity and raised triglycerides are <em>independent</em> neuropathy risk factors in their own right. <strong>The tension is not &ldquo;weight loss good versus bad&rdquo; &mdash; it is fat loss (good) versus lean loss (bad), and the entire clinical task is to separate them.</strong></p>
+  <h3>Should the GLP-1 continue?</h3>
+  <div class="panel amber">
+    <span class="plabel">The endocrinology position &mdash; a prescriber conversation, not a unilateral change</span>
+    <p><strong>Continue at the current dose, do not escalate further, and change the goal from weight <em>loss</em> to weight and body-composition <em>maintenance</em></strong> &mdash; conditional on five things:</p>
+    <ol>
+      <li>The protein and resistance-training programme is actually in place. <strong>Non-negotiable precondition.</strong></li>
+      <li>Rate of loss no more than about 0.25&ndash;0.5 kg per week, with a floor weight agreed in advance.</li>
+      <li>HbA1c not driven below roughly 7.0&ndash;7.5%, and no hypoglycaemia.</li>
+      <li>No functional deterioration &mdash; grip strength, gait speed and sit-to-stand stable or improving.</li>
+      <li>Adequate intake tolerated; no persistent nausea or dehydration.</li>
+    </ol>
+    <p><strong>Grounds to consider dose reduction or pause:</strong> an HbA1c fall over 2 points in 3 months with matching neurological worsening; falling grip strength or gait speed; new falls; continued loss below the agreed floor; persistent nausea with inadequate protein; kidney injury; new orthostatic hypotension. <strong>That she is still actively losing weight at 80 while developing a new functional deficit is itself a reason to consider reducing rather than escalating.</strong></p>
+  </div>
+  <h3>Is the weight-loss goal still appropriate at 80?</h3>
+  <p><strong>Not as an open-ended goal.</strong> The obesity paradox in the very elderly is real: overweight and mild obesity are associated with <em>lower</em> mortality than normal weight in older adults, and optimal BMI appears to rise with age. Weight-loss trajectories in older people &mdash; including intentional ones &mdash; associate with higher mortality, largely mediated by lean mass and frailty. ESPEN geriatric guidance is that weight-reducing diets should be considered only in obese older people with weight-related health problems, and only combined with exercise. <strong>She qualifies, so treatment is defensible &mdash; but the appropriate target is function and body composition, not a BMI number:</strong> modest fat loss of 5&ndash;10%, lean mass and strength preserved, glycaemia and blood pressure improved, mobility improved.</p>
+  <h3>Two practical interactions to raise</h3>
+  <ul>
+    <li><strong>Levothyroxine:</strong> delayed gastric emptying alters its absorption, while weight loss lowers the dose requirement. Recheck TSH and free T4 after every escalation and every 5&ndash;10% of weight lost.</li>
+    <li><strong>Sick-day rules:</strong> what to hold during vomiting or diarrhoea, and when to check kidney function. This is the cascade in section 07 and it is preventable.</li>
+  </ul>
+</section>
+<section id="exam">
+  <span class="snum">Section 14</span>
+  <h2 class="sec">The examination to insist on &mdash; free, and currently missing</h2>
+  <p>This is where the case is actually decided. None of it requires equipment beyond a reflex hammer, a tuning fork, a blood-pressure cuff and ten minutes. The single largest information gap in this whole case is that <strong>nobody has documented whether she has any true muscle weakness</strong>, as opposed to sensory loss.</p>
+  <ol class="steps">
+    <li><div><strong>Muscle power, graded and written down</strong><p class="why">Hip flexion, knee extension, ankle dorsiflexion and plantarflexion, great-toe extension, each graded 0&ndash;5. Plus heel-walking, toe-walking, and rising from a chair without using her arms. <b>Sensory loss is managed medically. New bilateral weakness from a compressive lesion is a surgical emergency.</b> Nothing else on this list changes the urgency as much.</p></div></li>
+    <li><div><strong>The reflex pattern &mdash; the highest-yield 60 seconds in the case</strong><p class="why">Absent ankle <em>and</em> knee jerks with downgoing toes &rarr; the problem is in the nerves; look at the lumbar spine. <b>Brisk knee jerks, or an upgoing toe, means a spinal cord component</b> &rarr; scan the whole spine and check B12 and copper urgently. The combination of <b>absent ankle jerks with brisk knee jerks</b> is the classic signature of two lesions at once and is common in diabetes. Do not let absent ankle jerks reassure anyone out of a cord lesion.</p></div></li>
+    <li><div><strong>Vibration, joint-position sense and Romberg</strong><p class="why">A markedly positive Romberg with vibration lost out of proportion to pinprick points to the dorsal columns &mdash; B12, copper, or cord. <b>Have someone guarding her: this patient will fall.</b></p></div></li>
+    <li><div><strong>Map the upper border of numbness in centimetres, and note whether it is sharp or gradual</strong><p class="why">A gradual fade supports neuropathy. A <b>sharp, mappable line &mdash; especially onto the trunk &mdash; means the spinal cord</b> and changes everything. Record it so progression becomes measurable.</p></div></li>
+    <li><div><strong>Lying and standing blood pressure and pulse at 1 and 3 minutes</strong><p class="why">Five minutes lying first. Record the pulse at every point: a BP fall <em>without</em> a rise in pulse means autonomic failure or beta-blockade rather than simple dehydration. Because her trigger is <em>prolonged</em> standing, extend to 5&ndash;10 minutes if the 3-minute reading is normal. <b>A seated clinic reading measures the one posture in which she has no symptoms.</b> Three separate reviewers insisted on this independently.</p></div></li>
+    <li><div><strong>The post-exertional examination &mdash; rarely done, close to diagnostic</strong><p class="why">Examine reflexes, power and sensation <em>before</em> and <em>immediately after</em> 2&ndash;5 minutes of corridor walking or standing in extension. <b>A new reflex loss or new sensory deficit that appears only after provocation is close to diagnostic of dynamic nerve-root compromise.</b> Ask for it by name.</p></div></li>
+    <li><div><strong>The cauda equina screen &mdash; mandatory at this visit</strong><p class="why">Saddle and perineal sensation, voluntary anal tone, and a post-void bladder scan. Not optional: she has a bilateral, symmetric, progressive deficit that has objectively ascended.</p></div></li>
+    <li><div><strong>Provocation and relief testing</strong><p class="why">Time how long she can stand still before symptoms start &mdash; that number is her best outcome measure. Sustained standing extension for 30&ndash;60 seconds. The bicycle-versus-treadmill comparison: <b>if she can pedal leaning forward for 20 minutes but cannot stand for 5, that is strong evidence for a postural spinal mechanism.</b></p></div></li>
+    <li><div><strong>Feet, pulses and skin &mdash; shoes and socks off, both feet</strong><p class="why">Femoral, popliteal, posterior tibial and dorsalis pedis pulses. Note that an absent dorsalis pedis can be normal, but an <b>absent posterior tibial pulse is rare and meaningful</b>. Plus temperature gradient, capillary refill, hair loss, dependent rubor, swelling, and inspection between every toe for callus, cracks or ulceration.</p></div></li>
+    <li><div><strong>Objective baselines, recorded today and repeated at 6 and 12 weeks</strong><p class="why">Timed Up and Go (over 13.5 seconds signals elevated fall risk), 4-metre gait speed (under 0.8 m/s impaired), 30-second chair stands, grip strength (under 16 kg in women is low). <b>These convert &ldquo;she seems worse&rdquo; into data a specialist must act on.</b></p></div></li>
+  </ol>
+</section>
+<section id="tests">
+  <span class="snum">Section 15</span>
+  <h2 class="sec">Tests in exact order</h2>
+  <p>Sequenced by yield per unit of delay, not by sophistication. The American Academy of Neurology's practice parameter for this exact presentation found the three <strong>highest-yield</strong> tests to be <strong>blood glucose, vitamin B12 with its metabolites, and serum protein immunofixation electrophoresis</strong>. Everything in Tier 1 is cheap and fast.</p>
+
+  <h3>Tier 0 &mdash; free, today, before any appointment</h3>
+  <ul class="check">
+    <li><input type="checkbox" id="t0a"><label for="t0a"><strong>Collect every bottle in the house</strong> &mdash; prescription, over-the-counter, vitamins, &ldquo;senior&rdquo; formulas, gummies, herbal remedies. <span class="hint">Photograph every label. Total the <strong>vitamin B6 (pyridoxine)</strong> milligrams across all products. Also flag <strong>biotin</strong>, which distorts thyroid and cardiac blood tests.</span></label></li>
+    <li><input type="checkbox" id="t0b"><label for="t0b"><strong>Request the full dispensing history for 24 months</strong> from the pharmacy. <span class="hint">With doses, start dates and every change &mdash; especially changes since the GLP-1 began.</span></label></li>
+    <li><input type="checkbox" id="t0c"><label for="t0c"><strong>Request every HbA1c value with its date</strong>, going back 3&ndash;5 years, plus the GLP-1 start date, dose and every escalation, plus weights with dates. <span class="hint">Lay it out as a table. This tests the treatment-induced neuropathy hypothesis at zero cost.</span></label></li>
+    <li><input type="checkbox" id="t0d"><label for="t0d"><strong>Ask the relief-profile question and write down the exact answer.</strong> <span class="hint">Does sitting help because her spine bends, or because her feet come off the floor? Does leaning forward on a trolley extend her walking?</span></label></li>
+    <li><input type="checkbox" id="t0e"><label for="t0e"><strong>Map and date the upper border of numbness on each leg.</strong> <span class="hint">Centimetres from the kneecap. Note sharp versus gradual.</span></label></li>
+    <li><input type="checkbox" id="t0f"><label for="t0f"><strong>Home lying-and-standing BP diary</strong>, if a cuff is available. <span class="hint">Lying 5 min, then standing at 1 and 3 minutes, with pulse. Morning and after meals. Note whether symptoms occur at the moment of the drop.</span></label></li>
+    <li><input type="checkbox" id="t0g"><label for="t0g"><strong>Ask directly about bladder and bowel function, and saddle numbness.</strong> <span class="hint">If any change: emergency department, not an appointment.</span></label></li>
+    <li><input type="checkbox" id="t0h"><label for="t0h"><strong>Ask about alcohol intake in units per week, and any past chemotherapy</strong> &mdash; however long ago. <span class="hint">Both cause this picture and both are routinely not asked.</span></label></li>
+  </ul>
+
+  <h3>Tier 1 &mdash; first appointment, within 72 hours</h3>
+  <div class="tw">
+    <table>
+      <caption>Tier 1 bloods and bedside &mdash; one draw, one visit</caption>
+      <thead><tr><th>Test</th><th>Why it is being ordered</th><th>What an abnormal result means</th><th>Can correcting it help?</th></tr></thead>
+      <tbody>
+        <tr><td><b>B12 + methylmalonic acid</b><br>± homocysteine, holotranscobalamin</td><td>Top-three highest-yield test. Fits her phenotype better than diabetes does.</td><td><b>A &ldquo;normal&rdquo; B12 does not exclude deficiency.</b> Raised MMA indicates true cellular deficiency. Interpret MMA alongside kidney function, which raises it.</td><td><b>Yes &mdash; potentially substantially, if treated early</b></td></tr>
+        <tr><td><b>Folate, FBC with MCV</b></td><td>Co-deficiency; macrocytosis supports B12/folate</td><td>Raised MCV supports deficiency; anaemia broadens the differential</td><td>Yes</td></tr>
+        <tr><td><b>Intrinsic factor &amp; parietal cell antibodies; TPO antibodies</b></td><td>If thyroid disease is autoimmune, pernicious anaemia risk rises sharply</td><td>Positive = autoimmune cause of B12 deficiency needing lifelong injections</td><td><b>Yes</b></td></tr>
+        <tr><td><b>TSH <em>and</em> free T4</b></td><td>Over-replacement is the bigger risk here, amplified by weight loss</td><td>Use an <b>age-adjusted range</b> &mdash; a TSH of 5&ndash;6 may be normal at 80 and does not justify a dose increase. Suppressed TSH or high free T4 = over-replacement &rarr; atrial fibrillation, bone loss, muscle weakness.</td><td>Improves <b>strength</b>, not sensation</td></tr>
+        <tr><td><b>HbA1c + the full historical trajectory</b></td><td>Cumulative exposure, and the rate-of-fall question</td><td>A fall of more than ~2 percentage points in 3 months raises treatment-induced neuropathy. <b>An HbA1c below ~7% in this woman is a red flag, not an achievement.</b></td><td>Slows progression; does not reverse</td></tr>
+        <tr><td><b>Creatinine <em>and</em> cystatin C (eGFRcr-cys)</b></td><td>Creatinine-based eGFR <b>overestimates</b> kidney function in a sarcopenic older woman &mdash; sometimes by over 30%</td><td>Governs safe dosing of metformin, gabapentinoids, digoxin, anticoagulants. A large creatinine/cystatin-C gap is itself a marker of low muscle mass.</td><td>Prevents drug accumulation</td></tr>
+        <tr><td><b>Sodium, potassium, magnesium, calcium, phosphate</b></td><td>GLP-1 nausea, poor intake, diuretics, PPIs</td><td>Any abnormality is correctable and can contribute to weakness and unsteadiness</td><td>Yes</td></tr>
+        <tr><td><b>Serum protein immunofixation electrophoresis + free light chains</b></td><td>Top-three highest-yield test. <b>Protein electrophoresis alone misses small bands</b> &mdash; specify immunofixation.</td><td>A monoclonal band opens a treatable and serious pathway, including amyloidosis</td><td>Yes, disease-specific</td></tr>
+        <tr><td><b>Vitamin D, ESR, CRP, LFTs, CK</b></td><td>Vitamin D deficiency causes proximal myopathy and falls; CK for any muscle component; inflammatory markers for vasculitic causes</td><td>Raised CK points at muscle, not nerve &mdash; and would reopen the statin question honestly</td><td>Yes for vitamin D</td></tr>
+        <tr><td><b>Serum B6 / pyridoxal-5-phosphate</b><span class="cite"> if any supplement exposure found</span></td><td>Potentially a complete and reversible explanation</td><td>Elevated = stop the supplement and expect gradual improvement over months</td><td><b>Yes &mdash; potentially fully</b></td></tr>
+        <tr><td><b>Whole-blood thiamine; copper + caeruloplasmin + zinc; vitamin E</b></td><td>Reduced intake on a GLP-1; copper deficiency mimics B12; check E only if malabsorption</td><td>All are treatable mimics</td><td><b>Yes if caught early</b></td></tr>
+        <tr><td><b>Urine albumin:creatinine ratio + dilated retinal exam report</b></td><td><b>The cheap test of whether diabetes is even the culprit.</b> Neuropathy, retinopathy and nephropathy share one microvascular substrate.</td><td>Neither present &rarr; attributing a fast-ascending neuropathy to diabetes gets considerably weaker</td><td>Reframes the whole diagnosis</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Alongside the bloods, in the same visit: the <strong>full examination in section 14</strong>, including postural BP, the cauda equina screen, and the post-exertional test.</p>
+
+  <h3>Tier 2 &mdash; within 2 to 4 weeks</h3>
+  <ol class="steps">
+    <li><div><strong>Nerve conduction studies and EMG</strong><p class="why">Arguably <em>more</em> decisive than MRI here, because the central fork in this case is <em>polyneuropathy versus nerve-root compression</em> &mdash; and imaging cannot answer that while nerve conduction can. It also identifies treatable CIDP. Two limits: it is normal in pure small-fibre neuropathy, and normal in dynamic root compromise &mdash; so a normal result excludes neither.</p></div></li>
+    <li><div><strong>MRI spine &mdash; and scope it correctly</strong><p class="why">Request <strong>sagittal T1 and T2 from T10 to the sacrum</strong> (to include the conus), <strong>axial T2 L1&ndash;S1</strong>, <strong>axial T1</strong> specifically to look for epidural lipomatosis, and STIR for fracture. <strong>Ask for whole-spine imaging as a single study</strong> given an ascending deficit &mdash; and insist on it if there is <em>any</em> upper-motor-neuron sign or trunk sensory level. A pacemaker is usually not a barrier: most modern devices are MR-conditional. If MRI is truly impossible, CT myelography is the alternative.</p></div></li>
+    <li><div><strong>Standing flexion&ndash;extension lumbar X-rays</strong><p class="why">Cheap, and the <em>only</em> way to detect a mobile L4/5 slip. Supine MRI systematically under-calls it. If the standing films and the MRI disagree, believe the standing films.</p></div></li>
+    <li><div><strong>Toe-brachial index, with ankle-brachial index</strong><p class="why">Not to explain her symptoms, but to find silent arterial disease in an insensate foot. <strong>Ankle-brachial index has only about 35% sensitivity in diabetes</strong> because calcified vessels resist compression &mdash; a normal or high reading is not reassurance. Toe-brachial index below 0.70 is abnormal.</p></div></li>
+    <li><div><strong>Sarcopenia panel and DXA</strong><p class="why">Grip strength, gait speed, sit-to-stand, SPPB, plus body composition. DXA also gives bone density &mdash; an insensate, unsteady 80-year-old needs bones that survive a fall.</p></div></li>
+    <li><div><strong>Sleep apnoea screen</strong><p class="why">Common with obesity and diabetes, independently associated with neuropathy, and worsens daytime instability.</p></div></li>
+  </ol>
+
+  <h3>Tier 3 &mdash; only if Tiers 1 and 2 leave it unexplained</h3>
+  <p>Skin biopsy for intraepidermal nerve fibre density or quantitative sensory testing (for pure small-fibre disease); contrast-enhanced MR angiography and then catheter angiography of the spine (if cord signal change or dorsal flow voids appear); lumbar puncture (if CIDP is suspected); autonomic function testing; arterial duplex; genetic testing for hereditary transthyretin amyloidosis (treatable, under-diagnosed &mdash; consider if there is a family history, pes cavus, or prior carpal tunnel surgery); 9 a.m. cortisol if the postural symptoms remain unexplained.</p>
+  <div class="panel">
+    <span class="plabel">If imaging is resisted</span>
+    <p>The ADA's own guidance states that nerve studies, spinal MRI or neurology referral are rarely needed in diabetic neuropathy <em>except where the features are atypical</em> &mdash; naming acute or subacute onset, non-length-dependent distribution, asymmetry, or motor involvement. <strong>Her posture dependence and rapid symmetric ascent are precisely such atypical features, so the guideline supports imaging and referral in her case rather than discouraging it.</strong> That is the argument to make.</p>
+  </div>
+</section>
+<section id="treatment">
+  <span class="snum">Section 16</span>
+  <h2 class="sec">Treatments with the strongest evidence</h2>
+  <div class="panel green">
+    <span class="plabel">The single most important finding in the evidence review</span>
+    <p><strong>The best-evidenced intervention available to this patient is not a drug.</strong> Supervised exercise reduces the rate of falls by <strong>23% (rate ratio 0.77, 95% CI 0.71&ndash;0.83)</strong> on <strong>high-certainty</strong> evidence from 59 trials and 12,981 people of mean age 76. Balance and functional exercise alone gives 24%; <strong>balance combined with resistance training gives 34%</strong> (rate ratio 0.66, 0.50&ndash;0.88). The Otago home programme shows a 32% reduction.</p>
+    <p>No medication, supplement or device in this dossier approaches that level of evidence. And it is aimed at the right target: <strong>her chief complaints &mdash; losing the ground under her feet, legs not holding her &mdash; are balance and strength outcomes, not pain outcomes.</strong> This should be positioned <em>ahead</em> of every drug, not after them.</p>
+  </div>
+  <h3>1. Treat the underlying cause</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>If the cause is</th><th>First-line</th><th>Timeline &amp; expected gain</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td><b>B12 deficiency</b></td><td>Replacement &mdash; injections if pernicious anaemia, oral otherwise, per local protocol</td><td>Progression halts within weeks; sensory recovery over 3&ndash;12 months, <b>better the earlier it starts</b>; established axonal loss may not recover</td><td><span class="pill g-high">guideline</span></td></tr>
+        <tr><td><b>B6 toxicity</b></td><td>Stop the supplement. Nothing else.</td><td>Gradual improvement over months. <b>Potentially complete.</b> One published case describes an octogenarian improving markedly within two months of stopping plus physiotherapy.</td><td><span class="pill g-mod">established causality</span></td></tr>
+        <tr><td><b>Thiamine, copper, folate, vitamin D deficiency</b></td><td>Targeted replacement</td><td>Weeks to months; reversible if early</td><td><span class="pill g-mod">moderate</span></td></tr>
+        <tr><td><b>Thyroid over-replacement</b></td><td>Dose reduction by the prescriber</td><td>6&ndash;12 weeks; improves <b>strength</b> and reduces atrial fibrillation risk, not sensation</td><td><span class="pill g-high">guideline</span></td></tr>
+        <tr><td><b>Orthostatic hypotension</b></td><td>Deprescribing guided by standing BP; fluid and salt liberalisation unless heart failure; slow position changes; counter-manoeuvres; compression stockings <b>only after arterial disease is excluded</b>; raise the head of the bed</td><td>Days to weeks; often substantial gain in standing tolerance and fall risk</td><td><span class="pill g-mod">moderate</span></td></tr>
+        <tr><td><b>Lumbar stenosis</b></td><td>Structured flexion-based physiotherapy 8&ndash;12 weeks first; decompression (without fusion) if that fails and imaging matches</td><td>Walking distance and leg pain improve; <b>numbness improves least</b></td><td><span class="pill g-mod">contradictory &mdash; see section 10</span></td></tr>
+        <tr><td><b>Sarcopenia</b></td><td>Protein 1.2&ndash;1.5 g/kg/day + progressive resistance training + vitamin D</td><td>6&ndash;10 weeks to measurable strength gain; <b>genuinely reversible</b></td><td><span class="pill g-high">strong</span></td></tr>
+        <tr><td><b>CIDP</b></td><td>Immunotherapy per neurology</td><td>Weeks to months; <b>treatable</b></td><td><span class="pill g-high">guideline</span></td></tr>
+        <tr><td><b>Diabetic neuropathy itself</b></td><td>Glycaemic stability (<em>not</em> intensification), lipid and BP control, foot protection</td><td><b>Slows progression at best. Does not reverse.</b></td><td><span class="pill g-low">weak in type 2</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>2. Symptom control &mdash; with an important caveat</h3>
+  <div class="panel amber">
+    <span class="plabel">These drugs treat pain. Her main complaint is not pain.</span>
+    <p>The entire neuropathic-pain pharmacopoeia targets <em>pain</em>. <strong>None of it restores sensation</strong>, and <strong>adding a sedating drug to a patient whose problem is unsteadiness can make her worse.</strong> That deserves explicit discussion before any prescription. If she has little or no pain, the honest answer may be that none of these drugs is indicated at all.</p>
+  </div>
+  <p>The AAN's 2022 guideline found that the main drug classes all have <strong>comparable effect sizes</strong> &mdash; there is no evidence-based first choice, so the decision is driven by harms. The OPTION-DM head-to-head trial confirmed no winner between duloxetine, pregabalin and amitriptyline (between-pathway difference &minus;0.1 on an 11-point scale), but found one genuinely actionable thing: <strong>adding a second drug beats staying on a failing single drug</strong> (further reduction of 1.0 versus 0.2 points).</p>
+  <div class="tw">
+    <table>
+      <caption>Ranked by harm profile for <em>this</em> patient, not by efficacy</caption>
+      <thead><tr><th>Option</th><th>Benefit</th><th>Risk at 80</th><th>Verdict here</th></tr></thead>
+      <tbody>
+        <tr><td><b>Topical lidocaine 5%</b></td><td>Low-certainty evidence; no reliable pooled figure</td><td>Essentially only skin reactions. <b>Best harm profile of any option.</b></td><td><span class="pill g-high">try first</span></td></tr>
+        <tr><td><b>Capsaicin 8% patch</b></td><td>Modest: &minus;27.4% vs &minus;20.9% placebo &mdash; about 6.5 points over placebo</td><td>Application-site burning; needs clinician application</td><td><span class="pill g-mod">reasonable</span></td></tr>
+        <tr><td><b>Duloxetine</b></td><td>Guideline-supported; ~30% responders</td><td>Raises BP, hyponatraemia, bleeding risk with antiplatelets; avoid if eGFR&nbsp;&lt;30 or liver disease. <b>But not sedating and not ataxia-inducing, no anticholinergic burden, no QT risk.</b></td><td><span class="pill g-high">safest systemic first-line here</span></td></tr>
+        <tr><td><b>Gabapentin / pregabalin</b></td><td>NNT ~6.3 and ~7.7 respectively</td><td><b>Dizziness, sedation, ataxia, falls, swelling, weight gain</b>; entirely kidney-cleared and so vulnerable to the dehydration cascade. Swelling compounds amlodipine.</td><td><span class="pill g-low">only with renal dosing and falls counselling</span></td></tr>
+        <tr><td><b>Amitriptyline</b></td><td>Equivalent to the above</td><td><b>Worst fit.</b> Strongly anticholinergic, causes orthostatic hypotension, QT and conduction risk in a cardiac patient, delirium risk. On the Beers avoid list.</td><td><span class="pill g-vlow">argue against</span></td></tr>
+        <tr><td><b>Opioids / tramadol</b></td><td>Low</td><td>Sedation, falls, fracture, dependence</td><td><span class="pill g-vlow">AAN recommends against</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>3. Prevent progression &mdash; regardless of which diagnosis proves right</h3>
+  <p>Glycaemic <em>stability</em> rather than intensification; blood pressure targeted to the standing reading; high-intensity statin retained; vitamin D corrected; protein target met; smoking ceased if relevant; alcohol quantified and reduced; sleep apnoea screened and treated; and <strong>structured foot protection</strong>, which is what prevents the amputation that ends independence.</p>
+</section>
+
+<section id="emerging">
+  <span class="snum">Section 17</span>
+  <h2 class="sec">Emerging and unconventional options worth considering</h2>
+  <p>Reviewed by a specialist whose brief was explicitly to look beyond standard pathways &mdash; and who concluded that the highest-value &ldquo;integrative&rdquo; actions are a B12 level and a supplement audit, not a product.</p>
+  <div class="tw">
+    <table>
+      <caption>Honest grading &mdash; and note which column matters: pain, sensation, or function</caption>
+      <thead><tr><th>Intervention</th><th>Targets</th><th>Best human evidence</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td><b>Balance + resistance training</b><span class="cite"> incl. tai chi, Otago, multicomponent falls programmes</span></td><td><b>Function, falls</b></td><td>Cochrane 2019: falls rate ratio 0.77 overall, <b>0.66 for combined balance + resistance</b>; high certainty, ~13,000 participants</td><td><span class="pill g-high">guideline-supported &mdash; rank #1</span></td></tr>
+        <tr><td><b>Creatine 3&ndash;5 g/day</b><span class="cite"> graded as a muscle therapy, not a nerve therapy</span></td><td><b>Strength, lean mass</b></td><td>Meta-analysis, 22 RCTs, 721 older adults: with resistance training, <b>+1.37 kg lean mass</b> and greater strength vs placebo</td><td><span class="pill g-high">supported for muscle</span> <span class="cite">needs eGFR first; raises creatinine as a benign lab artefact &mdash; warn her doctors</span></td></tr>
+        <tr><td><b>Acupuncture</b></td><td><b>Numbness</b> specifically</td><td>ACUDPN trial: numbness improved <b>2.3 points</b> more than control, persisting to week 16. <b>But open-label with a waiting-list control &mdash; no sham</b>, so expectation effects are uncontrolled, and nerve conduction did not change.</td><td><span class="pill g-mod">promising-experimental</span> <span class="cite">time-limit it: if no benefit by 8 weeks, stop paying</span></td></tr>
+        <tr><td><b>Acetyl-L-carnitine 1 g three times daily</b></td><td><b>Sensation</b></td><td>Pooled analysis of two 52-week RCTs (n=1,257): increased sural nerve fibre numbers and regenerating clusters, and improved vibration perception. <b>The only oral agent with any human histological signal.</b> But Cochrane rated the evidence low/very low certainty.</td><td><span class="pill g-mod">promising-experimental</span> <span class="cite">only if kidney function permits; 12-month commitment</span></td></tr>
+        <tr><td><b>Omega-3, 1,800&ndash;2,300 mg/day</b></td><td>Nerve structure</td><td>Replicated corneal nerve fibre regeneration (+2.70 mm/mm&sup2; vs placebo) &mdash; but in <b>type 1</b> diabetes, on a corneal surrogate, <b>with no demonstrated sensory or functional gain</b></td><td><span class="pill g-mod">promising-experimental</span> <span class="cite">tell her cardiologist if anticoagulated</span></td></tr>
+        <tr><td><b>Footwear and insole design</b></td><td><b>Balance</b></td><td>Real biomechanics literature, usually ignored: <b>thick soft cushioning degrades what plantar sensation remains.</b> Thinner, firmer soles with a wide base and firm heel counter improve stability. Textured insoles may augment feedback &mdash; effect sizes modest and partly unverified.</td><td><span class="pill g-mod">worth doing</span> <span class="cite">podiatry-fitted only &mdash; ulcer risk</span></td></tr>
+        <tr><td><b>Compression stockings + hydration</b></td><td>Standing tolerance</td><td>Rationale is orthostatic, not neural; no neuropathy evidence</td><td><span class="pill g-low">reasonable trial</span> <span class="cite">check ankle-brachial index first &mdash; contraindicated in significant arterial disease</span></td></tr>
+        <tr><td><b>Epalrestat</b><span class="cite"> aldose reductase inhibitor</span></td><td><b>Numbness</b>, nerve conduction</td><td>3-year comparative trial: prevented deterioration in nerve conduction and vibration threshold, and <b>significantly improved limb numbness</b>. One of very few agents with long-term data on numbness. Open comparative design, Japanese population.</td><td><span class="pill g-mod">ask a neurologist</span> <span class="cite">licensed in Japan/India only &mdash; do not import privately; needs liver monitoring</span></td></tr>
+        <tr><td><b>10 kHz spinal cord stimulation</b></td><td><b>Refractory pain</b></td><td>Genuine RCT evidence (SENZA-PDN): ~90% with at least 50% pain relief at 24 months. But open-label with no sham, industry-sponsored.</td><td><span class="pill g-mod">real evidence &mdash; but not indicated here</span> <span class="cite">her problem is numbness, not pain; will not restore proprioception or stop falls</span></td></tr>
+        <tr><td><b>TENS</b></td><td>Pain</td><td>Small trials; low certainty. No evidence for sensation.</td><td><span class="pill g-low">largely irrelevant to her</span></td></tr>
+        <tr><td><b>Benfotiamine</b></td><td>Symptoms</td><td>BENDIP was <b>formally negative</b> on intention-to-treat (p=0.055); a 12-month trial found <b>no significant effect</b> on morphometric, neurophysiological or clinical endpoints</td><td><span class="pill g-low">weakly supported</span> <span class="cite">defensible only if thiamine status is plausibly low</span></td></tr>
+        <tr><td><b>Vibration platforms</b></td><td>Balance</td><td>Small, short, heterogeneous trials</td><td><span class="pill g-vlow">avoid for now</span> <span class="cite">contraindicated with implanted cardiac devices and relative contraindication with retinopathy; requires standing stably on a moving platform with insensate feet</span></td></tr>
+        <tr><td><b>Mediterranean diet</b></td><td>Progression, CV risk</td><td>Strong for cardiovascular risk and glycaemia; no direct neuropathy reversal evidence</td><td><span class="pill g-high">do it anyway</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="overhyped">
+  <span class="snum">Section 18</span>
+  <h2 class="sec">Overhyped, unsupported, or to avoid</h2>
+  <p>This section exists to save money, time and hope. Several of these are sold specifically to people in her exact situation.</p>
+  <div class="panel amber">
+    <span class="plabel">The confident negatives &mdash; moderate-certainty evidence of <em>no</em> benefit</span>
+    <p>These are not &ldquo;unproven.&rdquo; They have been tested properly and did not work.</p>
+    <ul>
+      <li><strong>Alpha-lipoic acid.</strong> The 2024 Cochrane review (3 RCTs, 816 patients) concluded it <strong>probably has little or no effect</strong> on symptoms at 6 or 24 months. The 4-year NATHAN 1 trial <strong>failed its primary endpoint</strong>. Additional caution here: it can lower blood glucose (hypoglycaemia risk on top of her diabetes medication), has been linked to a rare autoimmune hypoglycaemia syndrome, and may interfere with levothyroxine absorption.</li>
+      <li><strong>Benfotiamine</strong> at 12 months &mdash; no significant effect on any endpoint.</li>
+      <li><strong>Near-infrared / photobiomodulation ("Anodyne", most "laser neuropathy" clinic packages).</strong> A double-blind sham-controlled trial found <strong>no difference in quality of life, balance or nerve conduction</strong>. Clinics charge substantially for courses of this.</li>
+      <li><strong>Pulsed electromagnetic field therapy.</strong> A 225-patient sham-controlled trial was <strong>negative on both pain scales</strong>.</li>
+      <li><strong>Epidural steroid injections for stenosis</strong> &mdash; see section 10.</li>
+    </ul>
+  </div>
+  <div class="panel red">
+    <span class="plabel">Avoid &mdash; real harm potential</span>
+    <ul>
+      <li><strong>Proprietary "nerve support" / "nerve renew" blends.</strong> No trials of the actual formulations. <strong>They are the commonest route to B6 toxicity &mdash; which can cause or worsen exactly her symptoms.</strong> Many also contain high-dose biotin, which corrupts thyroid and cardiac blood tests in a woman on thyroid replacement with heart disease.</li>
+      <li><strong>Any long-term vitamin B6 above about 10&ndash;25 mg/day.</strong> No benefit in her situation; dose-dependent and sometimes irreversible sensory neuropathy.</li>
+      <li><strong>Stem cell and exosome clinics.</strong> No such product is approved for neuropathy anywhere. The FDA maintains a standing consumer alert; documented harms across reported adverse events include blindness, tumours, bloodstream infections and spinal abscesses. Costs run to tens of thousands.</li>
+      <li><strong>Unregulated peptides bought online</strong> (BPC-157, cerebrolysin, thymosin and similar). Zero adequate human evidence in this condition; unlicensed, unverified purity, contamination and mislabelling risk, injection-site infection in a diabetic, unknown interactions with her cardiac drugs.</li>
+      <li><strong>Chelation therapy.</strong> No mechanism, no evidence &mdash; and EDTA chelation has caused fatal low calcium and kidney failure. Catastrophic in a possible-CKD 80-year-old.</li>
+      <li><strong>IV vitamin infusions and "Myers cocktails".</strong> No benefit over oral for this indication; line infection and fluid load in a cardiac patient.</li>
+      <li><strong>Hyperbaric oxygen <em>for neuropathy</em>.</strong> Legitimate only for selected non-healing diabetic foot ulcers. Expensive, and carries cardiac and hypoglycaemia risk during sessions.</li>
+      <li><strong>NMN / nicotinamide riboside.</strong> Preclinical only; no completed human neuropathy trial.</li>
+      <li><strong>Unsupervised ketogenic or aggressive low-carbohydrate diets.</strong> No neuropathy evidence, and three real dangers: hypoglycaemia if she is on a sulfonylurea or insulin; dehydration and kidney injury; inadequate protein accelerating her sarcopenia. <strong>And if she is on an SGLT2 inhibitor &mdash; likely given diabetes plus cardiovascular disease &mdash; carbohydrate restriction can precipitate euglycaemic ketoacidosis, which is life-threatening and easily missed because the glucose reading looks normal.</strong></li>
+      <li><strong>High-velocity spinal manipulation.</strong> Fracture and arterial risk in an 80-year-old with likely osteoporosis and vascular disease.</li>
+      <li><strong>Hot water bottles, heat pads and hot foot soaks "for circulation".</strong> <strong>Serious burns on insensate feet &mdash; a common route to a diabetic foot catastrophe.</strong> Actively discourage.</li>
+      <li><strong>Reflexively stopping her statin.</strong> The evidence does not support statins as a cause of sensory neuropathy, and stopping removes proven protection in a high-risk 80-year-old.</li>
+    </ul>
+  </div>
+</section>
+<section id="now">
+  <span class="snum">Section 19</span>
+  <h2 class="sec">Next 24 to 72 hours</h2>
+  <p>Everything here is free or nearly free, and none of it requires a diagnosis first.</p>
+  <ul class="check">
+    <li><input type="checkbox" id="n1"><label for="n1"><strong>Screen for the emergency red flags</strong> &mdash; bladder and bowel function, saddle numbness, new weakness. <span class="hint">If any are present, emergency department today. Put the list from the top of this document on the fridge.</span></label></li>
+    <li><input type="checkbox" id="n2"><label for="n2"><strong>Book an urgent appointment</strong> &mdash; GP or geriatrician &mdash; stating: &ldquo;progressive bilateral leg numbness now above the knees, with new instability.&rdquo; <span class="hint">The words &ldquo;progressive&rdquo; and &ldquo;now above the knees&rdquo; are what get an urgent slot rather than a routine one.</span></label></li>
+    <li><input type="checkbox" id="n3"><label for="n3"><strong>Gather every bottle and total the vitamin B6.</strong> <span class="hint">Prescription, over-the-counter, vitamins, gummies, herbal. Photograph the labels. This is the highest-value free action available.</span></label></li>
+    <li><input type="checkbox" id="n4"><label for="n4"><strong>Request the pharmacy dispensing history (24 months) and all HbA1c values with dates.</strong> <span class="hint">Plus the GLP-1 start date, dose and escalations, and weights with dates.</span></label></li>
+    <li><input type="checkbox" id="n5"><label for="n5"><strong>Ask the relief-profile question and write down the exact words.</strong> <span class="hint">Spine bending, or feet off the floor? Does leaning on a trolley extend her walking?</span></label></li>
+    <li><input type="checkbox" id="n6"><label for="n6"><strong>Map and date the numbness border on both legs.</strong> <span class="hint">Centimetres from the kneecap; sharp or gradual.</span></label></li>
+    <li><input type="checkbox" id="n7"><label for="n7"><strong>Fall-proof tonight, before any diagnosis.</strong> <span class="hint">Night lights on the route to the bathroom, remove loose rugs and cables, clear walking routes, nothing carried in both hands, no ladders or step stools. Night-time toilet trips are her highest-risk moments because she is using vision to replace lost sensation.</span></label></li>
+    <li><input type="checkbox" id="n8"><label for="n8"><strong>Footwear rule from today: never barefoot, never socks alone, indoors or out.</strong> <span class="hint">Firm heel, thin firm sole, wide toe box, fastened not slip-on. No backless slippers.</span></label></li>
+    <li><input type="checkbox" id="n9"><label for="n9"><strong>Start daily foot inspection</strong>, including between every toe and the soles. <span class="hint">Use a mirror or have a family member do it. Report any blister, redness, crack or callus within the week.</span></label></li>
+    <li><input type="checkbox" id="n10"><label for="n10"><strong>Remove all heat sources from her feet.</strong> <span class="hint">No hot water bottles, heat pads or radiators. Test bath water with an elbow or thermometer. Burns on insensate feet are a common catastrophe.</span></label></li>
+    <li><input type="checkbox" id="n11"><label for="n11"><strong>Start home lying-and-standing BP readings</strong> if a cuff is available. <span class="hint">Lying 5 minutes, then standing at 1 and 3 minutes, with pulse. Note whether symptoms occur at the moment of a drop.</span></label></li>
+    <li><input type="checkbox" id="n12"><label for="n12"><strong>Protein at every meal, starting now.</strong> <span class="hint">Roughly 25&ndash;30 g three times a day, protein eaten first. This is the one treatment that needs no test result.</span></label></li>
+    <li><input type="checkbox" id="n13"><label for="n13"><strong>Do not stop or change any prescribed medication.</strong> <span class="hint">Bring the questions from section 07 to the prescriber instead. Several of these drugs are dangerous to stop abruptly.</span></label></li>
+  </ul>
+</section>
+
+<section id="weeks">
+  <span class="snum">Section 20</span>
+  <h2 class="sec">Next 2 to 4 weeks</h2>
+  <ol class="steps">
+    <li><div><strong>Get the Tier 1 bloods drawn &mdash; all in one draw</strong><p class="why">Section 15. Insist specifically on <strong>methylmalonic acid alongside B12</strong>, <strong>TSH and free T4</strong> (not TSH alone), <strong>cystatin C alongside creatinine</strong>, and <strong>immunofixation</strong> (not protein electrophoresis alone). These four specifications are where workups usually fall short.</p></div></li>
+    <li><div><strong>Get the full examination documented</strong><p class="why">Section 14. Above all: MRC-graded power, the reflex pattern including knee jerks and plantar responses, Romberg, postural BP with pulse, the cauda equina screen, and the post-exertional test. Ask for the findings to be written in the notes, not just observed.</p></div></li>
+    <li><div><strong>Secure the referrals</strong><p class="why">Neurology (for the ascending deficit and nerve conduction studies), a falls and balance physiotherapy service, and podiatry for foot protection. Ask for all three by name &mdash; the physiotherapy referral is the one with the strongest evidence behind it and the one most often omitted.</p></div></li>
+    <li><div><strong>Start the rehabilitation programme without waiting for a diagnosis</strong><p class="why">Section 21. It is safe, it is the best-evidenced intervention available, and it works regardless of which cause proves correct. Waiting for the MRI wastes weeks of the only treatment with high-certainty evidence.</p></div></li>
+    <li><div><strong>Hold the medication review</strong><p class="why">Section 07, working down the ranked list. Bring the bottles and the dispensing history. The B6 question comes first.</p></div></li>
+    <li><div><strong>Hold the GLP-1 conversation with the prescriber</strong><p class="why">Section 13: continue, stop escalating, switch the goal to maintenance, with the five conditions and the stop-criteria. Include the levothyroxine recheck and sick-day rules.</p></div></li>
+    <li><div><strong>Imaging, correctly scoped</strong><p class="why">MRI as specified in section 15 &mdash; including the conus, with axial T1 for epidural fat, and whole-spine if there is any upper-motor-neuron sign. <strong>Plus standing flexion&ndash;extension X-rays</strong>, which are cheap and are the only way to see a mobile slip. Also toe-brachial index.</p></div></li>
+    <li><div><strong>Trial a four-wheeled rollator and measure the difference</strong><p class="why">Record standing time and walking distance before and after. Both a treatment and a diagnostic test &mdash; section 10.</p></div></li>
+    <li><div><strong>Book the bone and sleep workup</strong><p class="why">DXA and osteoporosis assessment &mdash; an unsteady, insensate 80-year-old needs bones that survive a fall. Plus a sleep apnoea screen.</p></div></li>
+  </ol>
+</section>
+
+<section id="rehab">
+  <span class="snum">Section 21</span>
+  <h2 class="sec">Three-month rehabilitation strategy</h2>
+  <p>Physiotherapist-led, twice weekly for weeks 1&ndash;6 then weekly, with a daily home programme. <strong>All balance work with a stable support within reach and, initially, a second person present.</strong> The targets are standing tolerance, walking distance, strength and stability &mdash; not a lower pain score.</p>
+  <h3>Weeks 1&ndash;4 &mdash; foundation and baseline</h3>
+  <ul>
+    <li><strong>Flexion-biased decompression exercises</strong>, twice daily, plus as a &ldquo;rescue&rdquo; whenever symptoms start while standing: double-knee-to-chest hold 20&ndash;30 s &times;5; single-knee-to-chest each side; supine pelvic tilt 10 s &times;10; seated forward lean over the knees 30 s &times;5; standing counter-lean with hands on a worktop and the lower back rounded, 30 s &times;5.</li>
+    <li><strong>Hip flexor and hamstring stretches</strong> 30 s &times;3 each side daily &mdash; tight hip flexors force the arch that narrows the canal.</li>
+    <li><strong>Core work without extension:</strong> abdominal bracing, dead-bug heel slides, bridging. <strong>No prone extension, no &ldquo;superman&rdquo;, no back-extension machines.</strong></li>
+    <li><strong>Strength, seated or machine-based, spine-neutral, 2 sets of 10&ndash;12, three times weekly</strong> (bodyweight only for the first fortnight): sit-to-stand from a chair progressing to no hands; seated leg press or wall squat to 45&deg;; leg extension; heel raises holding support; hip abduction; and &mdash; <strong>critical for foot clearance and tripping</strong> &mdash; resisted ankle dorsiflexion with a band, 2 &times;15.</li>
+    <li><strong>Aerobic: stationary cycling</strong> 10 building to 20 minutes, five days weekly, at conversational effort; <strong>aquatic walking</strong> twice weekly if a pool with rails is available. Both avoid the extension loading and the standing provocation.</li>
+    <li><strong>Balance, firm floor only, eyes open, support within reach:</strong> feet-together stand 30 s &times;3; semi-tandem 20 s &times;3 each; weight shifts. <strong>No foam pads, no eyes-closed work, no single-leg stance in this phase.</strong></li>
+    <li><strong>Record baselines at week 0:</strong> time standing still to symptom onset, distance to symptom onset, 4-metre gait speed, Timed Up and Go, 30-second chair stands.</li>
+  </ul>
+  <h3>Weeks 5&ndash;8 &mdash; loading and walking volume</h3>
+  <ul>
+    <li>Progress strength to 2&ndash;3 sets of 12&ndash;15 with light external load. <strong>Advance only when she completes the top of the range with good form and no symptom increase lasting beyond two hours.</strong></li>
+    <li><strong>Interval walking &mdash; the key strategy.</strong> Walk to about 70&ndash;80% of her symptom-onset distance, then sit or lean forward for 60&ndash;90 seconds until it clears, then resume. Four to six bouts, five days weekly. <strong>Total accumulated walking time is the outcome, not continuous distance &mdash; never walk into severe symptoms.</strong></li>
+    <li>Add rollator- or pole-assisted walking for longer continuous distances.</li>
+    <li>Balance: tandem stance and tandem walking along a counter, step-ups to 10 cm, sideways and backwards walking with support, head turns while walking.</li>
+  </ul>
+  <h3>Weeks 9&ndash;12 &mdash; function and consolidation</h3>
+  <ul>
+    <li>Strength to 3 sets with added resistance; sit-to-stand from progressively lower seats; step-ups to 15&ndash;20 cm.</li>
+    <li>Aerobic to 25&ndash;30 minutes, five days weekly.</li>
+    <li>Rehearse the real tasks she has lost: a shop aisle, standing at the kitchen counter, getting up from the floor. <strong>Teach the footstool trick explicitly</strong> &mdash; standing at a counter with one foot on a low stool flexes the lower spine and often dramatically extends standing tolerance.</li>
+    <li>Dual-task walking (carrying something, counting) and turning drills.</li>
+    <li><strong>Reassess at week 12 against every week-0 baseline. If standing tolerance and walking distance have not improved, escalate to a spinal surgical opinion.</strong></li>
+  </ul>
+  <div class="panel red">
+    <span class="plabel">Safety rules for someone who cannot feel her feet</span>
+    <ul>
+      <li>Never barefoot or in socks alone. Never eyes-closed balance work at home. No foam or compliant surfaces unsupervised.</li>
+      <li>Daily foot inspection including between the toes. No heat sources. Professional nail and callus care only.</li>
+      <li>Good lighting everywhere &mdash; she is substituting vision for proprioception, so darkness is her highest-risk condition.</li>
+      <li>Occupational therapy home assessment: grab rails by the toilet and shower, non-slip bath mat, raised toilet seat, perching stool, handrails on both sides of stairs, frequently used items between waist and shoulder height, a personal alarm, and a written falls plan for the family.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="questions">
+  <span class="snum">Section 22</span>
+  <h2 class="sec">Questions the family should ask</h2>
+  <p>Ordered so that the highest-yield ones get asked even if the appointment runs short.</p>
+  <ol>
+    <li><strong>&ldquo;Have you checked methylmalonic acid, not just B12? And is her thyroid disease Hashimoto's &mdash; because if it is, should we check intrinsic factor antibodies?&rdquo;</strong></li>
+    <li><strong>&ldquo;Here is every supplement she takes. How much vitamin B6 is she getting in total per day, and could that be causing this?&rdquo;</strong></li>
+    <li><strong>&ldquo;Does she have any actual muscle weakness on testing, or is this purely sensory loss?&rdquo;</strong> &mdash; the single most important unanswered question in the case.</li>
+    <li><strong>&ldquo;What is her lying-and-standing blood pressure at one and three minutes, with the pulse?&rdquo;</strong> If it hasn't been done: <em>&ldquo;Can we do it now, before I leave?&rdquo;</em></li>
+    <li><strong>&ldquo;What are her knee jerks and plantar responses? Is there anything to suggest the spinal cord rather than the nerves?&rdquo;</strong></li>
+    <li><strong>&ldquo;Given the numbness is now above the knees and she's unsteady, is this being treated as urgent?&rdquo;</strong></li>
+    <li><strong>&ldquo;Can we see the HbA1c values with their dates? Did it fall quickly after the GLP-1 started &mdash; and could that itself have worsened her nerves?&rdquo;</strong></li>
+    <li><strong>&ldquo;Is her HbA1c target still right for an 80-year-old with heart disease and unsteadiness? Should we be de-intensifying rather than tightening?&rdquo;</strong></li>
+    <li><strong>&ldquo;Has she had a retinal exam and a urine albumin test? If she has neither retinopathy nor albuminuria, is diabetes really the explanation?&rdquo;</strong></li>
+    <li><strong>&ldquo;Should the MRI cover the whole spine rather than just the lower back, given the numbness is climbing?&rdquo;</strong> And: <em>&ldquo;Can we also have standing flexion&ndash;extension X-rays?&rdquo;</em></li>
+    <li><strong>&ldquo;If the MRI shows degenerative change, how will you tell whether it is actually causing her symptoms rather than just being her age?&rdquo;</strong></li>
+    <li><strong>&ldquo;If she did have surgery, would her numbness improve &mdash; or only her walking distance?&rdquo;</strong> Expect, and accept, the honest answer.</li>
+    <li><strong>&ldquo;Has her kidney function been measured with cystatin C, not just creatinine?&rdquo;</strong></li>
+    <li><strong>&ldquo;Now that she has lost weight, are her blood pressure, diabetes and thyroid doses all still correct?&rdquo;</strong></li>
+    <li><strong>&ldquo;Can we have referrals to a falls and balance physiotherapy service, and to podiatry?&rdquo;</strong> &mdash; the strongest evidence in this dossier, and the most commonly omitted.</li>
+    <li><strong>&ldquo;What protein intake should she be aiming for, and is anyone monitoring her muscle mass and grip strength on this medication?&rdquo;</strong></li>
+    <li><strong>&ldquo;Is a normal ankle-brachial index enough, or should she have a toe-brachial index given she's diabetic?&rdquo;</strong></li>
+    <li><strong>&ldquo;What specifically should make us call you or go to hospital?&rdquo;</strong> Get it written down.</li>
+    <li><strong>&ldquo;If these tests are all normal, what is the next step &mdash; and who owns it?&rdquo;</strong> Name a person and a date before leaving.</li>
+  </ol>
+</section>
+
+<section id="gaps">
+  <span class="snum">Section 23</span>
+  <h2 class="sec">Information still needed</h2>
+  <p>Every conclusion in this dossier is provisional on these. They are ranked by how much they would change the analysis.</p>
+  <ol class="steps">
+    <li><div><strong>Is there any objective muscle weakness?</strong><p class="why">MRC-graded power, heel and toe walking, chair rise. Determines whether this is a medical or a surgical problem, and sets the urgency. <strong>The largest single gap.</strong></p></div></li>
+    <li><div><strong>The reflex pattern and plantar responses</strong><p class="why">Decides nerve versus spinal cord, and therefore what gets scanned.</p></div></li>
+    <li><div><strong>Bladder, bowel and saddle sensation</strong><p class="why">Decides emergency versus urgent.</p></div></li>
+    <li><div><strong>What exactly relieves it &mdash; bending, sitting, or just stopping</strong><p class="why">Resolves the central disagreement between the neurology and spine reviewers. Free to obtain.</p></div></li>
+    <li><div><strong>Pain versus pure numbness</strong><p class="why">Burning pain redirects toward small-fibre disease, amyloid and treatment-induced neuropathy. Painless large-fibre loss redirects toward B12, dorsal columns and CIDP. It also determines whether any pain drug is indicated at all.</p></div></li>
+    <li><div><strong>The complete medication and supplement list with doses, dates and B6 content</strong><p class="why">Cannot complete the pharmacology review without it. Specifically: is the cardiovascular drug <strong>amiodarone</strong>? Is there long-term <strong>nitrofurantoin</strong>? Any past <strong>chemotherapy</strong>, at any point in her life?</p></div></li>
+    <li><div><strong>B12 with methylmalonic acid, kidney function, TSH and free T4, electrolytes, immunofixation</strong><p class="why">The reversible causes.</p></div></li>
+    <li><div><strong>The HbA1c trajectory with dates, against the GLP-1 timeline</strong><p class="why">Tests treatment-induced neuropathy from existing records.</p></div></li>
+    <li><div><strong>Retinopathy and albuminuria status</strong><p class="why">Tests whether diabetes is the culprit at all.</p></div></li>
+    <li><div><strong>Diabetes duration; whether the thyroid disease is autoimmune</strong><p class="why">Short duration weakens the diabetic attribution; Hashimoto's raises the B12 pathway sharply.</p></div></li>
+    <li><div><strong>Postural blood pressure with pulse; hand and finger symptoms; back pain; alcohol intake in units; family history; any bariatric surgery; prior spinal imaging or surgery</strong><p class="why">Hand involvement would raise B6 toxicity substantially. Alcohol produces a near-identical picture and is routinely not asked at this age.</p></div></li>
+  </ol>
+</section>
+
+<section id="prognosis">
+  <span class="snum">Section 24</span>
+  <h2 class="sec">Prognosis and realistic expectations</h2>
+  <p>Stated without softening, because false hope and unnecessary despair are both harmful.</p>
+  <div class="tw">
+    <table>
+      <caption>A&ndash;E: separating what is likely, what is treatable, and what can actually improve</caption>
+      <thead><tr><th></th><th>Question</th><th>Answer</th></tr></thead>
+      <tbody>
+        <tr><td class="num"><b>A</b></td><td><b>Investigate immediately</b></td><td>Emergency red flags (bladder, bowel, saddle, new weakness). Then: the supplement B6 audit, B12 with methylmalonic acid, postural blood pressure, TSH and free T4, kidney function with cystatin C, electrolytes, immunofixation &mdash; and a documented neurological examination including graded power and the reflex pattern.</td></tr>
+        <tr><td class="num"><b>B</b></td><td><b>Most likely</b></td><td>A length-dependent polyneuropathy (diabetic, but with a tempo suggesting an additional accelerant) <em>plus</em> a posture-dependent second mechanism &mdash; lumbar canal narrowing, orthostatic hypotension, or both &mdash; <em>plus</em> sarcopenia contributing the &ldquo;legs won't hold me&rdquo; component.</td></tr>
+        <tr><td class="num"><b>C</b></td><td><b>Most treatable</b></td><td><b>Sarcopenia</b> (protein + resistance training &mdash; genuinely reversible). <b>Orthostatic hypotension</b> (dose adjustment). <b>B12 deficiency</b> and <b>B6 toxicity</b> if present. <b>Thyroid over-replacement.</b> <b>Fall risk itself</b> &mdash; reducible by roughly a third with combined balance and resistance training.</td></tr>
+        <tr><td class="num"><b>D</b></td><td><b>Could realistically improve <em>sensation</em></b></td><td>Honestly: <b>only the reversible causes.</b> Correcting a real B12, thiamine or copper deficiency early, or stopping a toxic B6 supplement, can produce meaningful sensory recovery over 3&ndash;12 months. Established diabetic nerve damage does not reverse &mdash; the realistic goal there is to stop the progression. Decompression surgery improves numbness least of all symptoms, and her diabetes and 12-month history both predict it persisting. Acetyl-L-carnitine is the only oral agent with any human signal for sensory recovery, and that evidence is weak.</td></tr>
+        <tr><td class="num"><b>E</b></td><td><b>Could realistically improve <em>walking and quality of life</em> even if the nerves do not recover</b></td><td><b>This is where the real gains are, and the evidence is strongest.</b> Supervised balance and resistance training (23&ndash;34% fewer falls, high certainty). Correcting postural blood pressure. Protein and strength work for the sarcopenia. A properly fitted rollator. Thinner, firmer footwear with podiatry input. Home fall-proofing. Treating sleep apnoea. Deprescribing sedating and hypotensive drugs. Decompression surgery <em>if</em> stenosis is confirmed &mdash; for walking distance, not for feeling. <b>Longer standing tolerance, more walking, fewer falls and preserved independence are all realistically achievable.</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="panel green">
+    <span class="plabel">The honest summary for the family</span>
+    <p>Her numbness will most likely not be reversed by any supplement. But <strong>three things on this list could genuinely change her life</strong>: finding a reversible cause (B12 deficiency, B6 toxicity, or treatable spinal narrowing), a supervised balance-and-strength programme, and a proper medication review. <strong>The thing most likely to end her independence is not the numbness &mdash; it is a fall and a hip fracture. That risk is measurably reducible starting this week, before any diagnosis is made.</strong></p>
+  </div>
+  <p>One framing worth keeping in view. The goal is not a lower pain score. It is standing long enough to cook a meal, walking far enough to get to the shop, and not falling. Those are achievable targets, and progress against them can be measured &mdash; which is why the baselines in section 14 matter more than they look.</p>
+</section>
+
+<section id="refs">
+  <span class="snum">Section 25</span>
+  <h2 class="sec">References and evidence notes</h2>
+  <div class="panel amber">
+    <span class="plabel">Verification status &mdash; read before citing anything here to a clinician</span>
+    <p>Citations were located by literature search and cross-checked for title-to-identifier pairing. <strong>In this environment, direct access to PubMed, Cochrane and PMC was blocked by network policy</strong>, so verification relied on publisher pages, indexing services and search-result abstracts. <strong>No full text was read.</strong> Two reviewers independently extracted <em>different</em> figures from the same paper on treatment-induced neuropathy &mdash; see section 08. <strong>The treating team should re-verify the two or three references they intend to act on.</strong> Items the reviewers could not confirm are marked unverified below.</p>
+  </div>
+  <h4>Diagnosis and evaluation</h4>
+  <ul class="refs">
+    <li>England JD et al. Distal symmetric polyneuropathy: a definition for clinical research &mdash; laboratory and genetic testing. <em>Neurology</em> 2009;72(2):185&ndash;192. PMID 19056666. <span class="cite">Names glucose, B12 with metabolites, and serum protein immunofixation electrophoresis as the three highest-yield tests (Level C). Reaffirmed 2025.</span></li>
+    <li>American Diabetes Association. Standards of Care in Diabetes&mdash;2026, Section 12 (Retinopathy, Neuropathy and Foot Care) and Section 13 (Older Adults). <em>Diabetes Care</em> 2026;49(Suppl 1):S261, S277. <span class="cite">Diabetic neuropathy as a diagnosis of exclusion; B12 monitoring on long-term metformin; older-adult glycaemic targets.</span></li>
+    <li>Dyck PJ et al. Rochester Diabetic Neuropathy Study. <em>Neurology</em> 1993;43:817&ndash;824. <span class="cite">~10% of neurological deficit in people with diabetes attributable to non-diabetic causes.</span></li>
+    <li>Brinjikji W et al. Imaging features of spinal degeneration in asymptomatic populations. <em>AJNR</em> 2015;36(4):811&ndash;816. PMID 25430861. <span class="cite">96% disc degeneration and 84% disc bulge in asymptomatic 80-year-olds. <span class="unver">specific figures not individually confirmed</span></span></li>
+    <li>Nadeau M et al. Clinical discriminators of neurogenic versus vascular claudication. <em>Can J Surg</em> 2013;56(6):372&ndash;377. PMID 24284143.</li>
+    <li>Van den Bergh PYK et al. EAN/PNS guideline on CIDP, second revision. <em>Eur J Neurol</em> 2021. PMID 34327760; doi 10.1111/ene.14959.</li>
+  </ul>
+  <h4>Diabetes, glycaemia and GLP-1</h4>
+  <ul class="refs">
+    <li>Callaghan BC, Little AA, Feldman EL, Hughes RAC. Enhanced glucose control for preventing and treating diabetic neuropathy. <em>Cochrane</em> 2012;CD007543. PMID 22696371. <span class="cite">Type 1: annualised risk difference &minus;1.84%. Type 2: &minus;0.58%, confidence interval crossing null.</span></li>
+    <li>Gibbons CH, Freeman R. Treatment-induced neuropathy of diabetes. <em>Brain</em> 2015;138(Pt 1):43&ndash;52. PMID 25392197. Earlier: <em>Ann Neurol</em> 2010;67:534&ndash;541. <span class="cite">~11% of the cohort met criteria; risk rises steeply with the magnitude of HbA1c fall. <span class="unver">reviewers extracted conflicting risk percentages &mdash; verify directly</span></span></li>
+    <li>Callaghan BC et al. Diabetes and obesity are the main metabolic drivers of peripheral neuropathy. <em>Ann Clin Transl Neurol</em> 2018;5:397&ndash;405.</li>
+    <li>Aroda VR et al. Long-term metformin use and vitamin B12 deficiency in DPPOS. <em>J Clin Endocrinol Metab</em> 2016;101(4):1754&ndash;1761. PMID 26900641. <span class="cite">Odds ratio 1.13 per year of metformin. Biochemical association; does not establish clinically significant neuropathy.</span></li>
+    <li>Jaiswal M et al. Exenatide vs insulin glargine on diabetic neuropathy measures, 18 months. PMID 26264399. <span class="cite">No significant effect &mdash; the basis for stating GLP-1s are not neuroprotective in humans.</span></li>
+    <li>Look M et al. Body composition with tirzepatide, SURMOUNT-1 DXA substudy. <em>Diabetes Obes Metab</em> 2025. PMID 39996356. <span class="cite">~26% of weight lost as lean tissue. <span class="unver">the frequently quoted ~40% semaglutide figure could not be traced to a primary source</span></span></li>
+  </ul>
+  <h4>Spine</h4>
+  <ul class="refs">
+    <li>Friedly JL et al. Epidural glucocorticoid injections for spinal stenosis. <em>NEJM</em> 2014;371:11&ndash;21. PMID 24988555; doi 10.1056/NEJMoa1313265. <span class="cite">Minimal or no benefit over lidocaine alone.</span></li>
+    <li>Weinstein JN et al. SPORT: surgical vs non-surgical therapy for lumbar spinal stenosis. <em>NEJM</em> 2008;358:794&ndash;810. Four-year results PMID 20453723.</li>
+    <li>Zaina F, Tomkins-Lane C, Carragee E, Negrini S. Surgical versus non-surgical treatment for lumbar spinal stenosis. <em>Cochrane</em> 2016;CD010264.pub2. <span class="cite">&ldquo;No clear benefit&rdquo; of surgery; 10&ndash;24% surgical side-effect rate. Directly contradicts SPORT &mdash; presented as contradictory in section 10.</span></li>
+    <li>Delitto A et al. Surgery versus physical therapy for lumbar spinal stenosis. <em>Ann Intern Med</em> 2015;162(7):465&ndash;473. <span class="unver">PMID unverified</span></li>
+    <li>F&ouml;rsth P et al. Fusion surgery for lumbar spinal stenosis. <em>NEJM</em> 2016;374:1414&ndash;1423. PMID 27074066. Austevoll IM et al. Decompression with or without fusion in degenerative spondylolisthesis. <em>NEJM</em> 2021; doi 10.1056/NEJMoa2100990.</li>
+    <li>Giannadakis C et al. Decompression for stenosis in patients aged 80+, Norwegian registry. <em>J Am Geriatr Soc</em> 2016; doi 10.1111/jgs.14311. <span class="cite">3-month complications 11.8% vs 7.5%, driven by urinary infection; &gt;70% reached a meaningful improvement.</span></li>
+    <li>Recovery from leg numbness after decompression: PMID 28456353. Risk factors for persistent numbness: PMID 32535396. <span class="cite">Numbness improves least; diabetes and longer symptom duration predict persistence.</span></li>
+  </ul>
+  <h4>Treatment and rehabilitation</h4>
+  <ul class="refs">
+    <li>Sherrington C et al. Exercise for preventing falls in older people living in the community. <em>Cochrane</em> 2019;CD012424.pub2. <span class="cite"><strong>The strongest evidence in this dossier.</strong> Falls rate ratio 0.77 (0.71&ndash;0.83), high certainty, 59 trials, 12,981 participants; combined balance + resistance 0.66 (0.50&ndash;0.88).</span></li>
+    <li>Thomas S et al. Otago Exercise Programme. <em>Age Ageing</em> 2010;39(6):681&ndash;687. PMID 20817938. <span class="cite">Falls rate ratio 0.68.</span></li>
+    <li>Price R, Smith D, Franklin G et al. Oral and topical treatment of painful diabetic polyneuropathy: AAN guideline update. <em>Neurology</em> 2022;98(1):31&ndash;43. PMID 34965987; doi 10.1212/WNL.0000000000013038. <span class="cite">No evidence-based first choice; explicit negative recommendation on tramadol, tapentadol and opioids.</span></li>
+    <li>Tesfaye S et al. OPTION-DM. <em>Lancet</em> 2022;400(10353):680&ndash;690; doi 10.1016/S0140-6736(22)01472-6. <span class="cite">No winner between pathways; combination beats failing monotherapy. <span class="unver">trial PMID unverified</span></span></li>
+    <li>Baicus C et al. Alpha-lipoic acid for diabetic peripheral neuropathy. <em>Cochrane</em> 2024;CD012967.pub2. PMID 38205823. <span class="cite">Moderate-certainty evidence of little or no effect at 6 and 24 months.</span></li>
+    <li>Ziegler D et al. SYDNEY 2, <em>Diabetes Care</em> 2006;29:2365&ndash;2370 (PMID 17065669); NATHAN 1, <em>Diabetes Care</em> 2011;34:2054&ndash;2060 (PMID 21775755). <span class="cite">NATHAN 1 failed its primary endpoint.</span></li>
+    <li>Stracke H et al. BENDIP (benfotiamine). <em>Exp Clin Endocrinol Diabetes</em> 2008. PMID 18473286. <span class="cite">Negative on intention-to-treat (p=0.055). A 12-month trial subsequently found no significant effect on any endpoint.</span></li>
+    <li>Sima AAF et al. Acetyl-L-carnitine, pooled analysis of two 52-week trials. <em>Diabetes Care</em> 2005;28:89&ndash;94. PMID 15616239. Countervailing: Rolim LCSP et al. <em>Cochrane</em> 2019;CD011265.pub2 &mdash; low/very low certainty.</li>
+    <li>Didangelos T et al. Methylcobalamin in metformin-treated patients. <em>Nutrients</em> 2021;13(2):395. PMID 33513879. <span class="cite">Entry required B12 &lt;400 pmol/L &mdash; supports correcting low-normal B12, not supplementing the replete.</span></li>
+    <li>Lavery LA et al. Monochromatic infrared photo energy for diabetic peripheral neuropathy. <em>Diabetes Care</em> 2008;31(2):316&ndash;321. <span class="cite">Sham-controlled and negative for quality of life, balance and nerve conduction.</span></li>
+    <li>Weintraub MI et al. Pulsed electromagnetic fields for painful diabetic neuropathy. <em>Arch Phys Med Rehabil</em> 2009;90:1102&ndash;1109. <span class="cite">225 patients, sham-controlled, negative.</span></li>
+    <li>H&ouml;rder S et al. ACUDPN: acupuncture for diabetic peripheral neuropathy. <em>World J Diabetes</em> 2023;14(12):1813&ndash;1823. PMID 38222786; doi 10.4239/wjd.v14.i12.1813. <span class="cite">Numbness improved 2.3 points vs control &mdash; but open-label with a waiting-list control and no change in nerve conduction.</span></li>
+    <li>Petersen EA et al. SENZA-PDN: 10 kHz spinal cord stimulation. <em>JAMA Neurol</em> 2021; doi 10.1001/jamaneurol.2021.0538. <span class="cite">Open-label, no sham, industry-sponsored.</span></li>
+    <li>Hotta N et al. Epalrestat, 3-year multicentre trial. <em>Diabetes Care</em> 2006;29:1538&ndash;1544. PMID 16801576.</li>
+    <li>Chilibeck PD et al. Creatine plus resistance training in older adults. <em>Open Access J Sports Med</em> 2017;8:213&ndash;226. <span class="cite">22 RCTs, 721 participants; +1.37 kg lean mass.</span></li>
+  </ul>
+  <h4>Medication safety and nutrition</h4>
+  <ul class="refs">
+    <li>EFSA NDA Panel. Tolerable upper intake level for vitamin B6. <em>EFSA Journal</em> 2023;21(5):e08006. PMID 37207271; doi 10.2903/j.efsa.2023.8006. <span class="cite">Upper level set at 12 mg/day with peripheral neuropathy as the critical effect &mdash; against the US limit of 100 mg/day. A tenfold regulatory disagreement that itself signals genuine uncertainty.</span></li>
+    <li>Australian TGA. Safety update and labelling decision: peripheral neuropathy with supplementary vitamin B6. <span class="cite">Warnings now required above 10 mg/day.</span></li>
+    <li>2023 AGS Beers Criteria. <em>J Am Geriatr Soc</em> 2023. PMID 37139824; doi 10.1111/jgs.18372. Plus the AGS 2025 Alternatives List. <span class="cite"><span class="unver">a claimed &ldquo;2026 Beers Criteria&rdquo; appeared only on a non-AGS site and could not be verified</span></span></li>
+    <li>O'Mahony D et al. STOPP/START version 3. <em>Eur Geriatr Med</em> 2023. PMID 37256475; doi 10.1007/s41999-023-00777-y.</li>
+    <li>Statins and peripheral neuropathy: meta-analysis, <em>J Clin Pharm Ther</em> 2021. PMID 33629752. <span class="cite">No statistically significant association with incident peripheral neuropathy.</span></li>
+    <li>FDA Drug Safety Communication: fluoroquinolones and peripheral neuropathy, 2013.</li>
+    <li>Bauer J et al. PROT-AGE Study Group. <em>J Am Med Dir Assoc</em> 2013;14(8):542&ndash;559. PMID 23867520. Volkert D et al. ESPEN practical guideline: clinical nutrition and hydration in geriatrics. <em>Clin Nutr</em> 2022. <span class="cite">1.2&ndash;1.5 g/kg/day with chronic disease, verified; the baseline figure for healthy older adults <span class="unver">unverified</span></span></li>
+    <li>Cruz-Jentoft AJ et al. EWGSOP2 sarcopenia consensus. <em>Age Ageing</em> 2019;48:16&ndash;31. <span class="cite">Grip strength &lt;16 kg in women; gait speed &le;0.8 m/s.</span></li>
+  </ul>
+  <h4>Vascular and autonomic</h4>
+  <ul class="refs">
+    <li>2024 ESC Guidelines for peripheral arterial and aortic diseases. <em>Eur Heart J</em> 2024;45(36):3538. And the 2024 ACC/AHA multisociety lower-extremity PAD guideline (PMID 38743805).</li>
+    <li>Measurement and interpretation of the ankle-brachial index: AHA statement. <em>Circulation</em> 2012.</li>
+    <li>Toe-brachial index versus ankle-brachial index in type 2 diabetes: PMC10956283; plus a 2024 accuracy study reporting ankle-brachial index sensitivity of only ~35% in diabetes. <span class="cite">The basis for the warning that a normal index does not exclude arterial disease.</span></li>
+    <li>Freeman R et al. Consensus statement on the definition of orthostatic hypotension. <span class="cite">&ge;20 mmHg systolic or &ge;10 mmHg diastolic within 3 minutes.</span></li>
+    <li>Bendermacher BLW et al. Supervised versus non-supervised exercise therapy for intermittent claudication. <em>Cochrane</em> 2006. PMID 16625633. <span class="cite">Effect size 0.58 (0.31&ndash;0.85) at 3 months, roughly +150 m.</span></li>
+    <li>GLP-1 receptor agonists and blood pressure: state-of-the-art review. <em>Am J Hypertens</em>. PMID 41128495. <span class="cite">Flags elevated risk of dizziness and orthostatic hypotension in older adults on multidrug antihypertensive regimens.</span></li>
+  </ul>
+  <div class="panel">
+    <span class="plabel">Claims the reviewers explicitly could not support</span>
+    <ul>
+      <li><strong>No guideline or trial evidence was found</strong> establishing prolonged standing as a recognised provoking factor for length-dependent diabetic polyneuropathy &mdash; the crux of the central disagreement in section 10.</li>
+      <li><strong>No trial or guideline</strong> on GLP-1 receptor agonist effects on diabetic neuropathy progression, beyond the single null randomised study cited.</li>
+      <li><strong>No FDA or EMA safety communication</strong> addresses neurological or nutritional harm from GLP-1 agonists. What does exist is a class-wide label change for pulmonary aspiration under anaesthesia, and a European addition of a very rare optic neuropathy to semaglutide labelling &mdash; <em>optic</em>, not peripheral, and it should not be conflated with this presentation.</li>
+      <li><strong>&ldquo;Double crush&rdquo;</strong> combining polyneuropathy and lumbar stenosis is mechanistic reasoning, not an evidence-based entity.</li>
+      <li>Direct evidence that <strong>weight loss improves stenosis symptoms</strong> specifically; benefit of <strong>textured insoles</strong>; and supporting trials for <strong>pulsed electromagnetic field therapy</strong> or <strong>hyperbaric oxygen</strong> in neuropathy &mdash; none confirmed.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <p><strong>How this was produced.</strong> Seven specialist reviews &mdash; neurology and geriatric internal medicine, evidence synthesis, clinical pharmacology, spine and rehabilitation, vascular medicine, endocrinology, and integrative/emerging therapies &mdash; were conducted independently, then cross-examined against one another. The neurology review materially revised its conclusions in response to the spine review's challenge: the combined neuropathy-plus-stenosis construct was downgraded from very high to moderate likelihood, vitamin B6 toxicity was upgraded from low to moderate, and its single top recommendation changed from &ldquo;MRI lumbar spine&rdquo; to the free bedside examination and supplement audit. Where reviewers disagreed and the evidence could not settle it, both positions are reported.</p>
+  <p><strong>This is not medical advice and not a diagnosis.</strong> It is preparation for a consultation. It contains no examination findings and no blood results, because none exist yet &mdash; and the most important conclusions here depend on them. Take it to her doctors.</p>
+</footer>
+</div>
+
+<script>
+(function(){
+  var boxes = document.querySelectorAll('.check input[type=checkbox]');
+  try {
+    var saved = JSON.parse(localStorage.getItem('numbness-dossier-checks') || '{}');
+    boxes.forEach(function(b){ if (saved[b.id]) b.checked = true; });
+  } catch (e) { /* private mode, blocked storage, or preview — render as unchecked */ }
+  function persist(){
+    try {
+      var state = {};
+      boxes.forEach(function(b){ if (b.checked) state[b.id] = 1; });
+      localStorage.setItem('numbness-dossier-checks', JSON.stringify(state));
+    } catch (e) { /* non-fatal */ }
+  }
+  boxes.forEach(function(b){ b.addEventListener('change', persist); });
+})();
+</script>
