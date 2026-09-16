@@ -277,7 +277,7 @@ export function makeSeed(cfg, refresh) {
             keep: Boolean(sess.keep),
         });
         headers.append("set-cookie", txnCookie);
-        return go(buildSeedUrl(cfg, { token, audience: cfg.clientId, continueTo: authUrl }));
+        return go(buildSeedUrl(cfg, { token, audience: cfg.clientId, continueTo: authUrl, keep: Boolean(sess.keep) }));
     };
 }
 //# sourceMappingURL=authorize.js.map

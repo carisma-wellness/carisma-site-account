@@ -315,6 +315,6 @@ export function makeSeed(cfg: ResolvedConfig, refresh: (sid: string, rt: string)
       keep: Boolean(sess.keep),
     });
     headers.append("set-cookie", txnCookie);
-    return go(buildSeedUrl(cfg, { token, audience: cfg.clientId, continueTo: authUrl }));
+    return go(buildSeedUrl(cfg, { token, audience: cfg.clientId, continueTo: authUrl, keep: Boolean(sess.keep) }));
   };
 }

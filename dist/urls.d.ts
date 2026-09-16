@@ -45,6 +45,7 @@ export declare function buildSeedUrl(cfg: Pick<ResolvedConfig, "identityOrigin">
     token: string;
     audience: string;
     continueTo: string;
+    keep: boolean;
 }): string;
 /**
  * Validate a `next` target: a same-origin RELATIVE path only. Rejects a scheme, a

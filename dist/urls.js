@@ -41,6 +41,10 @@ export function buildSeedUrl(cfg, p) {
     u.searchParams.set("token", p.token);
     u.searchParams.set("aud", p.audience);
     u.searchParams.set("continue", cont.pathname + cont.search);
+    // "Keep me signed in" travels so the identity origin remembers the person exactly as
+    // long as this brand does — no longer, and no shorter.
+    if (p.keep)
+        u.searchParams.set("keep", "1");
     return u.toString();
 }
 /* ── 2. the site's own door (/api/auth/start) and `next` validation ─────── */

@@ -200,6 +200,7 @@ test("seed: mints a handoff with the person's own bearer and sends them to /sso/
   assert.equal(loc.origin + loc.pathname, `${IDP}/sso/seed`);
   assert.equal(loc.searchParams.get("token"), be.token);
   assert.equal(loc.searchParams.get("aud"), RP);
+  assert.equal(loc.searchParams.get("keep"), "1", "a keep session asks the identity origin to keep it too");
   const cont = loc.searchParams.get("continue");
   assert.match(cont, /^\/authorize\?/, "continue is a same-origin PATH, never a host");
   const authorize = new URL(cont, IDP);
@@ -222,6 +223,14 @@ test("seed: the transaction it seals returns quietly to next through the callbac
   );
   assert.equal(cb.status, 302);
   assert.equal(cb.headers.get("location"), "/after");
+});
+
+test("seed: a session-only sign-in does not ask the identity origin to keep it", async () => {
+  const be = handoffBackend();
+  const res = await routes(be.fetchImpl).seed(
+    new Request(`${SITE}/api/auth/seed?next=/x`, { headers: { cookie: sessionCookie({ keep: false }) } }),
+  );
+  assert.equal(new URL(res.headers.get("location")).searchParams.get("keep"), null);
 });
 
 test("seed: no session goes quietly back to next and clears the flag", async () => {

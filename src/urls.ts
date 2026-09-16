@@ -70,13 +70,16 @@ export function buildLogoutUrl(cfg: Pick<ResolvedConfig, "identityOrigin">): str
  */
 export function buildSeedUrl(
   cfg: Pick<ResolvedConfig, "identityOrigin">,
-  p: { token: string; audience: string; continueTo: string },
+  p: { token: string; audience: string; continueTo: string; keep: boolean },
 ): string {
   const cont = new URL(p.continueTo);
   const u = new URL(`${stripTrailingSlash(cfg.identityOrigin)}/sso/seed`);
   u.searchParams.set("token", p.token);
   u.searchParams.set("aud", p.audience);
   u.searchParams.set("continue", cont.pathname + cont.search);
+  // "Keep me signed in" travels so the identity origin remembers the person exactly as
+  // long as this brand does — no longer, and no shorter.
+  if (p.keep) u.searchParams.set("keep", "1");
   return u.toString();
 }
 
