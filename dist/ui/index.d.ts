@@ -20,4 +20,6 @@ export type { BrandLinkInput, InterceptorOptions } from "./linkInterceptor.js";
 export { hydrateAccountMark, hydrateAccountMarks, mountAccountPanel, hydrateAll } from "./browser.js";
 export type { HydrateOptions, FetchLike } from "./browser.js";
 export type { MinimalDocument, MinimalElement, MinimalAnchor, MinimalMouseEvent } from "./dom.js";
+export { ssoProbeDecision, runSsoProbe, SSO_PROBE_SKIP_PREFIXES } from "./ssoProbe.js";
+export type { SsoProbeTrigger, SsoProbeAction, SsoProbeEnv } from "./ssoProbe.js";
 //# sourceMappingURL=index.d.ts.map

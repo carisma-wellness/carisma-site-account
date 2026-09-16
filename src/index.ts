@@ -18,7 +18,7 @@ export type { AccountRoutesConfig } from "./routes/config.js";
 export { PROXY_ALLOWLIST, FORBIDDEN_PATHS, isAllowed, normalizePath } from "./routes/allowlist.js";
 export type { AllowRule } from "./routes/allowlist.js";
 
-export { COOKIES, parseCookies, serializeCookie, clearCookie } from "./routes/cookies.js";
+export { COOKIES, parseCookies, serializeCookie, clearCookie, inlineSessionCookies } from "./routes/cookies.js";
 export { maskProfile, maskEmail, initialsFrom } from "./routes/profile.js";
 export { safeNext } from "./routes/pkce.js";
 
@@ -31,6 +31,11 @@ export {
   startUrl,
   brandStartUrl,
   hubStartUrl,
+  buildSeedUrl,
+  buildSignoutHopUrl,
+  silentStartUrl,
+  seedDoorUrl,
+  signoutHopDoorUrl,
 } from "./urls.js";
 export type { AuthorizeParams } from "./urls.js";
 
@@ -46,4 +51,4 @@ export * from "./booking/index.js";
  * the site's built chunk — the negative control that a site is resolving the pinned
  * tarball and not a live workspace path.
  */
-export const SITE_ACCOUNT_BUILD_MARKER = "carisma-site-account@wp-pkg-1";
+export const SITE_ACCOUNT_BUILD_MARKER = "carisma-site-account@cross-brand-sso-2";

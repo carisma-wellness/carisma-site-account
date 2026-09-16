@@ -1,7 +1,7 @@
 import { unseal } from "../seal/index.js";
 import { COOKIES, parseCookies } from "./cookies.js";
 import { upstream } from "./upstream.js";
-import { appendClearSession, originAllowed, json } from "./http.js";
+import { appendSignedOutByPerson, appendSignoutHop, originAllowed, json } from "./http.js";
 import { buildLogoutUrl } from "../urls.js";
 /**
  * POST /api/auth/logout {everywhere?: true}
@@ -29,7 +29,7 @@ export function makeLogout(cfg) {
             await upstream(cfg, everywhere ? "/auth/logout-all" : "/auth/logout", "POST", sess.at, JSON.stringify({}));
         }
         const headers = new Headers({ "cache-control": "private, no-store" });
-        appendClearSession(headers, cfg);
+        appendSignedOutByPerson(headers, cfg);
         // The identity-origin /logout URL (and the presence check) live in urls.ts — the
         // one builder — so this route never names identityOrigin (boundary-enforced).
         const logoutUrl = everywhere ? buildLogoutUrl(cfg) : null;
@@ -37,6 +37,12 @@ export function makeLogout(cfg) {
             headers.set("location", logoutUrl);
             return new Response(null, { status: 303, headers });
         }
+        // A sign-out here must also end the session the identity origin holds, or the next
+        // person on this browser is silently signed in as this one on another brand. The
+        // identity origin's cookie is host-only on another site, so it takes a top-level
+        // hop: the next page load makes it once (cw-sso-signout, ui/ssoProbe).
+        if (sess)
+            appendSignoutHop(headers, cfg);
         return new Response(null, { status: 204, headers });
     };
 }

@@ -28,6 +28,39 @@ export function buildLogoutUrl(cfg) {
         return null;
     return `${stripTrailingSlash(cfg.identityOrigin)}/logout`;
 }
+/**
+ * The identity origin's /sso/seed door: hand it a single-use crossing token so it can
+ * learn about a sign-in that happened on this brand without it (the booking pop-up),
+ * then continue to `/authorize` on the SAME origin. `continueTo` must be the
+ * /authorize URL this module just built; only its path and query travel, so the
+ * identity origin never has to trust a host in a query string.
+ */
+export function buildSeedUrl(cfg, p) {
+    const cont = new URL(p.continueTo);
+    const u = new URL(`${stripTrailingSlash(cfg.identityOrigin)}/sso/seed`);
+    u.searchParams.set("token", p.token);
+    u.searchParams.set("aud", p.audience);
+    u.searchParams.set("continue", cont.pathname + cont.search);
+    // "Keep me signed in" travels so the identity origin remembers the person exactly as
+    // long as this brand does — no longer, and no shorter.
+    if (p.keep)
+        u.searchParams.set("keep", "1");
+    return u.toString();
+}
+/**
+ * The identity origin's /sso/signout door: end the session it holds after a sign-out
+ * on a brand, then continue to `/authorize` on the same origin. Null when no identity
+ * origin is configured (the caller returns quietly instead of throwing).
+ */
+export function buildSignoutHopUrl(cfg, p) {
+    if (!cfg.identityOrigin)
+        return null;
+    const cont = new URL(p.continueTo);
+    const u = new URL(`${stripTrailingSlash(cfg.identityOrigin)}/sso/signout`);
+    u.searchParams.set("aud", p.audience);
+    u.searchParams.set("continue", cont.pathname + cont.search);
+    return u.toString();
+}
 /* ── 2. the site's own door (/api/auth/start) and `next` validation ─────── */
 /**
  * Validate a `next` target: a same-origin RELATIVE path only. Rejects a scheme, a
@@ -74,6 +107,25 @@ export function startUrl(next, prompt = "login") {
 export function brandStartUrl(targetOrigin, next) {
     const clean = stripTrailingSlash(targetOrigin);
     return `${clean}/api/auth/start?next=${encodeURIComponent(next)}`;
+}
+/** The site's own silent check: /api/auth/start with prompt=none. */
+export function silentStartUrl(next) {
+    const params = new URLSearchParams();
+    params.set("next", validateNext(next, "/"));
+    params.set("prompt", "none");
+    return `/api/auth/start?${params.toString()}`;
+}
+/** The site's own seed door: tell the identity origin about a sign-in made here. */
+export function seedDoorUrl(next) {
+    const params = new URLSearchParams();
+    params.set("next", validateNext(next, "/"));
+    return `/api/auth/seed?${params.toString()}`;
+}
+/** The site's own sign-out hop: end the identity origin's session after a sign-out here. */
+export function signoutHopDoorUrl(next) {
+    const params = new URLSearchParams();
+    params.set("next", validateNext(next, "/"));
+    return `/api/auth/signout-hop?${params.toString()}`;
 }
 /** A same-origin hub link reached through the door so the person arrives signed in. */
 export function hubStartUrl(hubPath) {

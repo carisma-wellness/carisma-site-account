@@ -1,3 +1,4 @@
+import { type CookieOptions } from "./cookies.js";
 import type { ResolvedConfig } from "./config.js";
 export declare const NO_STORE_HEADERS: Record<string, string>;
 export declare function json(body: unknown, status?: number, extra?: Record<string, string>): Response;
@@ -21,10 +22,21 @@ export declare function unwrapEnvelope(body: unknown): unknown;
 export declare function shouldClearSession(status: number): boolean;
 /** Append Set-Cookie headers that clear cw_session and both hints. */
 export declare function appendClearSession(headers: Headers, cfg: ResolvedConfig): void;
+/**
+ * A deliberate sign-out on this brand. Besides clearing the session, stamp cw-sso-off
+ * so the silent cross-brand check cannot sign the person straight back in from the
+ * identity origin's session on their next page — the surprise a single sign-on
+ * rollout most often ships. Only a sign-in they start themselves lifts it.
+ */
+export declare function appendSignedOutByPerson(headers: Headers, cfg: ResolvedConfig): void;
+/** Ask the next page load to end the identity origin's session as well (one attempt). */
+export declare function appendSignoutHop(headers: Headers, cfg: ResolvedConfig): void;
 /** A signed-out JSON response that also clears the sealed cookie and the hints. */
 export declare function jsonClearing(body: unknown, cfg: ResolvedConfig, status?: number): Response;
 /** Append Set-Cookie headers that establish the sealed session + readable hints. */
 export declare function appendSetSession(headers: Headers, cfg: ResolvedConfig, sealed: string, initials: string | undefined, keep: boolean): void;
+/** The cookie options every readable brand-site hint uses (for callers outside this module). */
+export declare function hintCookieOptions(cfg: ResolvedConfig): CookieOptions;
 /** Origin check for state-changing BFF routes (W-7). */
 export declare function originAllowed(req: Request, cfg: ResolvedConfig): boolean;
 //# sourceMappingURL=http.d.ts.map
