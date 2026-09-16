@@ -194,9 +194,12 @@ test("an INTERACTIVE exchange failure still renders the static error page", asyn
 test("the exchange is signed with the visitor's IP, not a shared placeholder", async () => {
   const cf = await roundTrip({ headers: { "cloudfront-viewer-address": "203.0.113.9:41234", "x-forwarded-for": "10.0.0.1" } });
   assert.equal(cf.calls[0].init.headers["x-carisma-client-ip"], "203.0.113.9");
-  const xff = await roundTrip({ headers: { "x-forwarded-for": "198.51.100.7, 10.0.0.1" } });
+  // The edge APPENDS the peer it saw: the last hop is ours, the first is the caller's.
+  const xff = await roundTrip({ headers: { "x-forwarded-for": "10.0.0.1, 198.51.100.7" } });
   assert.equal(xff.calls[0].init.headers["x-carisma-client-ip"], "198.51.100.7");
-  const v6 = await roundTrip({ headers: { "cloudfront-viewer-address": "2001:db8::1:443" } });
+  const spoof = await roundTrip({ headers: { "x-forwarded-for": "1.2.3.4, 198.51.100.7" } });
+  assert.notEqual(spoof.calls[0].init.headers["x-carisma-client-ip"], "1.2.3.4");
+  const v6 = await roundTrip({ headers: { "cloudfront-viewer-address": "[2001:db8::1]:443" } });
   assert.equal(v6.calls[0].init.headers["x-carisma-client-ip"], "2001:db8::1");
   const junk = await roundTrip({ headers: { "x-forwarded-for": "<script>" } });
   assert.equal(junk.calls[0].init.headers["x-carisma-client-ip"], "127.0.0.1");

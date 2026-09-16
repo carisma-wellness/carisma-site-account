@@ -110,26 +110,36 @@ export function signService(opts: ServiceSignOptions): Record<string, string> {
  * shared ONE bucket. Harmless while sign-ins were rare; a hard platform-wide ceiling
  * once single sign-on exchanges a code on every brand a person opens.
  *
- * CloudFront's `cloudfront-viewer-address` (ip:port) wins when present; else the first
- * X-Forwarded-For hop; else 127.0.0.1. The first hop is client-supplied, which is
- * acceptable here: the limit guards against guessing a 256-bit single-use code, not
- * against a caller picking its own bucket.
+ * `X-Forwarded-For` GROWS left to right and the edge APPENDS the peer it saw, so the
+ * LAST entry is the one our own infrastructure put there and the FIRST is whatever the
+ * caller sent. Taking the first would let anyone mint a fresh bucket per request.
+ * CloudFront's `cloudfront-viewer-address` wins where present — CloudFront overwrites it.
  */
 export function visitorIp(req: Request): string {
   const viewer = req.headers.get("cloudfront-viewer-address");
-  if (viewer) {
-    const v = viewer.trim();
-    // "1.2.3.4:5678" or "[2001:db8::1]:5678" / "2001:db8::1:5678"
-    const bracket = /^\[([^\]]+)\]:\d+$/.exec(v);
-    if (bracket) return bracket[1];
-    const i = v.lastIndexOf(":");
-    const host = i > 0 ? v.slice(0, i) : v;
-    if (/^[0-9a-fA-F:.]{2,45}$/.test(host)) return host;
-  }
+  const fromViewer = viewer ? stripPort(viewer.trim()) : "";
+  if (ipish(fromViewer)) return fromViewer;
+
   const xff = req.headers.get("x-forwarded-for");
-  const first = xff ? xff.split(",")[0].trim() : "";
-  if (first && /^[0-9a-fA-F:.]{2,45}$/.test(first)) return first;
+  if (xff) {
+    const hops = xff.split(",").map((h) => h.trim()).filter(Boolean);
+    const last = hops[hops.length - 1];
+    if (ipish(last)) return last;
+  }
   return "127.0.0.1";
+}
+
+/** "1.2.3.4:5678" / "[2001:db8::1]:443" / a bare address -> the address. */
+function stripPort(value: string): string {
+  const bracket = /^\[([^\]]+)\](?::\d+)?$/.exec(value);
+  if (bracket) return bracket[1];
+  const parts = value.split(":");
+  if (parts.length === 2) return parts[0];
+  return value;
+}
+
+function ipish(value: string): boolean {
+  return /^[0-9a-fA-F:.]{2,45}$/.test(value);
 }
 
 /** Validate a `next` target: relative, no scheme, no backslash, no protocol-relative. */
