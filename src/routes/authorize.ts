@@ -4,8 +4,8 @@ import type { SessionPlaintext } from "../seal/index.js";
 import { COOKIES, parseCookies, serializeCookie, clearCookie } from "./cookies.js";
 import { maskProfile } from "./profile.js";
 import { appendSetSession, hintCookieOptions, json, unwrapEnvelope } from "./http.js";
-import { pkcePair, randomToken, safeNext, signService } from "./pkce.js";
-import { buildAuthorizeUrl, buildSeedUrl, callbackRedirectUri } from "../urls.js";
+import { pkcePair, randomToken, safeNext, signService, visitorIp } from "./pkce.js";
+import { buildAuthorizeUrl, buildSeedUrl, buildSignoutHopUrl, callbackRedirectUri } from "../urls.js";
 import { upstream } from "./upstream.js";
 import type { RefreshResult } from "./refresh.js";
 
@@ -17,6 +17,14 @@ interface TxnPlaintext {
   keep: boolean;
   /** A prompt=none check. Its failure answer is a quiet return to `next`, never a page. */
   silent?: boolean;
+  /**
+   * A round trip whose only job was to change state AT the identity origin (report a
+   * sign-in made here, or end the session there). The callback never exchanges a code
+   * for it: this brand's own session is already the right one, and a code coming back
+   * may belong to someone else entirely (a skipped seed crosses whoever the identity
+   * origin still holds — on a shared laptop, the previous person).
+   */
+  noExchange?: boolean;
 }
 
 /**
@@ -32,7 +40,7 @@ type Prompt = "login" | "create" | "none";
 function beginAuthorize(
   cfg: ResolvedConfig,
   origin: string,
-  opts: { next: string; prompt: Prompt; keep: boolean },
+  opts: { next: string; prompt: Prompt; keep: boolean; noExchange?: boolean },
 ): { txnCookie: string; authUrl: string } {
   // 32 bytes -> 43 base64url chars. The identity origin's validateAuthorizeParams
   // requires BASE64URL_43 and bounces a shorter state (randomToken(24) is 32 chars)
@@ -41,6 +49,7 @@ function beginAuthorize(
   const { verifier, challenge } = pkcePair();
   const txn: TxnPlaintext = { v: 1, state, verifier, next: opts.next, keep: opts.keep };
   if (opts.prompt === "none") txn.silent = true;
+  if (opts.noExchange) txn.noExchange = true;
   const sealedTxn = seal(txn, cfg.sessionSecret, cfg.rpId);
   // The identity-origin /authorize URL is assembled in urls.ts — the ONE place an
   // identity URL is built (scripts/verify-account-boundary.mjs enforces it).
@@ -53,6 +62,12 @@ function beginAuthorize(
     sameSite: "Lax",
   });
   return { txnCookie, authUrl };
+}
+
+function quietReturn(location: string, extra: string[]): Response {
+  const headers = new Headers({ "cache-control": "private, no-store", location });
+  for (const c of extra) headers.append("set-cookie", c);
+  return new Response(null, { status: 302, headers });
 }
 
 /** A silent check has run in this browser session; the client helper will not start another. */
@@ -77,6 +92,12 @@ export function makeStart(cfg: ResolvedConfig) {
     const prompt: Prompt = raw === "create" ? "create" : raw === "none" ? "none" : "login";
     const keep = url.searchParams.get("keep") === "1";
 
+    // Signed out on this brand: a silent start — typed, linked or scripted — must not
+    // sign the person straight back in. Only a sign-in they start themselves may.
+    if (prompt === "none" && parseCookies(req)[COOKIES.ssoOff] === "1") {
+      return quietReturn(next, []);
+    }
+
     const { txnCookie, authUrl } = beginAuthorize(cfg, origin, { next, prompt, keep });
 
     const headers = new Headers({ "cache-control": "private, no-store", location: authUrl });
@@ -89,7 +110,7 @@ export function makeStart(cfg: ResolvedConfig) {
 }
 
 /** Exchange an authorization code at POST /auth/token (service-authenticated). */
-async function exchangeCode(cfg: ResolvedConfig, code: string, verifier: string, origin: string) {
+async function exchangeCode(cfg: ResolvedConfig, code: string, verifier: string, origin: string, clientIp: string) {
   const path = "/auth/token";
   // camelCase, and ONLY the five keys tokenExchangeSchema admits — the backend's Joi
   // schema is `.unknown(false)`, so a snake_case body (or one extra key) is a 400
@@ -118,7 +139,7 @@ async function exchangeCode(cfg: ResolvedConfig, code: string, verifier: string,
     method: "POST",
     pathWithQuery,
     body,
-    clientIp: "127.0.0.1",
+    clientIp,
     ts: Math.floor(cfg.now() / 1000),
   });
   try {
@@ -220,17 +241,33 @@ export function makeCallback(cfg: ResolvedConfig) {
     if (!code || !state) return fail();
     if (!txn || txn.state !== state) return fail();
 
-    const ex = await exchangeCode(cfg, code, txn.verifier, origin);
-    if (ex.status !== 200) return fail();
+    const quiet = () => quietReturn(safeNext(txn.next, "/"), [clearTxn, probedCookie(cfg)]);
+
+    // A round trip that only changed state at the identity origin. Never exchange.
+    if (txn.noExchange) return quiet();
+
+    // A silent check never REPLACES a session this brand already holds: the code may
+    // belong to a different person (whoever the identity origin remembers).
+    if (txn.silent && unseal<SessionPlaintext>(parseCookies(req)[COOKIES.session], cfg.unsealKeys, cfg.rpId)) {
+      return quiet();
+    }
+
+    const ex = await exchangeCode(cfg, code, txn.verifier, origin, visitorIp(req));
+    // A silent check that cannot finish returns quietly; the visitor never asked.
+    if (ex.status !== 200) return txn.silent ? quiet() : fail();
 
     const established = sessionFromExchange(cfg, ex.body, txn.keep);
-    if (!established) return fail();
+    if (!established) return txn.silent ? quiet() : fail();
 
     const headers = new Headers({ "cache-control": "private, no-store", location: safeNext(txn.next, "/") });
     headers.append("set-cookie", clearTxn);
     appendSetSession(headers, cfg, established.sealed, established.initials, established.keep);
     // This session came THROUGH the identity origin, so it already knows: nothing to seed.
     headers.append("set-cookie", clearCookie(COOKIES.ssoSeed, hintCookieOptions(cfg)));
+    // A sign-in the person started lifts an earlier "signed out here" block. A silent
+    // one cannot reach this line while the block is set (start refuses it).
+    if (!txn.silent) headers.append("set-cookie", clearCookie(COOKIES.ssoOff, hintCookieOptions(cfg)));
+    else headers.append("set-cookie", probedCookie(cfg));
     return new Response(null, { status: 302, headers });
   };
 }
@@ -248,13 +285,14 @@ export function makeEstablish(cfg: ResolvedConfig) {
     if (!payload.code || !payload.state || !txn || txn.state !== payload.state) {
       return json({ error: "state_mismatch" }, 400);
     }
-    const ex = await exchangeCode(cfg, payload.code, txn.verifier, new URL(req.url).origin);
+    const ex = await exchangeCode(cfg, payload.code, txn.verifier, new URL(req.url).origin, visitorIp(req));
     if (ex.status !== 200) return json({ error: "exchange_failed" }, 401);
     const established = sessionFromExchange(cfg, ex.body, txn.keep);
     if (!established) return json({ error: "bad_exchange_body" }, 502);
     const headers = new Headers({ "content-type": "application/json", "cache-control": "private, no-store" });
     appendSetSession(headers, cfg, established.sealed, established.initials, established.keep);
     headers.append("set-cookie", clearCookie(COOKIES.ssoSeed, hintCookieOptions(cfg)));
+    headers.append("set-cookie", clearCookie(COOKIES.ssoOff, hintCookieOptions(cfg)));
     return new Response(JSON.stringify({ signedIn: true }), { status: 200, headers });
   };
 }
@@ -313,8 +351,34 @@ export function makeSeed(cfg: ResolvedConfig, refresh: (sid: string, rt: string)
       next,
       prompt: "none",
       keep: Boolean(sess.keep),
+      noExchange: true,
     });
     headers.append("set-cookie", txnCookie);
     return go(buildSeedUrl(cfg, { token, audience: cfg.clientId, continueTo: authUrl, keep: Boolean(sess.keep) }));
+  };
+}
+
+/**
+ * GET /api/auth/signout-hop?next=… — after a sign-out on THIS brand, end the session
+ * the identity origin still holds, so the next person on this browser is not silently
+ * signed in as this one on another brand. Run once, on the page load after the
+ * sign-out (the browser helper reads cw-sso-signout). The identity origin clears its
+ * cookie and continues through /authorize?prompt=none back to the callback, which never
+ * exchanges for this transaction. Every failure returns quietly.
+ */
+export function makeSignoutHop(cfg: ResolvedConfig) {
+  return async function signoutHop(req: Request): Promise<Response> {
+    const url = new URL(req.url);
+    const next = safeNext(url.searchParams.get("next"), "/");
+    const clearFlag = clearCookie(COOKIES.ssoSignout, hintCookieOptions(cfg));
+    const { txnCookie, authUrl } = beginAuthorize(cfg, url.origin, {
+      next,
+      prompt: "none",
+      keep: false,
+      noExchange: true,
+    });
+    const target = buildSignoutHopUrl(cfg, { audience: cfg.clientId, continueTo: authUrl });
+    if (!target) return quietReturn(next, [clearFlag]);
+    return quietReturn(target, [clearFlag, txnCookie]);
   };
 }

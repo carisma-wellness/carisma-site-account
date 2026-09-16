@@ -83,6 +83,23 @@ export function buildSeedUrl(
   return u.toString();
 }
 
+/**
+ * The identity origin's /sso/signout door: end the session it holds after a sign-out
+ * on a brand, then continue to `/authorize` on the same origin. Null when no identity
+ * origin is configured (the caller returns quietly instead of throwing).
+ */
+export function buildSignoutHopUrl(
+  cfg: Pick<ResolvedConfig, "identityOrigin">,
+  p: { audience: string; continueTo: string },
+): string | null {
+  if (!cfg.identityOrigin) return null;
+  const cont = new URL(p.continueTo);
+  const u = new URL(`${stripTrailingSlash(cfg.identityOrigin)}/sso/signout`);
+  u.searchParams.set("aud", p.audience);
+  u.searchParams.set("continue", cont.pathname + cont.search);
+  return u.toString();
+}
+
 /* ── 2. the site's own door (/api/auth/start) and `next` validation ─────── */
 
 /**
@@ -142,6 +159,13 @@ export function seedDoorUrl(next: string | null | undefined): string {
   const params = new URLSearchParams();
   params.set("next", validateNext(next, "/"));
   return `/api/auth/seed?${params.toString()}`;
+}
+
+/** The site's own sign-out hop: end the identity origin's session after a sign-out here. */
+export function signoutHopDoorUrl(next: string | null | undefined): string {
+  const params = new URLSearchParams();
+  params.set("next", validateNext(next, "/"));
+  return `/api/auth/signout-hop?${params.toString()}`;
 }
 
 /** A same-origin hub link reached through the door so the person arrives signed in. */

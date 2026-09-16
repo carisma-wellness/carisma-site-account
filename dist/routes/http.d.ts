@@ -29,6 +29,8 @@ export declare function appendClearSession(headers: Headers, cfg: ResolvedConfig
  * rollout most often ships. Only a sign-in they start themselves lifts it.
  */
 export declare function appendSignedOutByPerson(headers: Headers, cfg: ResolvedConfig): void;
+/** Ask the next page load to end the identity origin's session as well (one attempt). */
+export declare function appendSignoutHop(headers: Headers, cfg: ResolvedConfig): void;
 /** A signed-out JSON response that also clears the sealed cookie and the hints. */
 export declare function jsonClearing(body: unknown, cfg: ResolvedConfig, status?: number): Response;
 /** Append Set-Cookie headers that establish the sealed session + readable hints. */

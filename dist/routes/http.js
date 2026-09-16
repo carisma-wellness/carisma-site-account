@@ -53,6 +53,10 @@ export function appendSignedOutByPerson(headers, cfg) {
     appendClearSession(headers, cfg);
     headers.append("set-cookie", serializeCookie(COOKIES.ssoOff, "1", { ...baseCookieOpts(cfg), httpOnly: false, maxAge: THIRTY_DAYS_SECONDS }));
 }
+/** Ask the next page load to end the identity origin's session as well (one attempt). */
+export function appendSignoutHop(headers, cfg) {
+    headers.append("set-cookie", serializeCookie(COOKIES.ssoSignout, "1", { ...baseCookieOpts(cfg), httpOnly: false }));
+}
 /** A signed-out JSON response that also clears the sealed cookie and the hints. */
 export function jsonClearing(body, cfg, status = 200) {
     const headers = new Headers(NO_STORE_HEADERS);
@@ -68,9 +72,9 @@ export function appendSetSession(headers, cfg, sealed, initials, keep) {
         headers.append("set-cookie", serializeCookie(COOKIES.hintInitials, initials, { ...baseCookieOpts(cfg), httpOnly: false, maxAge }));
     }
     // One bit that outlives the session: a returner is checked on page load, cold
-    // traffic never is. A sign-in also lifts any earlier "signed out here" block.
+    // traffic never is. (Lifting a "signed out here" block is NOT done here: this also
+    // runs on a plain token refresh, which must not undo a sign-out racing it.)
     headers.append("set-cookie", serializeCookie(COOKIES.known, "1", { ...baseCookieOpts(cfg), httpOnly: false, maxAge: KNOWN_MAX_AGE_SECONDS }));
-    headers.append("set-cookie", clearCookie(COOKIES.ssoOff, { ...baseCookieOpts(cfg), httpOnly: false }));
 }
 /** The cookie options every readable brand-site hint uses (for callers outside this module). */
 export function hintCookieOptions(cfg) {

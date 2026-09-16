@@ -15,7 +15,7 @@ export { COOKIES, parseCookies, serializeCookie, clearCookie, inlineSessionCooki
 export { maskProfile, maskEmail, initialsFrom } from "./routes/profile.js";
 export { safeNext } from "./routes/pkce.js";
 // lib/account/urls — the only builder of an identity-origin URL (WP-PKG-2).
-export { buildAuthorizeUrl, buildLogoutUrl, callbackRedirectUri, validateNext, startUrl, brandStartUrl, hubStartUrl, buildSeedUrl, silentStartUrl, seedDoorUrl, } from "./urls.js";
+export { buildAuthorizeUrl, buildLogoutUrl, callbackRedirectUri, validateNext, startUrl, brandStartUrl, hubStartUrl, buildSeedUrl, buildSignoutHopUrl, silentStartUrl, seedDoorUrl, signoutHopDoorUrl, } from "./urls.js";
 // The account UI surface (WP-PKG-2). Also available at "@carisma/site-account/ui".
 export * from "./ui/index.js";
 // Step 3 of 3 (WP-PKG-3). Also available at "@carisma/site-account/booking".
@@ -26,5 +26,5 @@ export * from "./booking/index.js";
  * the site's built chunk — the negative control that a site is resolving the pinned
  * tarball and not a live workspace path.
  */
-export const SITE_ACCOUNT_BUILD_MARKER = "carisma-site-account@cross-brand-sso-1";
+export const SITE_ACCOUNT_BUILD_MARKER = "carisma-site-account@cross-brand-sso-2";
 //# sourceMappingURL=index.js.map

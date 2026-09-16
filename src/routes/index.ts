@@ -4,7 +4,7 @@ import { createRefresher } from "./refresh.js";
 import { makeSession } from "./session.js";
 import { makeProxy } from "./proxy.js";
 import { makeLogout } from "./logout.js";
-import { makeStart, makeCallback, makeEstablish, makeSeed } from "./authorize.js";
+import { makeStart, makeCallback, makeEstablish, makeSeed, makeSignoutHop } from "./authorize.js";
 
 export interface AccountRoutes {
   /** GET  /api/auth/session          — signed-in probe (the only identity read) */
@@ -21,6 +21,8 @@ export interface AccountRoutes {
   establish: (req: Request) => Promise<Response>;
   /** GET  /api/auth/seed             — tell the identity origin about a sign-in made here */
   seed: (req: Request) => Promise<Response>;
+  /** GET  /api/auth/signout-hop      — after a sign-out here, end the identity origin's session */
+  signoutHop: (req: Request) => Promise<Response>;
 }
 
 /**
@@ -40,5 +42,6 @@ export function createAccountRoutes(config: AccountRoutesConfig): AccountRoutes 
     callback: makeCallback(cfg),
     establish: makeEstablish(cfg),
     seed: makeSeed(cfg, refresh),
+    signoutHop: makeSignoutHop(cfg),
   };
 }

@@ -14,6 +14,8 @@ export interface AccountRoutes {
     establish: (req: Request) => Promise<Response>;
     /** GET  /api/auth/seed             — tell the identity origin about a sign-in made here */
     seed: (req: Request) => Promise<Response>;
+    /** GET  /api/auth/signout-hop      — after a sign-out here, end the identity origin's session */
+    signoutHop: (req: Request) => Promise<Response>;
 }
 /**
  * The factory a Next brand site mounts under app/api/auth/**. One call per site,

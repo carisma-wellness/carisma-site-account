@@ -48,6 +48,15 @@ export declare function buildSeedUrl(cfg: Pick<ResolvedConfig, "identityOrigin">
     keep: boolean;
 }): string;
 /**
+ * The identity origin's /sso/signout door: end the session it holds after a sign-out
+ * on a brand, then continue to `/authorize` on the same origin. Null when no identity
+ * origin is configured (the caller returns quietly instead of throwing).
+ */
+export declare function buildSignoutHopUrl(cfg: Pick<ResolvedConfig, "identityOrigin">, p: {
+    audience: string;
+    continueTo: string;
+}): string | null;
+/**
  * Validate a `next` target: a same-origin RELATIVE path only. Rejects a scheme, a
  * protocol-relative `//host`, a backslash, an `@`, and ASCII control characters,
  * then resolves against a placeholder origin and refuses anything that escaped it.
@@ -67,6 +76,8 @@ export declare function brandStartUrl(targetOrigin: string, next: string): strin
 export declare function silentStartUrl(next: string | null | undefined): string;
 /** The site's own seed door: tell the identity origin about a sign-in made here. */
 export declare function seedDoorUrl(next: string | null | undefined): string;
+/** The site's own sign-out hop: end the identity origin's session after a sign-out here. */
+export declare function signoutHopDoorUrl(next: string | null | undefined): string;
 /** A same-origin hub link reached through the door so the person arrives signed in. */
 export declare function hubStartUrl(hubPath: string): string;
 //# sourceMappingURL=urls.d.ts.map

@@ -12,6 +12,8 @@
  *                identity origin has not been told yet. One attempt, then it is gone.
  * cw-sso-off     readable, 30 days: the person signed out on this brand. No silent check
  *                may sign them straight back in until they sign in again themselves.
+ * cw-sso-signout readable, browser-session: signed out here; the next page load ends the
+ *                identity origin's session too (one attempt).
  *
  * Every cookie is host-only (no Domain — see WP-MED-1's host-only requirement),
  * SameSite=Lax, and Secure UNLESS cookieSecure is false (local http origins cannot
@@ -26,6 +28,7 @@ export const COOKIES = {
   ssoProbed: "cw-sso-probed",
   ssoSeed: "cw-sso-seed",
   ssoOff: "cw-sso-off",
+  ssoSignout: "cw-sso-signout",
 } as const;
 
 export const THIRTY_DAYS_SECONDS = 60 * 60 * 24 * 30;

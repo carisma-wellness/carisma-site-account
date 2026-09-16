@@ -8,7 +8,8 @@
  *   · anyone who opens booking (trigger "interaction") is checked once, before they type;
  *   · a person signed in HERE by the booking pop-up is carried to the identity origin once
  *     (cw-sso-seed), so the other brands can find them;
- *   · a person who signed out on this brand (cw-sso-off) is never silently signed back in.
+ *   · a person who signed out on this brand (cw-sso-off) is never silently signed back in,
+ *     and the identity origin's session is ended once on the next page (cw-sso-signout).
  *
  * Every check is a top-level navigation. The identity origin is a different registrable
  * domain from every brand, and a hidden iframe or a credentialed fetch would depend on
@@ -19,7 +20,7 @@
  * written first (one silent check per browser session) and cw-sso-seed is deleted first
  * (one seed attempt), so a server that answers badly still cannot bounce anyone twice.
  */
-import { seedDoorUrl, silentStartUrl } from "../urls.js";
+import { seedDoorUrl, signoutHopDoorUrl, silentStartUrl } from "../urls.js";
 const has = (cookie, name, value = "1") => new RegExp(`(?:^|;\\s*)${name}=${value}(?:;|$)`).test(cookie);
 /** Paths where a page-load redirect would disturb a payment in progress. */
 export const SSO_PROBE_SKIP_PREFIXES = ["/api/", "/book/checkout", "/book/confirmed"];
@@ -31,6 +32,10 @@ export function ssoProbeDecision(input) {
         return null;
     if (SSO_PROBE_SKIP_PREFIXES.some((p) => path.startsWith(p)))
         return null;
+    // Finishing a sign-out outranks everything: the next person on this browser must
+    // not inherit the session the identity origin still holds.
+    if (has(cookie, "cw-sso-signout"))
+        return trigger === "load" ? "signout" : null;
     if (has(cookie, "cw-sso-off"))
         return null;
     if (has(cookie, "cw-signed-in")) {
@@ -69,11 +74,17 @@ export function runSsoProbe(env, trigger, opts = {}) {
                 return false; // cookies blocked: never loop
             loc.assign(silentStartUrl(next));
         }
-        else {
+        else if (action === "seed") {
             doc.cookie = `cw-sso-seed=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
             if (has(doc.cookie, "cw-sso-seed"))
                 return false;
             loc.assign(seedDoorUrl(next));
+        }
+        else {
+            doc.cookie = `cw-sso-signout=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+            if (has(doc.cookie, "cw-sso-signout"))
+                return false;
+            loc.assign(signoutHopDoorUrl(next));
         }
     }
     catch {

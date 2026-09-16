@@ -50,6 +50,20 @@ export interface ServiceSignOptions {
  * the backend never read it and answered 401 SERVICE_AUTH_INVALID.
  */
 export declare function signService(opts: ServiceSignOptions): Record<string, string>;
+/**
+ * The visitor's IP as the brand's edge reported it, for the signed X-Carisma-Client-IP.
+ *
+ * Until 2026-09-16 every exchange was signed as 127.0.0.1, and the backend keys its
+ * exchange limit (30 / 15 min) on that signed value — so every sign-in on every brand
+ * shared ONE bucket. Harmless while sign-ins were rare; a hard platform-wide ceiling
+ * once single sign-on exchanges a code on every brand a person opens.
+ *
+ * CloudFront's `cloudfront-viewer-address` (ip:port) wins when present; else the first
+ * X-Forwarded-For hop; else 127.0.0.1. The first hop is client-supplied, which is
+ * acceptable here: the limit guards against guessing a 256-bit single-use code, not
+ * against a caller picking its own bucket.
+ */
+export declare function visitorIp(req: Request): string;
 /** Validate a `next` target: relative, no scheme, no backslash, no protocol-relative. */
 export declare function safeNext(next: string | null, fallback?: string): string;
 //# sourceMappingURL=pkce.d.ts.map

@@ -18,7 +18,7 @@ export type { AllowRule } from "./routes/allowlist.js";
 export { COOKIES, parseCookies, serializeCookie, clearCookie, inlineSessionCookies } from "./routes/cookies.js";
 export { maskProfile, maskEmail, initialsFrom } from "./routes/profile.js";
 export { safeNext } from "./routes/pkce.js";
-export { buildAuthorizeUrl, buildLogoutUrl, callbackRedirectUri, validateNext, startUrl, brandStartUrl, hubStartUrl, buildSeedUrl, silentStartUrl, seedDoorUrl, } from "./urls.js";
+export { buildAuthorizeUrl, buildLogoutUrl, callbackRedirectUri, validateNext, startUrl, brandStartUrl, hubStartUrl, buildSeedUrl, buildSignoutHopUrl, silentStartUrl, seedDoorUrl, signoutHopDoorUrl, } from "./urls.js";
 export type { AuthorizeParams } from "./urls.js";
 export * from "./ui/index.js";
 export * from "./booking/index.js";
@@ -28,5 +28,5 @@ export * from "./booking/index.js";
  * the site's built chunk — the negative control that a site is resolving the pinned
  * tarball and not a live workspace path.
  */
-export declare const SITE_ACCOUNT_BUILD_MARKER = "carisma-site-account@cross-brand-sso-1";
+export declare const SITE_ACCOUNT_BUILD_MARKER = "carisma-site-account@cross-brand-sso-2";
 //# sourceMappingURL=index.d.ts.map

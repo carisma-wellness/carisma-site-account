@@ -1,5 +1,5 @@
 export type SsoProbeTrigger = "load" | "interaction";
-export type SsoProbeAction = "probe" | "seed" | null;
+export type SsoProbeAction = "probe" | "seed" | "signout" | null;
 /** Paths where a page-load redirect would disturb a payment in progress. */
 export declare const SSO_PROBE_SKIP_PREFIXES: readonly string[];
 /** Pure decision, unit-tested. No DOM. */

@@ -29,4 +29,13 @@ export declare function makeEstablish(cfg: ResolvedConfig): (req: Request) => Pr
  * quietly back to `next`.
  */
 export declare function makeSeed(cfg: ResolvedConfig, refresh: (sid: string, rt: string) => Promise<RefreshResult>): (req: Request) => Promise<Response>;
+/**
+ * GET /api/auth/signout-hop?next=… — after a sign-out on THIS brand, end the session
+ * the identity origin still holds, so the next person on this browser is not silently
+ * signed in as this one on another brand. Run once, on the page load after the
+ * sign-out (the browser helper reads cw-sso-signout). The identity origin clears its
+ * cookie and continues through /authorize?prompt=none back to the callback, which never
+ * exchanges for this transaction. Every failure returns quietly.
+ */
+export declare function makeSignoutHop(cfg: ResolvedConfig): (req: Request) => Promise<Response>;
 //# sourceMappingURL=authorize.d.ts.map
