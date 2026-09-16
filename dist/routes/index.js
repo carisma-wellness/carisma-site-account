@@ -3,7 +3,7 @@ import { createRefresher } from "./refresh.js";
 import { makeSession } from "./session.js";
 import { makeProxy } from "./proxy.js";
 import { makeLogout } from "./logout.js";
-import { makeStart, makeCallback, makeEstablish } from "./authorize.js";
+import { makeStart, makeCallback, makeEstablish, makeSeed } from "./authorize.js";
 /**
  * The factory a Next brand site mounts under app/api/auth/**. One call per site,
  * fed the per-site config object (config.ts). Returns Fetch-API handlers so they run
@@ -20,6 +20,7 @@ export function createAccountRoutes(config) {
         start: makeStart(cfg),
         callback: makeCallback(cfg),
         establish: makeEstablish(cfg),
+        seed: makeSeed(cfg, refresh),
     };
 }
 //# sourceMappingURL=index.js.map

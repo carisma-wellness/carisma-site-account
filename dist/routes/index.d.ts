@@ -12,6 +12,8 @@ export interface AccountRoutes {
     callback: (req: Request) => Promise<Response>;
     /** POST /api/auth/establish        — the popup exchange */
     establish: (req: Request) => Promise<Response>;
+    /** GET  /api/auth/seed             — tell the identity origin about a sign-in made here */
+    seed: (req: Request) => Promise<Response>;
 }
 /**
  * The factory a Next brand site mounts under app/api/auth/**. One call per site,

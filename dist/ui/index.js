@@ -14,4 +14,5 @@ export { memberDoor, memberFallbackHTML } from "./memberDoor.js";
 export { buildPanelModel, accountPanelHTML } from "./panel.js";
 export { resolveBrandLink, installBrandLinkInterceptor } from "./linkInterceptor.js";
 export { hydrateAccountMark, hydrateAccountMarks, mountAccountPanel, hydrateAll } from "./browser.js";
+export { ssoProbeDecision, runSsoProbe, SSO_PROBE_SKIP_PREFIXES } from "./ssoProbe.js";
 //# sourceMappingURL=index.js.map

@@ -1,9 +1,23 @@
 import type { ResolvedConfig } from "./config.js";
 import { upstream } from "./upstream.js";
+import { unwrapEnvelope } from "./http.js";
 
 export interface RefreshResult {
   status: number; // 200 refreshed, 401 dead refresh token, 0/5xx transient
   tokens?: { accessToken: string; atExp: number; refreshToken?: string };
+}
+
+/** The `exp` claim of a JWT, read without verifying (it came straight from the API). */
+function jwtExp(token: unknown): number | undefined {
+  if (typeof token !== "string") return undefined;
+  const part = token.split(".")[1];
+  if (!part) return undefined;
+  try {
+    const json = JSON.parse(Buffer.from(part, "base64url").toString("utf8")) as { exp?: unknown };
+    return typeof json.exp === "number" ? json.exp : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -19,10 +33,15 @@ export function createRefresher(cfg: ResolvedConfig) {
   async function doRefresh(rt: string): Promise<RefreshResult> {
     const res = await upstream(cfg, "/auth/refresh", "POST", null, JSON.stringify({ refreshToken: rt }));
     if (res.status === 401) return { status: 401 };
-    if (res.status === 200 && res.body && typeof res.body === "object") {
-      const b = res.body as Record<string, unknown>;
+    // The live backend answers {success,data:{accessToken,refreshToken}} — enveloped, and
+    // with NO expiry field. Reading it flat (as this did until 2026-09-16) found no token
+    // and treated every real refresh as a transient failure, so a session never renewed.
+    const unwrapped = unwrapEnvelope(res.body);
+    if (res.status === 200 && unwrapped && typeof unwrapped === "object") {
+      const b = unwrapped as Record<string, unknown>;
       const accessToken = (b.accessToken ?? b.access_token) as string | undefined;
-      const atExp = (b.atExp ?? b.accessTokenExpiresAt ?? b.exp) as number | undefined;
+      const declared = (b.atExp ?? b.accessTokenExpiresAt ?? b.exp) as number | undefined;
+      const atExp = typeof declared === "number" ? declared : jwtExp(accessToken);
       const refreshToken = (b.refreshToken ?? b.refresh_token) as string | undefined;
       if (typeof accessToken === "string" && typeof atExp === "number") {
         return { status: 200, tokens: { accessToken, atExp, refreshToken } };

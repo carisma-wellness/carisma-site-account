@@ -1,4 +1,20 @@
 import { upstream } from "./upstream.js";
+import { unwrapEnvelope } from "./http.js";
+/** The `exp` claim of a JWT, read without verifying (it came straight from the API). */
+function jwtExp(token) {
+    if (typeof token !== "string")
+        return undefined;
+    const part = token.split(".")[1];
+    if (!part)
+        return undefined;
+    try {
+        const json = JSON.parse(Buffer.from(part, "base64url").toString("utf8"));
+        return typeof json.exp === "number" ? json.exp : undefined;
+    }
+    catch {
+        return undefined;
+    }
+}
 /**
  * Single-flight refresh, keyed on sid. Concurrent session reads on one instance that
  * both find the access token near expiry collapse into ONE POST /auth/refresh; the
@@ -12,10 +28,15 @@ export function createRefresher(cfg) {
         const res = await upstream(cfg, "/auth/refresh", "POST", null, JSON.stringify({ refreshToken: rt }));
         if (res.status === 401)
             return { status: 401 };
-        if (res.status === 200 && res.body && typeof res.body === "object") {
-            const b = res.body;
+        // The live backend answers {success,data:{accessToken,refreshToken}} — enveloped, and
+        // with NO expiry field. Reading it flat (as this did until 2026-09-16) found no token
+        // and treated every real refresh as a transient failure, so a session never renewed.
+        const unwrapped = unwrapEnvelope(res.body);
+        if (res.status === 200 && unwrapped && typeof unwrapped === "object") {
+            const b = unwrapped;
             const accessToken = (b.accessToken ?? b.access_token);
-            const atExp = (b.atExp ?? b.accessTokenExpiresAt ?? b.exp);
+            const declared = (b.atExp ?? b.accessTokenExpiresAt ?? b.exp);
+            const atExp = typeof declared === "number" ? declared : jwtExp(accessToken);
             const refreshToken = (b.refreshToken ?? b.refresh_token);
             if (typeof accessToken === "string" && typeof atExp === "number") {
                 return { status: 200, tokens: { accessToken, atExp, refreshToken } };

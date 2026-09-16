@@ -1,4 +1,4 @@
-import { COOKIES, clearCookie, serializeCookie, THIRTY_DAYS_SECONDS } from "./cookies.js";
+import { COOKIES, clearCookie, serializeCookie, THIRTY_DAYS_SECONDS, KNOWN_MAX_AGE_SECONDS } from "./cookies.js";
 export const NO_STORE_HEADERS = {
     "content-type": "application/json",
     "cache-control": "private, no-store",
@@ -41,6 +41,17 @@ export function appendClearSession(headers, cfg) {
     headers.append("set-cookie", clearCookie(COOKIES.session, { ...baseCookieOpts(cfg), httpOnly: true }));
     headers.append("set-cookie", clearCookie(COOKIES.hintSignedIn, { ...baseCookieOpts(cfg), httpOnly: false }));
     headers.append("set-cookie", clearCookie(COOKIES.hintInitials, { ...baseCookieOpts(cfg), httpOnly: false }));
+    headers.append("set-cookie", clearCookie(COOKIES.ssoSeed, { ...baseCookieOpts(cfg), httpOnly: false }));
+}
+/**
+ * A deliberate sign-out on this brand. Besides clearing the session, stamp cw-sso-off
+ * so the silent cross-brand check cannot sign the person straight back in from the
+ * identity origin's session on their next page — the surprise a single sign-on
+ * rollout most often ships. Only a sign-in they start themselves lifts it.
+ */
+export function appendSignedOutByPerson(headers, cfg) {
+    appendClearSession(headers, cfg);
+    headers.append("set-cookie", serializeCookie(COOKIES.ssoOff, "1", { ...baseCookieOpts(cfg), httpOnly: false, maxAge: THIRTY_DAYS_SECONDS }));
 }
 /** A signed-out JSON response that also clears the sealed cookie and the hints. */
 export function jsonClearing(body, cfg, status = 200) {
@@ -56,6 +67,14 @@ export function appendSetSession(headers, cfg, sealed, initials, keep) {
     if (initials) {
         headers.append("set-cookie", serializeCookie(COOKIES.hintInitials, initials, { ...baseCookieOpts(cfg), httpOnly: false, maxAge }));
     }
+    // One bit that outlives the session: a returner is checked on page load, cold
+    // traffic never is. A sign-in also lifts any earlier "signed out here" block.
+    headers.append("set-cookie", serializeCookie(COOKIES.known, "1", { ...baseCookieOpts(cfg), httpOnly: false, maxAge: KNOWN_MAX_AGE_SECONDS }));
+    headers.append("set-cookie", clearCookie(COOKIES.ssoOff, { ...baseCookieOpts(cfg), httpOnly: false }));
+}
+/** The cookie options every readable brand-site hint uses (for callers outside this module). */
+export function hintCookieOptions(cfg) {
+    return { ...baseCookieOpts(cfg), httpOnly: false };
 }
 /** Origin check for state-changing BFF routes (W-7). */
 export function originAllowed(req, cfg) {
