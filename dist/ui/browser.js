@@ -12,8 +12,22 @@
  * byte-identical guest chip to the signed-in chip (W-1: the server HTML never branched).
  */
 import { accountMarkSignedInHTML, accountMarkState, ACCOUNT_MARK_ATTR } from "./accountMark.js";
+import { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, avatarUrlFromSession, sanitizeAvatarUrl } from "./avatar.js";
+import { readSignedInHint } from "./hint.js";
 import { buildPanelModel, accountPanelHTML } from "./panel.js";
 import { installBrandLinkInterceptor } from "./linkInterceptor.js";
+/**
+ * The member's photo URL for this tab, once known. Module state on purpose: a host's
+ * header re-applies hydrateAccountMark on every re-render (a React re-commit of the
+ * server glyph, a StrictMode remount), and a photo held only in the DOM would be wiped
+ * back to initials each time. Read here, it survives every re-apply. Cleared when the
+ * session read says signed out.
+ */
+let currentAvatarUrl = null;
+/** The photo the marks are currently painted with (exported for tests/hosts). */
+export function accountMarkPhotoUrl() {
+    return currentAvatarUrl;
+}
 /** Upgrade one guest chip to its signed-in appearance from the host cookie. */
 export function hydrateAccountMark(el, cookie) {
     const st = accountMarkState(cookie);
@@ -26,7 +40,7 @@ export function hydrateAccountMark(el, cookie) {
     el.setAttribute("href", st.href);
     if (st.initials)
         el.setAttribute("data-cw-initials", st.initials);
-    el.innerHTML = accountMarkSignedInHTML(st.initials);
+    el.innerHTML = accountMarkSignedInHTML(st.initials, currentAvatarUrl);
 }
 /** Hydrate every account mark in the document from the current cookie. */
 export function hydrateAccountMarks(doc) {
@@ -34,6 +48,71 @@ export function hydrateAccountMarks(doc) {
     const marks = doc.querySelectorAll(`[${ACCOUNT_MARK_ATTR}]`);
     for (let i = 0; i < marks.length; i++)
         hydrateAccountMark(marks[i], cookie);
+}
+/**
+ * Put the member's own photo on the mark (CEO 2026-09-16).
+ *
+ * Only for a browser the hint cookie already calls signed in — a guest makes no
+ * request, so the CloudFront-cached document stays free of member traffic (W-1). The
+ * URL is read from the site's own `/api/auth/session`, cached per tab for
+ * AVATAR_CACHE_TTL_MS so one photo costs one request however many pages are walked,
+ * and every failure is silent: no photo simply means the initials chip, and nothing
+ * here can sign anybody out (W-9).
+ */
+export function loadAccountMarkPhoto(doc, fetchImpl, storage) {
+    if (!readSignedInHint(doc.cookie || "")) {
+        currentAvatarUrl = null;
+        return Promise.resolve();
+    }
+    const cached = readCachedAvatar(storage);
+    if (cached) {
+        currentAvatarUrl = cached;
+        hydrateAccountMarks(doc);
+        return Promise.resolve();
+    }
+    if (!fetchImpl)
+        return Promise.resolve();
+    return fetchImpl("/api/auth/session", { credentials: "same-origin" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((body) => {
+        const url = avatarUrlFromSession(body);
+        currentAvatarUrl = url;
+        writeCachedAvatar(storage, url);
+        if (url)
+            hydrateAccountMarks(doc);
+    })
+        .catch(() => {
+        /* W-9: a failed read is a mark without a photo, never a sign-out */
+    });
+}
+function readCachedAvatar(storage) {
+    if (!storage)
+        return null;
+    try {
+        const raw = storage.getItem(AVATAR_CACHE_KEY);
+        if (!raw)
+            return null;
+        const parsed = JSON.parse(raw);
+        const at = typeof parsed.at === "number" ? parsed.at : 0;
+        if (Date.now() - at > AVATAR_CACHE_TTL_MS) {
+            storage.removeItem(AVATAR_CACHE_KEY);
+            return null;
+        }
+        return sanitizeAvatarUrl(parsed.url);
+    }
+    catch {
+        return null;
+    }
+}
+function writeCachedAvatar(storage, url) {
+    if (!storage)
+        return;
+    try {
+        storage.setItem(AVATAR_CACHE_KEY, JSON.stringify({ url, at: Date.now() }));
+    }
+    catch {
+        /* private mode, blocked storage: the photo is simply re-read next page */
+    }
 }
 /**
  * Mount the panel: on a click of a signed-in mark, make the ONE authenticated read and
@@ -69,6 +148,7 @@ export function mountAccountPanel(doc, opts = {}) {
 /** Wire everything the account UI needs after hydration. */
 export function hydrateAll(doc, opts = {}) {
     hydrateAccountMarks(doc);
+    void loadAccountMarkPhoto(doc, opts.fetchImpl, opts.storage);
     installBrandLinkInterceptor(doc, {
         getCookie: () => doc.cookie || "",
         navigate: opts.navigate || (() => { }),

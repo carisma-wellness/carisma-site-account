@@ -12,6 +12,7 @@
  */
 import { readInitialsHint, readSignedInHint } from "./hint.js";
 import { GUEST_GLYPH_SVG, SIGNED_GLYPH_SVG, escapeHtml } from "./html.js";
+import { accountMarkPhotoHTML, sanitizeAvatarUrl } from "./avatar.js";
 export const MEMBER_HREF = "/member";
 export const PANEL_HREF = "#account-panel";
 /** The hydration hook + the QC stamp the boundary/QC scripts and tests look for. */
@@ -48,11 +49,15 @@ export function accountMarkServerHTML(opts = {}) {
  * consent gate, and a rendered name is neither a number nor an address, so it is not
  * masked by Clarity's default mode.
  */
-export function accountMarkSignedInHTML(initials) {
+export function accountMarkSignedInHTML(initials, photoUrl) {
     const ini = /^[A-Za-z]{1,2}$/.test(initials) ? initials.toUpperCase() : "";
-    if (!ini)
-        return SIGNED_GLYPH_SVG;
-    return (`<span class="carisma-account-mark__initials" data-clarity-mask="True" ` +
-        `aria-hidden="true">${ini}</span>`);
+    // The photo is layered OVER the base paint, never instead of it: a broken image
+    // removes itself and the initials (or the filled silhouette) are already there.
+    const photo = photoUrl ? accountMarkPhotoHTML(sanitizeAvatarUrl(photoUrl) ?? "") : "";
+    const base = ini
+        ? `<span class="carisma-account-mark__initials" data-clarity-mask="True" ` +
+            `aria-hidden="true">${ini}</span>`
+        : SIGNED_GLYPH_SVG;
+    return photoUrl && sanitizeAvatarUrl(photoUrl) ? base + photo : base;
 }
 //# sourceMappingURL=accountMark.js.map
