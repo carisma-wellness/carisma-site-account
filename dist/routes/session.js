@@ -3,6 +3,7 @@ import { COOKIES, parseCookies } from "./cookies.js";
 import { upstream } from "./upstream.js";
 import { maskProfile } from "./profile.js";
 import { json, jsonClearing, appendSetSession, shouldClearSession, unwrapEnvelope, NO_STORE_HEADERS } from "./http.js";
+import { extractAppointmentList } from "../ui/appointments.js";
 /**
  * GET /api/auth/session  — the only route that knows whether this browser is signed in.
  *
@@ -64,8 +65,12 @@ export function makeSession(cfg, refresh) {
             profile,
         };
         if (includeUpcoming) {
-            const appts = await upstream(cfg, "/client/booking/appointments?upcoming=1", "GET", at, null);
-            body.upcoming = appts.status === 200 && Array.isArray(appts.body) ? appts.body : [];
+            // The live list door is filter=upcoming (Joi). The house envelope is
+            // {success,data:{data: AppointmentCard[]}} — an array check on the raw
+            // body was always [] and the panel rendered "no upcoming visits" for
+            // people with a diary.
+            const appts = await upstream(cfg, "/client/booking/appointments?filter=upcoming&limit=20", "GET", at, null);
+            body.upcoming = appts.status === 200 ? extractAppointmentList(appts.body) : [];
         }
         const headers = new Headers(NO_STORE_HEADERS);
         if (reseal) {

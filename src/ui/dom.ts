@@ -10,6 +10,7 @@ export interface MinimalElement {
   innerHTML: string;
   setAttribute(name: string, value: string): void;
   getAttribute(name: string): string | null;
+  removeAttribute?(name: string): void;
   closest?(selector: string): MinimalElement | null;
 }
 
@@ -25,9 +26,14 @@ export interface MinimalMouseEvent {
   ctrlKey: boolean;
   shiftKey: boolean;
   altKey: boolean;
+  key?: string;
   target: MinimalElement | null;
   preventDefault(): void;
   stopPropagation(): void;
+}
+
+export interface MinimalParent {
+  appendChild(el: MinimalElement): void;
 }
 
 export interface MinimalDocument {
@@ -35,4 +41,7 @@ export interface MinimalDocument {
   addEventListener(type: string, handler: (e: MinimalMouseEvent) => void, capture?: boolean): void;
   querySelectorAll(selector: string): ArrayLike<MinimalElement>;
   getElementById(id: string): MinimalElement | null;
+  createElement?(tag: string): MinimalElement;
+  body?: MinimalParent;
+  head?: MinimalParent;
 }

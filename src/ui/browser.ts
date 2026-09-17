@@ -13,19 +13,23 @@
  */
 import { accountMarkSignedInHTML, accountMarkState, ACCOUNT_MARK_ATTR } from "./accountMark.js";
 import { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, avatarUrlFromSession, sanitizeAvatarUrl } from "./avatar.js";
-import { readSignedInHint } from "./hint.js";
+import { readInitialsHint, readSignedInHint } from "./hint.js";
 import { buildPanelModel, accountPanelHTML } from "./panel.js";
+import { accountPortalHTML, buildPortalModel, type PortalView } from "./portal.js";
 import { installBrandLinkInterceptor } from "./linkInterceptor.js";
-import type { MinimalDocument, MinimalElement } from "./dom.js";
+import { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";
+import type { MinimalDocument, MinimalElement, MinimalMouseEvent } from "./dom.js";
 
 /**
  * The member's photo URL for this tab, once known. Module state on purpose: a host's
  * header re-applies hydrateAccountMark on every re-render (a React re-commit of the
  * server glyph, a StrictMode remount), and a photo held only in the DOM would be wiped
- * back to initials each time. Read here, it survives every re-apply. Cleared when the
- * session read says signed out.
+ * back to initials each time. Read here, it survives every re-apply. Cleared when
+ * the session read says signed out.
  */
 let currentAvatarUrl: string | null = null;
+
+const panelBound = new WeakSet<object>();
 
 /** The photo the marks are currently painted with (exported for tests/hosts). */
 export function accountMarkPhotoUrl(): string | null {
@@ -41,6 +45,8 @@ export function hydrateAccountMark(el: MinimalElement, cookie: string): void {
   el.setAttribute("data-cw-session", "in");
   el.setAttribute("aria-label", st.ariaLabel);
   el.setAttribute("href", st.href);
+  el.setAttribute("aria-haspopup", "dialog");
+  if (!el.getAttribute("aria-expanded")) el.setAttribute("aria-expanded", "false");
   if (st.initials) el.setAttribute("data-cw-initials", st.initials);
   el.innerHTML = accountMarkSignedInHTML(st.initials, currentAvatarUrl);
 }
@@ -127,7 +133,21 @@ function writeCachedAvatar(storage: StorageLike | null | undefined, url: string 
 }
 
 export interface FetchLike {
-  (url: string, init?: { credentials?: string }): Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
+  (
+    url: string,
+    init?: {
+      credentials?: string;
+      method?: string;
+      headers?: Record<string, string> | { get?(name: string): string | null };
+      body?: string;
+      redirect?: string;
+    },
+  ): Promise<{
+    ok: boolean;
+    status: number;
+    json(): Promise<unknown>;
+    headers?: { get(name: string): string | null };
+  }>;
 }
 
 export interface HydrateOptions {
@@ -141,36 +161,231 @@ export interface HydrateOptions {
   storage?: StorageLike | null;
 }
 
+const BACKDROP_ID = "carisma-account-backdrop";
+
+function cookieFallbackSession(cookie: string): Record<string, unknown> {
+  return {
+    signedIn: true,
+    initials: readInitialsHint(cookie),
+    profile: {},
+    upcoming: [],
+  };
+}
+
+function setOpen(doc: MinimalDocument, mountId: string, open: boolean): void {
+  const mount = doc.getElementById(mountId);
+  const backdrop = doc.getElementById(BACKDROP_ID);
+  if (open) {
+    mount?.removeAttribute?.("hidden");
+    backdrop?.removeAttribute?.("hidden");
+  } else {
+    mount?.setAttribute("hidden", "");
+    backdrop?.setAttribute("hidden", "");
+  }
+  const marks = doc.querySelectorAll(`[${ACCOUNT_MARK_ATTR}]`);
+  for (let i = 0; i < marks.length; i++) {
+    marks[i].setAttribute("aria-expanded", open ? "true" : "false");
+  }
+}
+
+function injectChrome(doc: MinimalDocument): void {
+  if (doc.getElementById(ACCOUNT_CHROME_STYLE_ID)) return;
+  const create = doc.createElement;
+  const parent = doc.head || doc.body;
+  if (!create || !parent) return;
+  const style = create("style");
+  style.setAttribute("id", ACCOUNT_CHROME_STYLE_ID);
+  style.innerHTML = ACCOUNT_CHROME_CSS;
+  parent.appendChild(style);
+}
+
+function ensureMounts(doc: MinimalDocument, mountId: string): MinimalElement | null {
+  let mount = doc.getElementById(mountId);
+  const create = doc.createElement;
+  const body = doc.body;
+  if (!mount && create && body) {
+    mount = create("div");
+    mount.setAttribute("id", mountId);
+    mount.setAttribute("hidden", "");
+    body.appendChild(mount);
+  }
+  if (!doc.getElementById(BACKDROP_ID) && create && body) {
+    const backdrop = create("div");
+    backdrop.setAttribute("id", BACKDROP_ID);
+    backdrop.setAttribute("hidden", "");
+    backdrop.setAttribute("data-carisma-panel-backdrop", "");
+    body.appendChild(backdrop);
+  }
+  return mount;
+}
+
+function postLogout(
+  fetchImpl: FetchLike,
+  everywhere: boolean,
+  navigate: (url: string) => void,
+  storage?: StorageLike | null,
+): void {
+  try {
+    storage?.removeItem(AVATAR_CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+  currentAvatarUrl = null;
+  void fetchImpl("/api/auth/logout", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(everywhere ? { everywhere: true } : {}),
+    redirect: "manual",
+  })
+    .then((r) => {
+      const loc = r.headers && typeof r.headers.get === "function" ? r.headers.get("location") : null;
+      navigate(loc || "/");
+    })
+    .catch(() => {
+      navigate("/");
+    });
+}
+
+function matches(el: MinimalElement | null, attr: string): boolean {
+  if (!el) return false;
+  if (el.getAttribute(attr) !== null) return true;
+  const hit = el.closest ? el.closest(`[${attr}]`) : null;
+  return Boolean(hit);
+}
+
 /**
- * Mount the panel: on a click of a signed-in mark, make the ONE authenticated read and
- * render. Kept defensive — a failed read never signs anyone out (W-9): the panel simply
- * does not populate. The real cancel/reschedule estate lives on the hub.
+ * Mount the panel: on a click of a signed-in mark, make the ONE authenticated read
+ * and open the dialog. A failed read still opens the panel with Sign out (the CEO
+ * must be able to leave) — it never signs anyone out by itself (W-9).
  */
 export function mountAccountPanel(doc: MinimalDocument, opts: HydrateOptions = {}): void {
-  const fetchImpl = opts.fetchImpl;
-  if (!fetchImpl) return;
+  if (panelBound.has(doc)) return;
+  panelBound.add(doc);
+  injectChrome(doc);
   const mountId = opts.panelMountId || "carisma-account-panel";
-  doc.addEventListener("click", (e) => {
+  ensureMounts(doc, mountId);
+  const navigate = opts.navigate || (() => {});
+  const fetchImpl = opts.fetchImpl;
+
+  const close = () => setOpen(doc, mountId, false);
+
+  const openPanel = (body: unknown) => {
+    const mount = ensureMounts(doc, mountId);
+    if (!mount) return;
+    mount.innerHTML = accountPanelHTML(buildPanelModel(body));
+    setOpen(doc, mountId, true);
+  };
+
+  doc.addEventListener("click", (e: MinimalMouseEvent) => {
     const t = e.target;
+    if (matches(t, "data-carisma-panel-close") || matches(t, "data-carisma-panel-backdrop") || t?.getAttribute("id") === BACKDROP_ID) {
+      e.preventDefault();
+      close();
+      return;
+    }
+    if (matches(t, "data-carisma-signout-all")) {
+      e.preventDefault();
+      if (fetchImpl) postLogout(fetchImpl, true, navigate, opts.storage);
+      return;
+    }
+    if (matches(t, "data-carisma-signout")) {
+      e.preventDefault();
+      if (fetchImpl) postLogout(fetchImpl, false, navigate, opts.storage);
+      return;
+    }
     const mark = t && typeof t.closest === "function" ? t.closest(`[${ACCOUNT_MARK_ATTR}]`) : null;
     if (!mark || mark.getAttribute("data-cw-session") !== "in") return;
     e.preventDefault();
     const mount = doc.getElementById(mountId);
-    if (!mount) return;
+    if (mount && mount.getAttribute("hidden") === null && mount.innerHTML) {
+      close();
+      return;
+    }
+    const fallback = cookieFallbackSession(doc.cookie || "");
+    if (!fetchImpl) {
+      openPanel(fallback);
+      return;
+    }
     fetchImpl("/api/auth/session?include=upcoming", { credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : null))
       .then((body) => {
-        if (!body) return;
-        mount.innerHTML = accountPanelHTML(buildPanelModel(body));
+        openPanel(body && typeof body === "object" ? body : fallback);
       })
       .catch(() => {
-        /* W-9: a failure never signs anyone out and never throws into the page */
+        openPanel(fallback);
       });
   }, false);
+
+  doc.addEventListener(
+    "keydown",
+    (e: MinimalMouseEvent) => {
+      if (e.key === "Escape") close();
+    },
+    false,
+  );
+}
+
+export function mountAccountPortal(
+  doc: MinimalDocument,
+  opts: HydrateOptions & { view?: PortalView; portalMountId?: string } = {},
+): void {
+  injectChrome(doc);
+  const mountId = opts.portalMountId || "carisma-account-portal";
+  const mount = doc.getElementById(mountId);
+  const navigate = opts.navigate || (() => {});
+  const view: PortalView = opts.view || "home";
+  const next = view === "home" ? "/account" : `/account/${view}`;
+  if (!readSignedInHint(doc.cookie || "")) {
+    navigate(`/member?next=${encodeURIComponent(next)}`);
+    return;
+  }
+  if (!mount) return;
+  const fetchImpl = opts.fetchImpl;
+  const fallback = cookieFallbackSession(doc.cookie || "");
+  const paint = (session: unknown, extra?: { past?: unknown; upcomingOverride?: unknown }) => {
+    mount.innerHTML = accountPortalHTML(buildPortalModel(session, view, extra));
+  };
+  if (!fetchImpl) {
+    paint(fallback);
+    return;
+  }
+  const sessionP = fetchImpl("/api/auth/session?include=upcoming", { credentials: "same-origin" }).then((r) =>
+    r.ok ? r.json() : null,
+  );
+  const extraP =
+    view === "bookings"
+      ? Promise.all([
+          fetchImpl("/api/auth/proxy/client/booking/appointments?filter=upcoming&limit=50", {
+            credentials: "same-origin",
+          }).then((r) => (r.ok ? r.json() : null)),
+          fetchImpl("/api/auth/proxy/client/booking/appointments?filter=past&limit=50", {
+            credentials: "same-origin",
+          }).then((r) => (r.ok ? r.json() : null)),
+        ])
+      : Promise.resolve(null);
+
+  void sessionP
+    .then((body) => {
+      if (body && typeof body === "object" && (body as { signedIn?: boolean }).signedIn === false) {
+        navigate(`/member?next=${encodeURIComponent(next)}`);
+        return;
+      }
+      return extraP.then((extra) => {
+        const upcomingOverride = extra ? extra[0] : undefined;
+        const past = extra ? extra[1] : undefined;
+        paint(body || fallback, { upcomingOverride, past });
+      });
+    })
+    .catch(() => paint(fallback));
+
+  // Sign-out on this page is handled by mountAccountPanel's document listener
+  // (layout calls hydrateAll). Binding it here as well would double-POST.
 }
 
 /** Wire everything the account UI needs after hydration. */
 export function hydrateAll(doc: MinimalDocument, opts: HydrateOptions = {}): void {
+  injectChrome(doc);
   hydrateAccountMarks(doc);
   void loadAccountMarkPhoto(doc, opts.fetchImpl, opts.storage);
   installBrandLinkInterceptor(doc, {

@@ -51,4 +51,4 @@ export * from "./booking/index.js";
  * the site's built chunk — the negative control that a site is resolving the pinned
  * tarball and not a live workspace path.
  */
-export const SITE_ACCOUNT_BUILD_MARKER = "carisma-site-account@member-photo-1";
+export const SITE_ACCOUNT_BUILD_MARKER = "carisma-site-account@account-panel-1";
