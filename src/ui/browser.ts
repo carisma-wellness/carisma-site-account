@@ -190,10 +190,10 @@ function setOpen(doc: MinimalDocument, mountId: string, open: boolean): void {
 
 function injectChrome(doc: MinimalDocument): void {
   if (doc.getElementById(ACCOUNT_CHROME_STYLE_ID)) return;
-  const create = doc.createElement;
   const parent = doc.head || doc.body;
-  if (!create || !parent) return;
-  const style = create("style");
+  const createElement = bindCreateElement(doc);
+  if (!createElement || !parent) return;
+  const style = createElement("style");
   style.setAttribute("id", ACCOUNT_CHROME_STYLE_ID);
   style.innerHTML = ACCOUNT_CHROME_CSS;
   parent.appendChild(style);
@@ -201,22 +201,31 @@ function injectChrome(doc: MinimalDocument): void {
 
 function ensureMounts(doc: MinimalDocument, mountId: string): MinimalElement | null {
   let mount = doc.getElementById(mountId);
-  const create = doc.createElement;
+  const createElement = bindCreateElement(doc);
   const body = doc.body;
-  if (!mount && create && body) {
-    mount = create("div");
+  if (!mount && createElement && body) {
+    mount = createElement("div");
     mount.setAttribute("id", mountId);
     mount.setAttribute("hidden", "");
     body.appendChild(mount);
   }
-  if (!doc.getElementById(BACKDROP_ID) && create && body) {
-    const backdrop = create("div");
+  if (!doc.getElementById(BACKDROP_ID) && createElement && body) {
+    const backdrop = createElement("div");
     backdrop.setAttribute("id", BACKDROP_ID);
     backdrop.setAttribute("hidden", "");
     backdrop.setAttribute("data-carisma-panel-backdrop", "");
     body.appendChild(backdrop);
   }
   return mount;
+}
+
+/** Chrome throws Illegal invocation if createElement is called unbound. */
+function bindCreateElement(
+  doc: MinimalDocument,
+): ((tag: string) => MinimalElement) | null {
+  const fn = doc.createElement;
+  if (typeof fn !== "function") return null;
+  return fn.bind(doc);
 }
 
 function postLogout(
@@ -262,9 +271,13 @@ function matches(el: MinimalElement | null, attr: string): boolean {
 export function mountAccountPanel(doc: MinimalDocument, opts: HydrateOptions = {}): void {
   if (panelBound.has(doc)) return;
   panelBound.add(doc);
-  injectChrome(doc);
   const mountId = opts.panelMountId || "carisma-account-panel";
-  ensureMounts(doc, mountId);
+  try {
+    injectChrome(doc);
+    ensureMounts(doc, mountId);
+  } catch {
+    /* panel chrome is optional; a throw here used to white-screen the host page */
+  }
   const navigate = opts.navigate || (() => {});
   const fetchImpl = opts.fetchImpl;
 
@@ -330,7 +343,11 @@ export function mountAccountPortal(
   doc: MinimalDocument,
   opts: HydrateOptions & { view?: PortalView; portalMountId?: string } = {},
 ): void {
-  injectChrome(doc);
+  try {
+    injectChrome(doc);
+  } catch {
+    /* portal chrome is optional */
+  }
   const mountId = opts.portalMountId || "carisma-account-portal";
   const mount = doc.getElementById(mountId);
   const navigate = opts.navigate || (() => {});
@@ -385,7 +402,11 @@ export function mountAccountPortal(
 
 /** Wire everything the account UI needs after hydration. */
 export function hydrateAll(doc: MinimalDocument, opts: HydrateOptions = {}): void {
-  injectChrome(doc);
+  try {
+    injectChrome(doc);
+  } catch {
+    /* account chrome is optional; never take the host page down */
+  }
   hydrateAccountMarks(doc);
   void loadAccountMarkPhoto(doc, opts.fetchImpl, opts.storage);
   installBrandLinkInterceptor(doc, {

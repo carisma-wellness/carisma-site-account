@@ -168,6 +168,21 @@ test("Sign out POSTs /api/auth/logout and navigates home", async () => {
   assert.equal(nav[0], "/");
 });
 
+test("createElement is called as a method (Chrome rejects an unbound alias)", () => {
+  const doc = fakeDoc();
+  const orig = doc.createElement;
+  doc.createElement = function createElement(tag) {
+    if (this !== doc) throw new TypeError("Illegal invocation");
+    return orig.call(this, tag);
+  };
+  mountAccountPanel(doc, {
+    fetchImpl: async () => ({ ok: false, status: 500, json: async () => null }),
+    navigate: () => {},
+  });
+  assert.ok(doc.getElementById("carisma-account-panel"), "mount is created without Illegal invocation");
+  assert.ok(doc.getElementById("carisma-account-backdrop"), "backdrop is created without Illegal invocation");
+});
+
 test("hydrateAccountMark is still a no-op for guests", () => {
   const el = fakeEl("", { "data-cw-session": "out", href: "/member" });
   el.innerHTML = "guest";
