@@ -21,6 +21,6 @@ export { hydrateAccountMark, hydrateAccountMarks, mountAccountPanel, hydrateAll,
 export type { HydrateOptions, FetchLike, StorageLike } from "./browser.js";
 export { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, sanitizeAvatarUrl, avatarUrlFromSession, accountMarkPhotoHTML, } from "./avatar.js";
 export type { MinimalDocument, MinimalElement, MinimalAnchor, MinimalMouseEvent } from "./dom.js";
-export { ssoProbeDecision, runSsoProbe, SSO_PROBE_SKIP_PREFIXES } from "./ssoProbe.js";
+export { ssoProbeDecision, runSsoProbe, earlySsoProbeScript, isPaidLanding, SSO_PROBE_SKIP_PREFIXES, SSO_PAID_LANDING_PREFIXES, SSO_PROBE_TTL_SECONDS, PAID_CLICK_PARAM, } from "./ssoProbe.js";
 export type { SsoProbeTrigger, SsoProbeAction, SsoProbeEnv } from "./ssoProbe.js";
 //# sourceMappingURL=index.d.ts.map

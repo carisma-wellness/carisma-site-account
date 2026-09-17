@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { createAccountRoutes, seal, inlineSessionCookies } from "../dist/index.js";
-import { ssoProbeDecision, runSsoProbe } from "../dist/ui/index.js";
+import { ssoProbeDecision, runSsoProbe, earlySsoProbeScript, SSO_PROBE_TTL_SECONDS } from "../dist/ui/index.js";
 import { randomToken } from "../dist/routes/pkce.js";
 
 /*
@@ -469,13 +469,33 @@ test("inlineSessionCookies marks the browser known, schedules one seed, lifts si
 const decide = (cookie, trigger = "load", path = "/", userAgent = "Mozilla/5.0 Safari") =>
   ssoProbeDecision({ cookie, trigger, path, userAgent });
 
-test("cold traffic is never redirected on page load", () => {
-  assert.equal(decide(""), null);
-  assert.equal(decide("_ga=1; utm=x"), null);
+test("everyone not signed in here is checked on page load (CEO 2026-09-17), known or not", () => {
+  assert.equal(decide(""), "probe");
+  assert.equal(decide("_ga=1; utm=x"), "probe", "a cookie is not a click id");
+  assert.equal(decide("cw-known=1"), "probe");
 });
 
-test("a returner who is not signed in here is checked on page load", () => {
-  assert.equal(decide("cw-known=1"), "probe");
+test("a paid landing is never checked on page load — path or click id — but is on interaction", () => {
+  const paid = (search, path = "/", trigger = "load") =>
+    ssoProbeDecision({ cookie: "", trigger, path, search, userAgent: "Mozilla/5.0 Safari" });
+  assert.equal(paid("", "/lp/summer-glow"), null);
+  assert.equal(paid("?fbclid=IwAR1"), null);
+  assert.equal(paid("?gclid=abc"), null);
+  assert.equal(paid("?x=1&gbraid=abc"), null);
+  assert.equal(paid("?wbraid=abc"), null);
+  assert.equal(paid("?msclkid=abc"), null);
+  assert.equal(paid("?ttclid=abc"), null);
+  assert.equal(paid("?utm_source=meta"), null);
+  assert.equal(paid("?UTM_Campaign=x"), null, "case-insensitive");
+  assert.equal(paid("?resume=booking"), "probe", "our own params are not paid traffic");
+  assert.equal(paid("?xfbclid=1"), "probe", "a lookalike param name does not count");
+  assert.equal(paid("", "/lpx"), "probe", "prefix is a path segment family");
+  assert.equal(paid("?fbclid=1", "/lp/x", "interaction"), "probe", "opening booking on an LP still checks");
+  assert.equal(
+    ssoProbeDecision({ cookie: "", trigger: "load", path: "/lean-down", search: "", paidPrefixes: ["/lp/", "/lean-down"] }),
+    null,
+    "a site can name more paid paths",
+  );
 });
 
 test("anyone opening booking is checked, known or not", () => {
@@ -514,26 +534,39 @@ test("never during payment, never on the API, never for crawlers", () => {
 });
 
 test("a lookalike cookie name does not count", () => {
-  assert.equal(decide("xcw-known=1"), null);
-  assert.equal(decide("cw-known=0"), null);
+  assert.equal(decide("xcw-sso-probed=1"), "probe", "not the probed guard");
+  assert.equal(decide("cw-sso-probed=0"), "probe");
+  assert.equal(decide("xcw-sso-off=1"), "probe", "not a sign-out block");
+  assert.equal(decide("xcw-signed-in=1; cw-sso-seed=1"), "probe", "not signed in, so not a seed");
 });
 
 /** A tiny cookie jar with document.cookie semantics. */
-function fakeEnv({ path = "/weight-loss", search = "?a=1", cookie = "", blockCookies = false } = {}) {
+function fakeEnv({
+  path = "/weight-loss",
+  search = "?a=1",
+  cookie = "",
+  blockCookies = false,
+  hostname = "www.carismaslimming.com",
+  userAgent = "Mozilla/5.0 Safari",
+} = {}) {
   const jar = new Map();
   for (const part of cookie.split(";").map((s) => s.trim()).filter(Boolean)) {
     const [k, v] = part.split("=");
     jar.set(k, v);
   }
   const assigned = [];
-  return {
+  const replaced = [];
+  const out = {
     assigned,
+    replaced,
+    lastSet: "",
     env: {
       document: {
         get cookie() {
           return [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
         },
         set cookie(line) {
+          out.lastSet = line;
           if (blockCookies) return;
           const [pair, ...attrs] = line.split(";").map((s) => s.trim());
           const [k, v] = pair.split("=");
@@ -541,16 +574,25 @@ function fakeEnv({ path = "/weight-loss", search = "?a=1", cookie = "", blockCoo
           else jar.set(k, v);
         },
       },
-      location: { pathname: path, search, protocol: "https:", assign: (u) => assigned.push(u) },
-      navigator: { userAgent: "Mozilla/5.0 Safari" },
+      location: {
+        pathname: path,
+        search,
+        protocol: "https:",
+        hostname,
+        assign: (u) => assigned.push(u),
+        replace: (u) => replaced.push(u),
+      },
+      navigator: { userAgent },
     },
   };
+  return out;
 }
 
 test("runSsoProbe writes the guard BEFORE navigating to the silent start", () => {
-  const f = fakeEnv({ cookie: "cw-known=1" });
+  const f = fakeEnv({ cookie: "" });
   assert.equal(runSsoProbe(f.env, "load"), true);
   assert.match(f.env.document.cookie, /cw-sso-probed=1/);
+  assert.match(f.lastSet, new RegExp(`Max-Age=${SSO_PROBE_TTL_SECONDS}`), "the guard expires, so a sign-in elsewhere is picked up later");
   assert.deepEqual(f.assigned, ["/api/auth/start?next=%2Fweight-loss%3Fa%3D1&prompt=none"]);
   // The page came back: nothing happens a second time.
   assert.equal(runSsoProbe(f.env, "load"), false);
@@ -558,7 +600,7 @@ test("runSsoProbe writes the guard BEFORE navigating to the silent start", () =>
 });
 
 test("runSsoProbe with cookies blocked never navigates (it could never stop)", () => {
-  const f = fakeEnv({ cookie: "cw-known=1", blockCookies: true });
+  const f = fakeEnv({ cookie: "", blockCookies: true });
   assert.equal(runSsoProbe(f.env, "load"), false);
   assert.deepEqual(f.assigned, []);
 });
@@ -581,4 +623,87 @@ test("runSsoProbe deletes the sign-out flag before going to the sign-out hop", (
 
 test("runSsoProbe is a no-op without a window (server render)", () => {
   assert.equal(runSsoProbe(undefined, "load"), false);
+});
+
+/* ── the pre-paint copy must decide exactly as runSsoProbe(window, "load") ── */
+
+const HOSTS = ["www.carismaslimming.com", "carismaslimming.com"];
+
+/** Run the inline <head> script against the same fake window. */
+function runEarly(f, opts = {}) {
+  const src = earlySsoProbeScript({ hosts: HOSTS, ...opts });
+  assert.doesNotMatch(src, /<\/script/i);
+  new Function("document", "location", "navigator", "URLSearchParams", src)(
+    f.env.document,
+    f.env.location,
+    f.env.navigator,
+    URLSearchParams,
+  );
+}
+
+const PARITY_CASES = [
+  { name: "cold visitor", cookie: "" },
+  { name: "returner", cookie: "cw-known=1" },
+  { name: "already probed", cookie: "cw-sso-probed=1" },
+  { name: "signed in here, nothing to seed", cookie: "cw-signed-in=1" },
+  { name: "signed in here, seed pending", cookie: "cw-signed-in=1; cw-sso-seed=1" },
+  { name: "seed pending beats probed guard", cookie: "cw-signed-in=1; cw-sso-seed=1; cw-sso-probed=1" },
+  { name: "signed out here", cookie: "cw-sso-off=1" },
+  { name: "sign-out hop pending", cookie: "cw-sso-signout=1; cw-sso-off=1" },
+  { name: "sign-out hop outranks seed", cookie: "cw-sso-signout=1; cw-signed-in=1; cw-sso-seed=1" },
+  { name: "paid path", cookie: "", path: "/lp/summer", search: "" },
+  { name: "paid click id", cookie: "", search: "?fbclid=1&x=2" },
+  { name: "utm", cookie: "", search: "?utm_source=meta" },
+  { name: "our own param", cookie: "", search: "?resume=booking" },
+  { name: "payment in progress", cookie: "", path: "/book/checkout", search: "" },
+  { name: "api path", cookie: "", path: "/api/auth/callback", search: "" },
+  { name: "crawler", cookie: "", userAgent: "Mozilla/5.0 (compatible; Googlebot/2.1)" },
+  { name: "headless chrome is a browser", cookie: "", userAgent: "Mozilla/5.0 HeadlessChrome/120" },
+  { name: "extra paid prefix", cookie: "", path: "/lean-down", search: "", paidPrefixes: ["/lp/", "/lean-down"] },
+  { name: "lookalike cookie", cookie: "xcw-sso-probed=1; cw-sso-off=0" },
+  { name: "space in the path survives encoding", cookie: "", path: "/spa day", search: "?a=b c" },
+];
+
+for (const c of PARITY_CASES) {
+  test(`head script parity: ${c.name}`, () => {
+    const mk = () => fakeEnv({ cookie: c.cookie, path: c.path, search: c.search, userAgent: c.userAgent });
+    const a = mk();
+    const b = mk();
+    runSsoProbe(a.env, "load", { paidPrefixes: c.paidPrefixes });
+    runEarly(b, { paidPrefixes: c.paidPrefixes });
+    assert.deepEqual(b.replaced, a.assigned, "same navigation (or none)");
+    assert.deepEqual(b.assigned, [], "the head script never uses assign");
+    assert.equal(b.env.document.cookie, a.env.document.cookie, "same cookie jar afterwards");
+  });
+}
+
+test("head script: never on a host the identity origin does not accept", () => {
+  const f = fakeEnv({ cookie: "", hostname: "a7e5gpen8a.eu-central-1.awsapprunner.com" });
+  runEarly(f);
+  assert.deepEqual(f.replaced, []);
+  assert.equal(f.env.document.cookie, "", "no guard written either — the React probe decides there");
+});
+
+test("head script: host match is case-insensitive", () => {
+  const f = fakeEnv({ cookie: "", hostname: "WWW.CarismaSlimming.com" });
+  runEarly(f);
+  assert.equal(f.replaced.length, 1);
+});
+
+test("head script: cookies blocked ⇒ no navigation (it could never stop)", () => {
+  const f = fakeEnv({ cookie: "", blockCookies: true });
+  runEarly(f);
+  assert.deepEqual(f.replaced, []);
+});
+
+test("head script: the guard it writes expires, and is the one runSsoProbe reads", () => {
+  const f = fakeEnv({ cookie: "" });
+  runEarly(f);
+  assert.match(f.lastSet, /^cw-sso-probed=1; Path=\/; Max-Age=900; SameSite=Lax; Secure$/);
+  assert.equal(runSsoProbe(f.env, "load"), false, "the React probe sees the head script's guard");
+});
+
+test("head script: a host name with a script-closing tag cannot break out", () => {
+  const src = earlySsoProbeScript({ hosts: ["x</script><script>alert(1)"] });
+  assert.doesNotMatch(src, /<\/script/i);
 });
