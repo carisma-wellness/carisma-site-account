@@ -11,9 +11,12 @@ export { MEMBER_HREF, PANEL_HREF, ACCOUNT_MARK_ATTR, ACCOUNT_MARK_QC, accountMar
 export { HINT_SIGNED_IN, HINT_INITIALS, readSignedInHint, readInitialsHint } from "./hint.js";
 export { GUEST_GLYPH_SVG, SIGNED_GLYPH_SVG, escapeHtml } from "./html.js";
 export { memberDoor, memberFallbackHTML } from "./memberDoor.js";
-export { buildPanelModel, accountPanelHTML } from "./panel.js";
+export { buildPanelModel, accountPanelHTML, ACCOUNT_HOME_HREF, ACCOUNT_BOOKINGS_HREF, ACCOUNT_DETAILS_HREF, PANEL_QC, } from "./panel.js";
+export { buildPortalModel, accountPortalHTML, PORTAL_QC } from "./portal.js";
+export { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
+export { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";
 export { resolveBrandLink, installBrandLinkInterceptor } from "./linkInterceptor.js";
-export { hydrateAccountMark, hydrateAccountMarks, mountAccountPanel, hydrateAll, loadAccountMarkPhoto, accountMarkPhotoUrl, } from "./browser.js";
+export { hydrateAccountMark, hydrateAccountMarks, mountAccountPanel, mountAccountPortal, hydrateAll, loadAccountMarkPhoto, accountMarkPhotoUrl, } from "./browser.js";
 export { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, sanitizeAvatarUrl, avatarUrlFromSession, accountMarkPhotoHTML, } from "./avatar.js";
 export { ssoProbeDecision, runSsoProbe, earlySsoProbeScript, isPaidLanding, SSO_PROBE_SKIP_PREFIXES, SSO_PAID_LANDING_PREFIXES, SSO_PROBE_TTL_SECONDS, PAID_CLICK_PARAM, } from "./ssoProbe.js";
 //# sourceMappingURL=index.js.map

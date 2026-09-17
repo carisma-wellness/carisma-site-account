@@ -25,7 +25,7 @@ test("accountMarkState decides signed-in from the host hint cookie", () => {
   assert.deepEqual(inState, {
     signedIn: true,
     initials: "JD",
-    href: "#account-panel",
+    href: "/account",
     ariaLabel: "Your account",
     session: "in",
   });
@@ -81,7 +81,7 @@ test("hydrateAccountMark upgrades the guest chip only when the cookie says signe
   const signedIn = fakeMark();
   hydrateAccountMark(signedIn, "cw-signed-in=1; cw-initials=JD");
   assert.equal(signedIn.getAttribute("data-cw-session"), "in");
-  assert.equal(signedIn.getAttribute("href"), "#account-panel");
+  assert.equal(signedIn.getAttribute("href"), "/account");
   assert.equal(signedIn.getAttribute("aria-label"), "Your account");
   assert.equal(signedIn.getAttribute("data-cw-initials"), "JD");
   assert.match(signedIn.innerHTML, /JD/);

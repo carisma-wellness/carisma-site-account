@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildPanelModel, accountPanelHTML } from "../dist/index.js";
+import {
+  buildPanelModel,
+  accountPanelHTML,
+  extractAppointmentList,
+  accountPortalHTML,
+  buildPortalModel,
+} from "../dist/index.js";
 
 const session = {
   signedIn: true,
@@ -15,7 +21,6 @@ const session = {
       startTime: "Sat 20 Sep 16:00",
     },
     {
-      // a Medical row that must NEVER reach a salon panel (W-15 belt-and-braces)
       id: "appt-med",
       brand: { slug: "carisma-medical", name: "Carisma Medical" },
       service: { name: "Consultation" },
@@ -34,19 +39,52 @@ test("buildPanelModel excludes any Medical row and keeps this brand's visit", ()
   assert.equal(model.visits[0].brand, "Carisma Spa");
   assert.equal(model.visits[0].service, "Hammam Ritual");
   assert.equal(model.visits[0].venue, "Sliema");
-  assert.match(model.visits[0].manageHref, /^\/api\/auth\/start\?next=/);
+  assert.equal(model.visits[0].manageHref, "/account/bookings");
   assert.equal(model.state, "settled");
-  // hub links go through the door so the person arrives signed in
-  assert.equal(model.hub.appointments, "/api/auth/start?next=%2Fusers%2Fappointments");
+  assert.equal(model.hub.home, "/account");
+  assert.equal(model.hub.appointments, "/account/bookings");
+  assert.equal(model.hub.details, "/account/details");
 });
 
-test("accountPanelHTML masks personal strings and never prints a Medical brand", () => {
+test("the live appointment card DTO (brandName / primaryServiceName) is read", () => {
+  const model = buildPanelModel({
+    signedIn: true,
+    initials: "MG",
+    profile: { firstName: "Mert", lastName: "Gulen", emailMasked: "m***@gmail.com" },
+    upcoming: [
+      {
+        id: "card-1",
+        brandName: "Carisma Spa",
+        primaryServiceName: "Hammam Ritual",
+        locationName: "InterContinental",
+        startTime: "2026-09-20T14:00:00.000Z",
+      },
+    ],
+  });
+  assert.equal(model.visits[0].brand, "Carisma Spa");
+  assert.equal(model.visits[0].service, "Hammam Ritual");
+  assert.equal(model.visits[0].venue, "InterContinental");
+  assert.match(model.visits[0].when, /Sep/);
+});
+
+test("brandName Medical is refused the same way as a nested slug", () => {
+  const model = buildPanelModel({
+    upcoming: [{ id: "m", brandName: "Carisma Medical", primaryServiceName: "Consult", startTime: "x" }],
+  });
+  assert.equal(model.visits.length, 0);
+});
+
+test("accountPanelHTML masks personal strings, offers sign-out, never prints a Medical brand", () => {
   const html = accountPanelHTML(buildPanelModel(session));
   assert.match(html, /data-clarity-mask="True"/);
   assert.match(html, /Carisma Spa/);
-  assert.match(html, /Manage/);
+  assert.match(html, /My account/);
+  assert.match(html, /data-carisma-signout/);
+  assert.match(html, /data-carisma-signout-all/);
+  assert.match(html, /account-panel-20260917/);
   assert.doesNotMatch(html, /Carisma Medical/);
   assert.doesNotMatch(html, /Consultation/);
+  assert.doesNotMatch(html, /\/users\//);
 });
 
 test("an empty upcoming list renders the empty state, not an error", () => {
@@ -55,9 +93,31 @@ test("an empty upcoming list renders the empty state, not an error", () => {
   assert.equal(model.visits.length, 0);
   const html = accountPanelHTML(model);
   assert.match(html, /no upcoming visits/i);
+  assert.match(html, /href="\/"/);
 });
 
 test("name falls back to the email local part when both names are empty", () => {
   const model = buildPanelModel({ signedIn: true, profile: { emailMasked: "j***@gmail.com" }, upcoming: [] });
   assert.equal(model.name, "j***");
+});
+
+test("extractAppointmentList unwraps the house envelope and filter=upcoming {data:[]}", () => {
+  assert.deepEqual(extractAppointmentList([{ id: "a" }]).map((r) => r.id), ["a"]);
+  assert.deepEqual(
+    extractAppointmentList({ success: true, data: { data: [{ id: "b" }], total: 1 } }).map((r) => r.id),
+    ["b"],
+  );
+  assert.deepEqual(
+    extractAppointmentList({ upcoming: { data: [{ id: "c" }] } }).map((r) => r.id),
+    ["c"],
+  );
+});
+
+test("the /account portal home is a signed-in page with sign-out, not the HOD /users hub", () => {
+  const html = accountPortalHTML(buildPortalModel(session, "home"));
+  assert.match(html, /account-portal-20260917/);
+  assert.match(html, /Hello, Jane Doe/);
+  assert.match(html, /data-carisma-signout/);
+  assert.match(html, /href="\/account\/bookings"/);
+  assert.doesNotMatch(html, /\/users\//);
 });

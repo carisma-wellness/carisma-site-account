@@ -1,3 +1,7 @@
+export declare const ACCOUNT_HOME_HREF = "/account";
+export declare const ACCOUNT_BOOKINGS_HREF = "/account/bookings";
+export declare const ACCOUNT_DETAILS_HREF = "/account/details";
+export declare const PANEL_QC = "account-panel-20260917";
 export interface PanelVisit {
     brand: string;
     service: string;
@@ -11,8 +15,8 @@ export interface PanelModel {
     initials: string;
     visits: PanelVisit[];
     hub: {
+        home: string;
         appointments: string;
-        giftCards: string;
         details: string;
     };
     state: "settled" | "empty";

@@ -141,3 +141,41 @@ test("single-flight refresh: two concurrent near-expiry reads make exactly ONE P
   assert.equal(refreshCount, 1, "single-flight collapsed two refreshes into one");
   assert.equal(profileCount, 2, "each request still reads its own profile");
 });
+
+test("include=upcoming unwraps the house envelope and uses filter=upcoming", async () => {
+  const seen = [];
+  const fetchImpl = async (url) => {
+    seen.push(String(url));
+    if (String(url).includes("/client/booking/appointments")) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            data: [
+              {
+                id: "appt-1",
+                brandName: "Carisma Spa",
+                primaryServiceName: "Hammam Ritual",
+                locationName: "Sliema",
+                startTime: "2026-09-20T14:00:00.000Z",
+              },
+            ],
+            total: 1,
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
+    return okProfile();
+  };
+  const routes = createAccountRoutes(baseCfg(fetchImpl));
+  const headers = new Headers();
+  headers.set("cookie", `cw_session=${sessionCookie()}`);
+  const res = await routes.session(
+    new Request("http://localhost:3100/api/auth/session?include=upcoming", { headers }),
+  );
+  const body = await res.json();
+  assert.ok(seen.some((u) => u.includes("filter=upcoming")), "the list door is filter=, not upcoming=1");
+  assert.equal(body.upcoming.length, 1);
+  assert.equal(body.upcoming[0].primaryServiceName, "Hammam Ritual");
+});

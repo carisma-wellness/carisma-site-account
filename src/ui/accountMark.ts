@@ -15,7 +15,8 @@ import { GUEST_GLYPH_SVG, SIGNED_GLYPH_SVG, escapeHtml } from "./html.js";
 import { accountMarkPhotoHTML, sanitizeAvatarUrl } from "./avatar.js";
 
 export const MEMBER_HREF = "/member";
-export const PANEL_HREF = "#account-panel";
+/** Signed-in click target when JS has not yet bound the panel — the same-origin portal. */
+export const PANEL_HREF = "/account";
 /** The hydration hook + the QC stamp the boundary/QC scripts and tests look for. */
 export const ACCOUNT_MARK_ATTR = "data-carisma-account-mark";
 export const ACCOUNT_MARK_QC = "account-mark-20260908";

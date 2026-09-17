@@ -13,11 +13,15 @@ export { HINT_SIGNED_IN, HINT_INITIALS, readSignedInHint, readInitialsHint } fro
 export { GUEST_GLYPH_SVG, SIGNED_GLYPH_SVG, escapeHtml } from "./html.js";
 export { memberDoor, memberFallbackHTML } from "./memberDoor.js";
 export type { MemberDoorConfig, MemberDoorResult } from "./memberDoor.js";
-export { buildPanelModel, accountPanelHTML } from "./panel.js";
+export { buildPanelModel, accountPanelHTML, ACCOUNT_HOME_HREF, ACCOUNT_BOOKINGS_HREF, ACCOUNT_DETAILS_HREF, PANEL_QC, } from "./panel.js";
 export type { PanelModel, PanelVisit } from "./panel.js";
+export { buildPortalModel, accountPortalHTML, PORTAL_QC } from "./portal.js";
+export type { PortalModel, PortalView } from "./portal.js";
+export { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
+export { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";
 export { resolveBrandLink, installBrandLinkInterceptor } from "./linkInterceptor.js";
 export type { BrandLinkInput, InterceptorOptions } from "./linkInterceptor.js";
-export { hydrateAccountMark, hydrateAccountMarks, mountAccountPanel, hydrateAll, loadAccountMarkPhoto, accountMarkPhotoUrl, } from "./browser.js";
+export { hydrateAccountMark, hydrateAccountMarks, mountAccountPanel, mountAccountPortal, hydrateAll, loadAccountMarkPhoto, accountMarkPhotoUrl, } from "./browser.js";
 export type { HydrateOptions, FetchLike, StorageLike } from "./browser.js";
 export { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, sanitizeAvatarUrl, avatarUrlFromSession, accountMarkPhotoHTML, } from "./avatar.js";
 export type { MinimalDocument, MinimalElement, MinimalAnchor, MinimalMouseEvent } from "./dom.js";

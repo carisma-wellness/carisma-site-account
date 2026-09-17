@@ -1,3 +1,4 @@
+import { type PortalView } from "./portal.js";
 import type { MinimalDocument, MinimalElement } from "./dom.js";
 /** The photo the marks are currently painted with (exported for tests/hosts). */
 export declare function accountMarkPhotoUrl(): string | null;
@@ -25,10 +26,19 @@ export declare function loadAccountMarkPhoto(doc: MinimalDocument, fetchImpl?: F
 export interface FetchLike {
     (url: string, init?: {
         credentials?: string;
+        method?: string;
+        headers?: Record<string, string> | {
+            get?(name: string): string | null;
+        };
+        body?: string;
+        redirect?: string;
     }): Promise<{
         ok: boolean;
         status: number;
         json(): Promise<unknown>;
+        headers?: {
+            get(name: string): string | null;
+        };
     }>;
 }
 export interface HydrateOptions {
@@ -42,11 +52,15 @@ export interface HydrateOptions {
     storage?: StorageLike | null;
 }
 /**
- * Mount the panel: on a click of a signed-in mark, make the ONE authenticated read and
- * render. Kept defensive — a failed read never signs anyone out (W-9): the panel simply
- * does not populate. The real cancel/reschedule estate lives on the hub.
+ * Mount the panel: on a click of a signed-in mark, make the ONE authenticated read
+ * and open the dialog. A failed read still opens the panel with Sign out (the CEO
+ * must be able to leave) — it never signs anyone out by itself (W-9).
  */
 export declare function mountAccountPanel(doc: MinimalDocument, opts?: HydrateOptions): void;
+export declare function mountAccountPortal(doc: MinimalDocument, opts?: HydrateOptions & {
+    view?: PortalView;
+    portalMountId?: string;
+}): void;
 /** Wire everything the account UI needs after hydration. */
 export declare function hydrateAll(doc: MinimalDocument, opts?: HydrateOptions): void;
 //# sourceMappingURL=browser.d.ts.map
