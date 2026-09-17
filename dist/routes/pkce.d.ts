@@ -58,10 +58,10 @@ export declare function signService(opts: ServiceSignOptions): Record<string, st
  * shared ONE bucket. Harmless while sign-ins were rare; a hard platform-wide ceiling
  * once single sign-on exchanges a code on every brand a person opens.
  *
- * CloudFront's `cloudfront-viewer-address` (ip:port) wins when present; else the first
- * X-Forwarded-For hop; else 127.0.0.1. The first hop is client-supplied, which is
- * acceptable here: the limit guards against guessing a 256-bit single-use code, not
- * against a caller picking its own bucket.
+ * `X-Forwarded-For` GROWS left to right and the edge APPENDS the peer it saw, so the
+ * LAST entry is the one our own infrastructure put there and the FIRST is whatever the
+ * caller sent. Taking the first would let anyone mint a fresh bucket per request.
+ * CloudFront's `cloudfront-viewer-address` wins where present — CloudFront overwrites it.
  */
 export declare function visitorIp(req: Request): string;
 /** Validate a `next` target: relative, no scheme, no backslash, no protocol-relative. */

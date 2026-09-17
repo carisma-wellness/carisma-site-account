@@ -10,6 +10,13 @@ export interface MaskedProfile {
   countryCode: string | null;
   phone: string | null;
   initials: string;
+  /**
+   * The member's own profile photo (CarismaSoft `profilePicture`), https only — the
+   * one they uploaded in the Customer App, or the Google picture stored on a first
+   * social sign-in. It is their own face on their own screen, so it is not masked;
+   * it is also the ONE profile field the header paints, and it never enters a cookie.
+   */
+  avatarUrl: string | null;
 }
 
 export function initialsFrom(firstName?: string, lastName?: string, email?: string): string {
@@ -39,5 +46,18 @@ export function maskProfile(raw: unknown): MaskedProfile {
     countryCode: typeof p.countryCode === "string" ? p.countryCode : null,
     phone: typeof p.phone === "string" ? p.phone : null,
     initials: initialsFrom(firstName, lastName, email),
+    avatarUrl: avatarFrom(p.profilePicture ?? p.avatarUrl ?? p.photoUrl),
   };
+}
+
+/**
+ * Absolute https only. A relative path, `javascript:`, `data:` or any other string is
+ * treated as no photo, so a compromised upstream field cannot put a URL the browser
+ * would follow into the header.
+ */
+function avatarFrom(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const url = raw.trim();
+  if (!url || url.length > 2000) return null;
+  return /^https:\/\/[^\s"'<>]+$/i.test(url) ? url : null;
 }

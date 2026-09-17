@@ -1,8 +1,27 @@
 import type { MinimalDocument, MinimalElement } from "./dom.js";
+/** The photo the marks are currently painted with (exported for tests/hosts). */
+export declare function accountMarkPhotoUrl(): string | null;
 /** Upgrade one guest chip to its signed-in appearance from the host cookie. */
 export declare function hydrateAccountMark(el: MinimalElement, cookie: string): void;
 /** Hydrate every account mark in the document from the current cookie. */
 export declare function hydrateAccountMarks(doc: MinimalDocument): void;
+/** The tiny slice of sessionStorage this uses; a host passes the real one. */
+export interface StorageLike {
+    getItem(key: string): string | null;
+    setItem(key: string, value: string): void;
+    removeItem(key: string): void;
+}
+/**
+ * Put the member's own photo on the mark (CEO 2026-09-16).
+ *
+ * Only for a browser the hint cookie already calls signed in — a guest makes no
+ * request, so the CloudFront-cached document stays free of member traffic (W-1). The
+ * URL is read from the site's own `/api/auth/session`, cached per tab for
+ * AVATAR_CACHE_TTL_MS so one photo costs one request however many pages are walked,
+ * and every failure is silent: no photo simply means the initials chip, and nothing
+ * here can sign anybody out (W-9).
+ */
+export declare function loadAccountMarkPhoto(doc: MinimalDocument, fetchImpl?: FetchLike, storage?: StorageLike | null): Promise<void>;
 export interface FetchLike {
     (url: string, init?: {
         credentials?: string;
@@ -19,6 +38,8 @@ export interface HydrateOptions {
     fetchImpl?: FetchLike;
     /** id of the element the settled panel HTML is written into (default carisma-account-panel) */
     panelMountId?: string;
+    /** where the member's photo URL is cached for the tab (the bootstrap passes sessionStorage) */
+    storage?: StorageLike | null;
 }
 /**
  * Mount the panel: on a click of a signed-in mark, make the ONE authenticated read and

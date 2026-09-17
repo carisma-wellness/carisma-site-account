@@ -30,5 +30,5 @@ export declare function accountMarkServerHTML(opts?: AccountMarkOptions): string
  * consent gate, and a rendered name is neither a number nor an address, so it is not
  * masked by Clarity's default mode.
  */
-export declare function accountMarkSignedInHTML(initials: string): string;
+export declare function accountMarkSignedInHTML(initials: string, photoUrl?: string | null): string;
 //# sourceMappingURL=accountMark.d.ts.map
