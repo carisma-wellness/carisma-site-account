@@ -9,7 +9,15 @@
  */
 const H = 3600_000;
 const now = Date.now();
-const at = (hours) => new Date(now + hours * H).toISOString();
+/** Round to the next half hour, so the lab never shows a 00:35 appointment. */
+const half = (ms) => Math.ceil(ms / (30 * 60_000)) * 30 * 60_000;
+const at = (hours) => new Date(half(now + hours * H)).toISOString();
+/** N days from today at HH:MM Malta (CEST, +02:00 — the lab is a September world). */
+const maltaDay = (days, hhmm) => {
+  const d = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Malta", year: "numeric", month: "2-digit", day: "2-digit" })
+    .format(new Date(now + days * 24 * H));
+  return new Date(`${d}T${hhmm}:00+02:00`).toISOString();
+};
 const plus = (iso, mins) => new Date(Date.parse(iso) + mins * 60_000).toISOString();
 
 const ACTIONS = {
@@ -38,22 +46,22 @@ function card(o) {
 }
 
 export const UPCOMING = [
-  card({ id: "u1", start: at(72), mins: 60, brand: "Carisma Spa", venue: "Hugo's Hotel", service: "Couples Full Body Massage", staff: "Maria Borg", total: 160, paid: 160,
+  card({ id: "u1", start: maltaDay(3, "10:00"), mins: 60, brand: "Carisma Spa", venue: "Hugo's Hotel", service: "Couples Full Body Massage", staff: "Maria Borg", total: 160, paid: 160,
     actions: ACTIONS.open({ rescheduleClosesAt: at(48), freeCancelEndsAt: at(48) }) }),
   card({ id: "u2", start: at(28), mins: 45, brand: "Carisma Slimming", venue: "Grand Hotel Excelsior", service: "Lipocavitation", staff: "Katya", total: 120, paid: 80, balanceDue: 40,
     actions: ACTIONS.open({ rescheduleClosesAt: at(4), freeCancelEndsAt: at(4), canPayBalance: true, balanceDue: 40 }) }),
   card({ id: "u3", start: at(5), mins: 20, brand: "Pulse", venue: "Grand Hotel Excelsior", service: "Club Tour", staff: "David Jangelovski", total: 0, paid: 0,
     actions: ACTIONS.open({ canReschedule: false, cancelIsFree: false, reason: "Online changes close 24 hours before your appointment. To move this one, call Pulse on +35627802062." }) }),
-  card({ id: "u4", start: at(120), mins: 30, brand: "Carisma Aesthetics", venue: "InterContinental Malta", service: "Free Skin Consultation", staff: "Dr Elena", total: 0, paid: 0,
+  card({ id: "u4", start: maltaDay(5, "16:30"), mins: 30, brand: "Carisma Aesthetics", venue: "InterContinental Malta", service: "Free Skin Consultation", staff: "Dr Elena", total: 0, paid: 0,
     actions: ACTIONS.open({ rescheduleClosesAt: at(96), freeCancelEndsAt: at(96) }) }),
 ];
 
 export const PAST = [
-  card({ id: "p1", status: "COMPLETED", start: at(-240), brand: "Carisma Spa", venue: "Hyatt Regency", service: "Hydrafacial", staff: "Anna", total: 95, paid: 95,
+  card({ id: "p1", status: "COMPLETED", start: maltaDay(-10, "11:00"), brand: "Carisma Spa", venue: "Hyatt Regency", service: "Hydrafacial", staff: "Anna", total: 95, paid: 95,
     actions: ACTIONS.open({ canConfirm: false, canReschedule: false, canCancel: false, canRebook: true }) }),
-  card({ id: "p2", status: "CANCELLED", start: at(-480), brand: "Carisma Slimming", venue: "Grand Hotel Excelsior", service: "EMSculpt Neo · 30 min", total: 150, paid: 0,
+  card({ id: "p2", status: "CANCELLED", start: maltaDay(-20, "14:00"), brand: "Carisma Slimming", venue: "Grand Hotel Excelsior", service: "EMSculpt Neo · 30 min", total: 150, paid: 0,
     actions: ACTIONS.open({ canConfirm: false, canReschedule: false, canCancel: false, canRebook: true }) }),
-  card({ id: "p3", status: "NO_SHOW", start: at(-720), brand: "Carisma Spa", venue: "Novotel", service: "Hammam Ritual", total: 70, paid: 0, balanceDue: 35,
+  card({ id: "p3", status: "NO_SHOW", start: maltaDay(-30, "09:30"), brand: "Carisma Spa", venue: "Novotel", service: "Hammam Ritual", total: 70, paid: 0, balanceDue: 35,
     actions: ACTIONS.open({ canConfirm: false, canReschedule: false, canCancel: false, canRebook: true, canPayBalance: true, balanceDue: 35 }) }),
 ];
 

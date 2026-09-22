@@ -32,7 +32,11 @@ const shells = new Map();
 async function shell(brand) {
   if (shells.has(brand)) return shells.get(brand);
   const origin = BRANDS[brand];
-  const html = await (await fetch(origin + "/gifts", { redirect: "follow" }).catch(() => fetch(origin + "/"))).text();
+  // The homepage, and only if it answered 200 — Hair Clinic's /gifts is a 404
+  // page, and a 404 shell rendered the wrong brand's header in the first pass.
+  const r = await fetch(origin + "/", { redirect: "follow" });
+  if (!r.ok) throw new Error(`${brand} shell answered ${r.status}`);
+  const html = await r.text();
   const css = [...html.matchAll(/<link[^>]+rel="stylesheet"[^>]*href="([^"]+)"/g)].map((m) => m[1]);
   const fonts = [...html.matchAll(/<link[^>]+rel="preload"[^>]*href="([^"]+\.woff2)"[^>]*>/g)].map((m) => m[1]);
   const htmlClass = (/<html[^>]*class="([^"]*)"/.exec(html) || [])[1] || "";
@@ -46,10 +50,13 @@ async function shell(brand) {
 }
 
 /** Root-relative /_next/* requests (fonts inside brand CSS) go back to the brand in the Referer. */
+let lastBrand = "slimming";
 function brandFromReferer(req) {
   const ref = req.headers.referer || "";
+  const direct = /[?&]brand=([a-z-]+)/.exec(ref);
+  if (direct && BRANDS[direct[1]]) { lastBrand = direct[1]; return direct[1]; }
   const m = /[?&]brand=([a-z-]+)/.exec(ref) || /\/b\/([a-z-]+)\//.exec(ref);
-  return m && BRANDS[m[1]] ? m[1] : null;
+  return m && BRANDS[m[1]] ? m[1] : lastBrand;
 }
 
 async function proxy(res, url) {
