@@ -126,6 +126,9 @@ const SLOTS = (date) => ({
 /** state = "full" | "empty" — which world the member lives in. */
 export function fixtureFetch(state = "full") {
   const empty = state === "empty";
+  const failing = state === "error";
+  const slow = state === "slow";
+  const fail = () => Promise.resolve(new Response(JSON.stringify({ message: "Service unavailable" }), { status: 503 }));
   const ok = (data) => Promise.resolve(new Response(JSON.stringify({ success: true, data }), { status: 200, headers: { "content-type": "application/json" } }));
   return (url, init = {}) => {
     const u = new URL(url, location.origin);
@@ -134,6 +137,11 @@ export function fixtureFetch(state = "full") {
     console.log("[lab fetch]", method, u.pathname + u.search);
     if (u.pathname === "/api/auth/session") return Promise.resolve(new Response(JSON.stringify(empty ? EMPTY_SESSION : SESSION), { status: 200 }));
     if (method !== "GET") return ok({ ok: true, checkoutUrl: "#stripe" });
+    // "error": every member read fails (503) while the session is fine — the
+    // state a member must never read as "you have no bookings".
+    if (failing && p.startsWith("/client/")) return fail();
+    // "slow": reads never answer, so the skeleton stays on screen.
+    if (slow && p.startsWith("/client/")) return new Promise(() => {});
     if (p === "/client/booking/appointments") {
       const f = u.searchParams.get("filter");
       if (empty) return ok([]);

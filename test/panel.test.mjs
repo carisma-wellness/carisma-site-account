@@ -116,7 +116,8 @@ test("extractAppointmentList unwraps the house envelope and filter=upcoming {dat
 test("the /account portal home is a signed-in page with sign-out, not the HOD /users hub", () => {
   const html = accountPortalHTML(buildPortalModel(session, "home"));
   assert.match(html, /account-portal-20260917/);
-  assert.match(html, /Hello, Jane Doe/);
+  // The greeting runs on the Malta clock and uses the first name only.
+  assert.match(html, /Good (morning|afternoon|evening), Jane/);
   assert.match(html, /data-carisma-signout/);
   assert.match(html, /href="\/account\/bookings"/);
   assert.doesNotMatch(html, /\/users\//);

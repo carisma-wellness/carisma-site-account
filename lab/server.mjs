@@ -87,7 +87,12 @@ const VIEWS = [
   ["bookings", "Bookings · empty", { state: "empty" }],
   ["wallet", "Wallet · empty", { state: "empty" }],
   ["documents", "Documents · empty", { state: "empty" }],
+  ["home", "Overview · reads failed", { state: "error" }],
+  ["bookings", "Bookings · reads failed", { state: "error" }],
+  ["wallet", "Wallet · reads failed", { state: "error" }],
+  ["home", "Overview · loading (skeleton)", { state: "slow" }],
 ];
+const SITE_BRAND = { spa: "Carisma Spa", aesthetics: "Carisma Aesthetics", slimming: "Carisma Slimming", "hair-clinic": "Carisma Hair Clinic", pulse: "Pulse" };
 
 function q(o) { return new URLSearchParams(Object.entries(o).filter(([, v]) => v != null)).toString(); }
 
@@ -125,6 +130,8 @@ mountAccountPortal(document, {
   view: ${JSON.stringify(view === "booking" ? "bookings" : view)},
   path: ${JSON.stringify(path)},
   fetchImpl: fixtureFetch(state),
+  siteBrand: ${JSON.stringify(SITE_BRAND[brand])},
+  contactPhone: "+35627802062",
   navigate: (u) => console.log("[lab navigate]", u),
   confirmImpl: (q) => { console.log("[lab confirm]", q); return false; },
 });

@@ -14,6 +14,13 @@
 import type { PortalView } from "./portal.js";
 /** The proxy reads a section needs, in a fixed order `bodyFor` relies on. */
 export declare function requestsFor(view: PortalView): string[];
+/** What a section's failed read is called in the error block ("We couldn't load your …"). */
+export declare function subjectFor(view: PortalView): string;
+/**
+ * The one informative line under a record section's title. Empty when the
+ * section has nothing worth saying before its own body says it.
+ */
+export declare function ledeFor(view: PortalView): string;
 /** The page heading for a section. */
 export declare function titleFor(view: PortalView, greeting: string): string;
 /**

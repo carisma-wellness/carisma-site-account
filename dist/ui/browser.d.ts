@@ -1,4 +1,4 @@
-import { type PortalView } from "./portal.js";
+import { type LoadState, type PortalView } from "./portal.js";
 import type { MinimalDocument, MinimalElement } from "./dom.js";
 /** The photo the marks are currently painted with (exported for tests/hosts). */
 export declare function accountMarkPhotoUrl(): string | null;
@@ -65,15 +65,39 @@ export declare function mountAccountPanel(doc: MinimalDocument, opts?: HydrateOp
  *     server's capability block deciding every button;
  *   · a data section (wallet / payments / documents / membership) — the paths
  *     portalData names, rendered by the builder it names;
- *   · home / bookings / details — the original model-driven views.
+ *   · home / bookings / details — the model-driven views, fed by the
+ *     appointment LIST (which carries each booking's `actions`).
  *
- * Nothing here decides what a member may do. That arrived with the appointment.
+ * Every page paints its shell and a skeleton FIRST, then fills. Every read is
+ * tri-state — ok, empty, failed — and a failed read shows an error block with
+ * Try again, never the empty state: "you have no bookings" is a lie when we
+ * could not ask. Nothing here decides what a member may do.
  */
-export declare function mountAccountPortal(doc: MinimalDocument, opts?: HydrateOptions & {
+export interface PortalMountOptions extends HydrateOptions {
     view?: PortalView;
     portalMountId?: string;
     path?: string;
-}): void;
+    /** This site's brand name ("Carisma Slimming"). Inferred from the host when absent. */
+    siteBrand?: string;
+    /** Where "book" goes on this brand (default "/"). */
+    bookHref?: string;
+    /** The brand's phone, offered in the error block. */
+    contactPhone?: string;
+}
+/** One read's outcome. `failed` carries the status so 401 and 404 can be told apart. */
+export interface ReadResult {
+    state: LoadState;
+    status: number;
+    body: unknown;
+}
+/**
+ * Classify one answer. A 2xx whose list is empty is `empty`; anything not
+ * 2xx — or no answer at all (status 0) — is `failed`. The two never merge.
+ */
+export declare function classifyRead(ok: boolean, status: number, body: unknown): ReadResult;
+/** The brand a host serves, for the cross-brand label on a card. "" when unknown. */
+export declare function siteBrandFromHost(host: string): string;
+export declare function mountAccountPortal(doc: MinimalDocument, opts?: PortalMountOptions): void;
 /**
  * What to say when Stripe sends the member back.
  *

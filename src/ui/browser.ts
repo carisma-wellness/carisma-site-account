@@ -15,8 +15,21 @@ import { accountMarkSignedInHTML, accountMarkState, ACCOUNT_MARK_ATTR } from "./
 import { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, avatarUrlFromSession, sanitizeAvatarUrl } from "./avatar.js";
 import { readInitialsHint, readSignedInHint } from "./hint.js";
 import { buildPanelModel, accountPanelHTML } from "./panel.js";
-import { accountPortalHTML, buildPortalModel, portalShellHTML, type PortalView } from "./portal.js";
-import { bodyFor, bookingIdFromPath, requestsFor, titleFor } from "./portalData.js";
+import {
+  accountPortalHTML,
+  buildPortalModel,
+  errorBlockHTML,
+  greetingFor,
+  portalShellHTML,
+  skeletonHTML,
+  PORTAL_QC,
+  type ApptCard,
+  type LoadState,
+  type PortalView,
+} from "./portal.js";
+import { bodyFor, bookingIdFromPath, ledeFor, requestsFor, subjectFor, titleFor } from "./portalData.js";
+import { buildWalletModel } from "./records.js";
+import { unwrapEnvelope } from "./appointments.js";
 import { bookingDetailHTML, buildBookingDetailModel, type BookingDetailModel } from "./bookingDetail.js";
 import {
   buildSlotsModel,
@@ -369,14 +382,114 @@ export function mountAccountPanel(doc: MinimalDocument, opts: HydrateOptions = {
  *     server's capability block deciding every button;
  *   · a data section (wallet / payments / documents / membership) — the paths
  *     portalData names, rendered by the builder it names;
- *   · home / bookings / details — the original model-driven views.
+ *   · home / bookings / details — the model-driven views, fed by the
+ *     appointment LIST (which carries each booking's `actions`).
  *
- * Nothing here decides what a member may do. That arrived with the appointment.
+ * Every page paints its shell and a skeleton FIRST, then fills. Every read is
+ * tri-state — ok, empty, failed — and a failed read shows an error block with
+ * Try again, never the empty state: "you have no bookings" is a lie when we
+ * could not ask. Nothing here decides what a member may do.
  */
-export function mountAccountPortal(
-  doc: MinimalDocument,
-  opts: HydrateOptions & { view?: PortalView; portalMountId?: string; path?: string } = {},
-): void {
+export interface PortalMountOptions extends HydrateOptions {
+  view?: PortalView;
+  portalMountId?: string;
+  path?: string;
+  /** This site's brand name ("Carisma Slimming"). Inferred from the host when absent. */
+  siteBrand?: string;
+  /** Where "book" goes on this brand (default "/"). */
+  bookHref?: string;
+  /** The brand's phone, offered in the error block. */
+  contactPhone?: string;
+}
+
+/** One read's outcome. `failed` carries the status so 401 and 404 can be told apart. */
+export interface ReadResult {
+  state: LoadState;
+  status: number;
+  body: unknown;
+}
+
+/**
+ * Classify one answer. A 2xx whose list is empty is `empty`; anything not
+ * 2xx — or no answer at all (status 0) — is `failed`. The two never merge.
+ */
+export function classifyRead(ok: boolean, status: number, body: unknown): ReadResult {
+  if (!ok) return { state: "failed", status, body: null };
+  const inner = unwrapEnvelope(body);
+  let empty = false;
+  if (Array.isArray(inner)) empty = inner.length === 0;
+  else if (inner && typeof inner === "object") {
+    const data = (inner as Record<string, unknown>).data;
+    empty = Array.isArray(data) && data.length === 0;
+  } else if (inner === null || inner === undefined) empty = true;
+  return { state: empty ? "empty" : "ok", status, body };
+}
+
+/** The brand a host serves, for the cross-brand label on a card. "" when unknown. */
+export function siteBrandFromHost(host: string): string {
+  const h = String(host || "").toLowerCase();
+  if (h.includes("aesthetics")) return "Carisma Aesthetics";
+  if (h.includes("slimming")) return "Carisma Slimming";
+  if (h.includes("hairclinic") || h.includes("hair-clinic")) return "Carisma Hair Clinic";
+  if (h.includes("pulse")) return "Pulse";
+  if (h.includes("carismaspa") || h.includes("spa.")) return "Carisma Spa";
+  return "";
+}
+
+type Queryable = { querySelector?: (s: string) => MinimalElement | null };
+function qs(el: unknown, sel: string): MinimalElement | null {
+  return (el as Queryable | null)?.querySelector?.(sel) ?? null;
+}
+type Listenable = { addEventListener?: (t: string, h: (e: MinimalMouseEvent) => void) => void };
+
+const portalListBound = new WeakSet<object>();
+const portalMembershipBound = new WeakSet<object>();
+const portalDetailBound = new WeakSet<object>();
+
+/** Write a toast into the shell's persistent status region. */
+function announce(mount: MinimalElement, text: string, tone: "ok" | "bad" = "ok"): void {
+  const region = qs(mount, ".cw-status");
+  if (!region) return;
+  region.innerHTML = `<p class="cw-toast cw-toast--${tone}">${text.replace(/[<>&]/g, "")}</p>`;
+  const clear = () => {
+    if (region.innerHTML.includes(text.replace(/[<>&]/g, ""))) region.innerHTML = "";
+  };
+  try {
+    setTimeout(clear, 7000);
+  } catch {
+    /* no timers (a test host): the toast simply stays */
+  }
+}
+
+/** A button mid-request: disabled to a second tap, saying what it is doing. */
+function setBusy(btn: MinimalElement, label: string): () => void {
+  const html = btn.innerHTML;
+  const cls = btn.getAttribute("class") || "";
+  btn.setAttribute("aria-disabled", "true");
+  btn.setAttribute("class", `${cls} is-busy`);
+  btn.innerHTML = label;
+  return () => {
+    btn.removeAttribute?.("aria-disabled");
+    btn.setAttribute("class", cls);
+    btn.innerHTML = html;
+  };
+}
+
+/** Keep the current tab in view on a phone's scrolling tab row. */
+function revealCurrentTab(mount: MinimalElement): void {
+  type Box = { getBoundingClientRect?: () => { left: number; right: number } };
+  const navEl = qs(mount, ".cw-nav") as unknown as
+    | (Box & { scrollWidth?: number; clientWidth?: number; scrollLeft?: number })
+    | null;
+  const cur = qs(mount, '.cw-nav [aria-current="page"]') as unknown as Box | null;
+  if (!navEl || !cur?.getBoundingClientRect || !navEl.getBoundingClientRect) return;
+  if ((navEl.scrollWidth ?? 0) <= (navEl.clientWidth ?? 0)) return;
+  // Relative to the row itself, so it holds whatever the tab's offsetParent is.
+  const delta = cur.getBoundingClientRect().left - navEl.getBoundingClientRect().left - 16;
+  navEl.scrollLeft = Math.max(0, (navEl.scrollLeft ?? 0) + delta);
+}
+
+export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOptions = {}): void {
   try {
     injectChrome(doc);
   } catch {
@@ -389,6 +502,9 @@ export function mountAccountPortal(
   const bookingId = bookingIdFromPath(path);
   const view: PortalView = bookingId ? "booking" : opts.view || "home";
   const next = view === "home" ? "/account" : bookingId ? path : `/account/${view}`;
+  const loc = (doc as unknown as { location?: { host?: string; origin?: string; search?: string } }).location;
+  const siteBrand = opts.siteBrand ?? siteBrandFromHost(loc?.host ?? "");
+  const extras = { siteBrand, bookHref: opts.bookHref, contactPhone: opts.contactPhone };
 
   if (!readSignedInHint(doc.cookie || "")) {
     navigate(`/member?next=${encodeURIComponent(next)}`);
@@ -402,72 +518,211 @@ export function mountAccountPortal(
     // knows rather than an empty page. Never the booking view — one booking
     // is entirely server data, and a shell with no booking in it would read
     // as "this booking is gone".
-    if (view !== "booking") mount.innerHTML = accountPortalHTML(buildPortalModel(fallback, view));
+    if (view !== "booking") mount.innerHTML = accountPortalHTML(buildPortalModel(fallback, view, extras));
     return;
   }
 
-  const read = (url: string): Promise<unknown> =>
+  const readT = (url: string): Promise<ReadResult> =>
     fetchImpl(url, { credentials: "same-origin" }).then(
-      (r) => (r.ok ? r.json() : null),
-      () => null,
+      (r) =>
+        r.ok
+          ? r.json().then(
+              (body) => classifyRead(true, r.status, body),
+              () => classifyRead(false, r.status, null),
+            )
+          : classifyRead(false, r.status, null),
+      () => classifyRead(false, 0, null),
     );
+  const signIn = () => navigate(`/member?next=${encodeURIComponent(next)}`);
 
-  const sessionP = read("/api/auth/session?include=upcoming");
+  /** Cards on screen, so a toast can name the day without another read. */
+  let onScreen: ApptCard[] = [];
 
-  void sessionP
-    .then((body) => {
-      if (body && typeof body === "object" && (body as { signedIn?: boolean }).signedIn === false) {
-        navigate(`/member?next=${encodeURIComponent(next)}`);
-        return undefined;
-      }
-      const session = body || fallback;
-      const emailMasked = String(
-        ((session as Record<string, unknown>).profile as Record<string, unknown> | undefined)?.emailMasked ?? "",
+  const paint = (html: string) => {
+    mount.innerHTML = html;
+    revealCurrentTab(mount);
+  };
+
+  const skeleton = () => {
+    if (view === "booking") {
+      paint(
+        `<main class="carisma-portal" data-cw-qc="${PORTAL_QC}" aria-busy="true">` +
+          `<div class="cw-body">${skeletonHTML("booking")}</div></main>`,
       );
+      return;
+    }
+    paint(
+      portalShellHTML({
+        view,
+        title: view === "home" ? greetingFor() : titleFor(view, "Your account"),
+        emailMasked: "",
+        body: skeletonHTML(view),
+        busy: true,
+      }),
+    );
+  };
 
-      if (view === "booking" && bookingId) {
-        return read(`/api/auth/proxy/client/booking/appointments/${encodeURIComponent(bookingId)}`).then(
-          (detail) => {
-            const model = buildBookingDetailModel(detail, bookingId);
-            mount.innerHTML = bookingDetailHTML(model);
+  const load = (after?: () => void): Promise<void> => {
+    skeleton();
+    return readT("/api/auth/session?include=upcoming")
+      .then((sessionRead) => {
+        const body = sessionRead.body as { signedIn?: boolean } | null;
+        if (sessionRead.status === 401 || (body && body.signedIn === false)) {
+          signIn();
+          return undefined;
+        }
+        const session = (sessionRead.state !== "failed" && body) || fallback;
+        const profile = ((session as Record<string, unknown>).profile ?? {}) as Record<string, unknown>;
+        const emailMasked = String(profile.emailMasked ?? "");
+        const memberName = String(profile.firstName ?? "") || buildPanelModel(session).name;
+
+        if (view === "booking" && bookingId) {
+          return readT(`/api/auth/proxy/client/booking/appointments/${encodeURIComponent(bookingId)}`).then((detail) => {
+            if (detail.status === 401) return signIn();
+            if (detail.state === "failed" && detail.status !== 404) {
+              paint(
+                portalShellHTML({
+                  view,
+                  title: "Your booking",
+                  emailMasked,
+                  memberName,
+                  body: errorBlockHTML("booking", opts.contactPhone),
+                }),
+              );
+              return;
+            }
+            const model = buildBookingDetailModel(detail.body, bookingId);
+            paint(bookingDetailHTML(model));
             // Stripe sends the member back here after settling a balance. The
             // page is already showing the new figure; this says the payment
             // landed, so nobody has to infer it from a number that changed.
-            const note = paymentReturnNote(
-              (doc as unknown as { location?: { search?: string } }).location?.search ?? "",
-            );
+            const note = paymentReturnNote(loc?.search ?? "");
             if (note) say(mount, note.text, note.tone);
-            bindBookingActions(doc, mount, model, opts);
-          },
-        );
-      }
+            if (!portalDetailBound.has(mount)) {
+              portalDetailBound.add(mount);
+              bindBookingActions(doc, mount, model, opts);
+            }
+          });
+        }
 
-      if (view === "bookings") {
-        return Promise.all(requestsFor(view).map(read)).then(([upcoming, past]) => {
-          mount.innerHTML = accountPortalHTML(
-            buildPortalModel(session, view, { upcomingOverride: upcoming, past }),
+        if (view === "home" || view === "bookings") {
+          return Promise.all(requestsFor(view).map(readT)).then((reads) => {
+            if (reads.some((r) => r.status === 401)) return signIn();
+            const [up, past, gifts, packs, credit] = reads;
+            const walletReads = [gifts, packs, credit].filter(Boolean);
+            const wallet =
+              view === "home" && walletReads.some((r) => r && r.state !== "failed")
+                ? buildWalletModel({ giftCards: gifts?.body, packages: packs?.body, credit: credit?.body })
+                : null;
+            const model = buildPortalModel(session, view, {
+              ...extras,
+              upcomingOverride: up.state === "failed" ? [] : up.body ?? [],
+              upcomingState: up.state,
+              past: past && past.state !== "failed" ? past.body ?? [] : [],
+              pastState: past ? past.state : "empty",
+              wallet,
+            });
+            onScreen = [...model.upcomingCards, ...model.pastCards];
+            paint(accountPortalHTML(model));
+          });
+        }
+
+        if (view === "details") {
+          paint(accountPortalHTML(buildPortalModel(session, view, extras)));
+          return undefined;
+        }
+
+        const urls = requestsFor(view);
+        return Promise.all(urls.map(readT)).then((reads) => {
+          if (reads.some((r) => r.status === 401)) return signIn();
+          const allFailed = reads.length > 0 && reads.every((r) => r.state === "failed");
+          paint(
+            portalShellHTML({
+              view,
+              title: titleFor(view, "Your account"),
+              lede: allFailed ? "" : ledeFor(view),
+              emailMasked,
+              memberName,
+              // ONE dead endpoint costs its own block (the builders treat a
+              // null answer as nothing there); ALL of them dead is an outage,
+              // and says so.
+              body: allFailed
+                ? errorBlockHTML(subjectFor(view), opts.contactPhone)
+                : `<div class="cw-legacy cw-rise">${bodyFor(view, reads.map((r) => (r.state === "failed" ? null : r.body)))}</div>`,
+            }),
           );
+          if (!portalMembershipBound.has(mount)) {
+            portalMembershipBound.add(mount);
+            bindMembershipActions(doc, mount, opts);
+          }
         });
-      }
+      })
+      .then(
+        () => after?.(),
+        () => {
+          if (view !== "booking") paint(accountPortalHTML(buildPortalModel(fallback, view, { ...extras, upcomingState: "failed" })));
+        },
+      );
+  };
 
-      const urls = requestsFor(view);
-      if (!urls.length) {
-        mount.innerHTML = accountPortalHTML(buildPortalModel(session, view));
-        return undefined;
+  // Try again, and the booking buttons on a LIST (Overview, Bookings). Bound
+  // once per mount and delegated, so a re-render never stacks listeners. The
+  // detail page keeps its own handler (bindBookingActions) untouched.
+  if (!portalListBound.has(mount)) {
+    portalListBound.add(mount);
+    (mount as unknown as Listenable).addEventListener?.("click", (ev: MinimalMouseEvent) => {
+      const t = ev.target as unknown as { closest?: (s: string) => MinimalElement | null } | null;
+      const retry = t?.closest?.("[data-cw-retry]");
+      if (retry) {
+        ev.preventDefault?.();
+        if (view === "booking") portalDetailBound.delete(mount);
+        void load();
+        return;
       }
-      return Promise.all(urls.map(read)).then((answers) => {
-        mount.innerHTML = portalShellHTML({
-          view,
-          title: titleFor(view, "Your account"),
-          emailMasked,
-          body: bodyFor(view, answers),
+      if (view === "booking") return;
+      const btn = t?.closest?.("[data-cw-action]");
+      if (!btn) return;
+      const action = btn.getAttribute("data-cw-action");
+      const id = btn.getAttribute("data-cw-appt") || "";
+      if (!id || (action !== "pay" && action !== "reschedule" && action !== "confirm")) return;
+      ev.preventDefault?.();
+      if (btn.getAttribute("aria-disabled") === "true") return;
+      const card = onScreen.find((c) => c.id === id);
+
+      if (action === "reschedule") {
+        // Wave 2 replaces this with the in-place reschedule sheet.
+        navigate(`/account/bookings/${encodeURIComponent(id)}`);
+        return;
+      }
+      if (action === "pay") {
+        const done = setBusy(btn, "Opening payment…");
+        void postJson(fetchImpl, payBalanceCall(id, loc?.origin ?? null)).then((r) => {
+          const data = (r.body && typeof r.body === "object" ? r.body : {}) as Record<string, unknown>;
+          const inner = (data.success === true && data.data ? data.data : data) as Record<string, unknown>;
+          const url = typeof inner.checkoutUrl === "string" ? inner.checkoutUrl : "";
+          if (r.ok && url) {
+            navigate(url);
+            return;
+          }
+          done();
+          announce(mount, messageFromError(r.body, r.status, "That didn't go through. Nothing has changed — try again."), "bad");
         });
-        bindMembershipActions(doc, mount, opts);
+        return;
+      }
+      const done = setBusy(btn, "Confirming…");
+      void postJson(fetchImpl, confirmCall(id)).then((r) => {
+        if (!r.ok) {
+          done();
+          announce(mount, messageFromError(r.body, r.status, "That didn't go through. Nothing has changed — try again."), "bad");
+          return;
+        }
+        const day = card?.longDay.split(" ")[0] || "soon";
+        void load(() => announce(mount, `Thanks — we'll see you ${day}.`));
       });
-    })
-    .catch(() => {
-      if (view !== "booking") mount.innerHTML = accountPortalHTML(buildPortalModel(fallback, view));
     });
+  }
+
+  void load();
 
   // Sign-out on this page is handled by mountAccountPanel's document listener
   // (layout calls hydrateAll). Binding it here as well would double-POST.
