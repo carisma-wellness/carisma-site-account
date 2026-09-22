@@ -77,6 +77,68 @@ test("a state-changing proxy call without a matching Origin is refused 403", asy
 });
 
 test("the allowlist contains no account-destroying or profile-write rule", () => {
-  const labels = PROXY_ALLOWLIST.map((r) => `${r.method} ${r.label}`);
-  assert.equal(labels.some((l) => /change-password|delete|logout-all|session/i.test(l)), false, labels.join(", "));
+  // The LABEL only. This used to test `${method} ${label}`, which meant the
+  // word "DELETE" in a method tripped the /delete/i guard — so the day a
+  // legitimate DELETE arrived (a member cancelling their own booking) the
+  // assertion failed for a reason it was never about. The guard is about what
+  // a rule DOES, and the method is not the label.
+  const labels = PROXY_ALLOWLIST.map((r) => r.label);
+  assert.equal(
+    labels.some((l) => /change.?password|delete account|logout.?all|revoke|session/i.test(l)),
+    false,
+    labels.join(", "),
+  );
+});
+
+test("every DELETE rule is scoped to one appointment and nothing else", () => {
+  // The real guard behind the one above: a DELETE is only ever acceptable on a
+  // row the member owns. This is the assertion that would catch `DELETE
+  // /profile` being added with an innocent label.
+  const deletes = PROXY_ALLOWLIST.filter((r) => r.method === "DELETE");
+  assert.ok(deletes.length > 0, "the member can cancel their own booking");
+  for (const rule of deletes) {
+    assert.equal(rule.match("/client/booking/appointments/abc123"), true, rule.label);
+    for (const forbidden of ["/profile", "/auth/sessions/abc123", "/client/gift-cards/abc123", "/client/membership/abc123"]) {
+      assert.equal(rule.match(forbidden), false, `${rule.label} must not match ${forbidden}`);
+    }
+  }
+});
+
+test("the new member reads and writes are all reachable, and their siblings are not", () => {
+  // A rule that silently stops matching is worse than a missing one: the
+  // section renders its empty state and nothing anywhere says why.
+  const allowed = [
+    ["GET", "/client/account/statement"],
+    ["GET", "/client/account/documents"],
+    ["GET", "/client/gift-cards"],
+    ["GET", "/client/packages"],
+    ["GET", "/client/credit-balance"],
+    ["GET", "/client/booking/slots"],
+    ["GET", "/client/booking/appointments/abc123/cancellation-preview"],
+    ["POST", "/client/booking/appointments/abc123/confirm"],
+    ["PATCH", "/client/booking/appointments/abc123/reschedule"],
+    ["POST", "/client/booking/appointments/abc123/pay-balance"],
+    ["GET", "/client/wallet/appointments/abc123/apple"],
+    ["POST", "/client/membership/abc123/pause"],
+  ];
+  for (const [m, p] of allowed) assert.equal(isAllowed(m, p), true, `${m} ${p} should be allowed`);
+
+  const refused = [
+    // The card, and taking a new subscription. Identity-origin work.
+    ["POST", "/client/membership/abc123/payment-method"],
+    ["POST", "/client/membership/setup-intent"],
+    ["POST", "/client/membership/subscribe"],
+    // Medical, at both of its doors.
+    ["GET", "/client/medical/my-care"],
+    ["GET", "/client/medical/records"],
+    // The staff twins of the two new member reads.
+    ["GET", "/hod/clients/abc123/account"],
+    ["GET", "/hod/clients/abc123/documents"],
+    // A listing is not an appointment id.
+    ["POST", "/client/ratings/pending"],
+    // Read-only paths must not become writable by changing the verb.
+    ["POST", "/client/account/statement"],
+    ["DELETE", "/client/gift-cards/abc123"],
+  ];
+  for (const [m, p] of refused) assert.equal(isAllowed(m, p), false, `${m} ${p} must be refused`);
 });
