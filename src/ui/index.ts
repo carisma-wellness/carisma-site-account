@@ -34,8 +34,72 @@ export {
 } from "./panel.js";
 export type { PanelModel, PanelVisit } from "./panel.js";
 
-export { buildPortalModel, accountPortalHTML, PORTAL_QC } from "./portal.js";
+export {
+  buildPortalModel,
+  accountPortalHTML,
+  portalShellHTML,
+  bookingDetailHref,
+  PORTAL_QC,
+  PORTAL_SECTIONS,
+} from "./portal.js";
 export type { PortalModel, PortalView } from "./portal.js";
+
+export { requestsFor, titleFor, bodyFor, bookingIdFromPath } from "./portalData.js";
+
+export {
+  buildBookingDetailModel,
+  bookingDetailHTML,
+  readActions,
+  statusLabel,
+  BOOKING_DETAIL_QC,
+} from "./bookingDetail.js";
+export type { BookingDetailModel, BookingActions, BookingServiceLine } from "./bookingDetail.js";
+
+export {
+  buildWalletModel,
+  walletHTML,
+  buildStatementModel,
+  statementHTML,
+  buildDocumentsModel,
+  documentsHTML,
+  buildMembershipModel,
+  membershipHTML,
+  MEMBER_RECORDS_QC,
+} from "./records.js";
+export type {
+  WalletModel,
+  StatementModel,
+  MembershipModel,
+  DocumentView,
+  GiftCardView,
+  PackageView,
+} from "./records.js";
+
+export { eur, longDate, timeOfDay, shortWhen, plainDate, whenRange, untilPhrase } from "./money.js";
+
+export {
+  venueLocalToUtcIso,
+  venueDateString,
+  buildSlotsModel,
+  reschedulePickerHTML,
+  RESCHEDULE_QC,
+} from "./reschedule.js";
+export type { SlotsModel, SlotView } from "./reschedule.js";
+
+export {
+  confirmCall,
+  cancelCall,
+  cancellationPreviewCall,
+  rescheduleCall,
+  payBalanceCall,
+  slotsCall,
+  membershipCall,
+  readCancellationPreview,
+  cancelQuestion,
+  needsPreview,
+  messageFromError,
+} from "./portalActions.js";
+export type { ProxyCall, CancellationPreview, PortalActionName } from "./portalActions.js";
 
 export { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
 export { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";

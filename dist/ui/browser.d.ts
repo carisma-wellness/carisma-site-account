@@ -57,9 +57,22 @@ export interface HydrateOptions {
  * must be able to leave) — it never signs anyone out by itself (W-9).
  */
 export declare function mountAccountPanel(doc: MinimalDocument, opts?: HydrateOptions): void;
+/**
+ * Mount one account page.
+ *
+ * Three shapes of page, one mount:
+ *   · `booking` — ONE booking, read from `/account/bookings/<id>`, with the
+ *     server's capability block deciding every button;
+ *   · a data section (wallet / payments / documents / membership) — the paths
+ *     portalData names, rendered by the builder it names;
+ *   · home / bookings / details — the original model-driven views.
+ *
+ * Nothing here decides what a member may do. That arrived with the appointment.
+ */
 export declare function mountAccountPortal(doc: MinimalDocument, opts?: HydrateOptions & {
     view?: PortalView;
     portalMountId?: string;
+    path?: string;
 }): void;
 /** Wire everything the account UI needs after hydration. */
 export declare function hydrateAll(doc: MinimalDocument, opts?: HydrateOptions): void;

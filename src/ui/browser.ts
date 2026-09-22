@@ -15,7 +15,29 @@ import { accountMarkSignedInHTML, accountMarkState, ACCOUNT_MARK_ATTR } from "./
 import { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, avatarUrlFromSession, sanitizeAvatarUrl } from "./avatar.js";
 import { readInitialsHint, readSignedInHint } from "./hint.js";
 import { buildPanelModel, accountPanelHTML } from "./panel.js";
-import { accountPortalHTML, buildPortalModel, type PortalView } from "./portal.js";
+import { accountPortalHTML, buildPortalModel, portalShellHTML, type PortalView } from "./portal.js";
+import { bodyFor, bookingIdFromPath, requestsFor, titleFor } from "./portalData.js";
+import { bookingDetailHTML, buildBookingDetailModel, type BookingDetailModel } from "./bookingDetail.js";
+import {
+  buildSlotsModel,
+  reschedulePickerHTML,
+  venueDateString,
+  venueLocalToUtcIso,
+} from "./reschedule.js";
+import {
+  cancelCall,
+  cancelQuestion,
+  cancellationPreviewCall,
+  confirmCall,
+  membershipCall,
+  messageFromError,
+  needsPreview,
+  payBalanceCall,
+  readCancellationPreview,
+  rescheduleCall,
+  slotsCall,
+  type ProxyCall,
+} from "./portalActions.js";
 import { installBrandLinkInterceptor } from "./linkInterceptor.js";
 import { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";
 import type { MinimalDocument, MinimalElement, MinimalMouseEvent } from "./dom.js";
@@ -339,9 +361,21 @@ export function mountAccountPanel(doc: MinimalDocument, opts: HydrateOptions = {
   );
 }
 
+/**
+ * Mount one account page.
+ *
+ * Three shapes of page, one mount:
+ *   · `booking` — ONE booking, read from `/account/bookings/<id>`, with the
+ *     server's capability block deciding every button;
+ *   · a data section (wallet / payments / documents / membership) — the paths
+ *     portalData names, rendered by the builder it names;
+ *   · home / bookings / details — the original model-driven views.
+ *
+ * Nothing here decides what a member may do. That arrived with the appointment.
+ */
 export function mountAccountPortal(
   doc: MinimalDocument,
-  opts: HydrateOptions & { view?: PortalView; portalMountId?: string } = {},
+  opts: HydrateOptions & { view?: PortalView; portalMountId?: string; path?: string } = {},
 ): void {
   try {
     injectChrome(doc);
@@ -351,8 +385,11 @@ export function mountAccountPortal(
   const mountId = opts.portalMountId || "carisma-account-portal";
   const mount = doc.getElementById(mountId);
   const navigate = opts.navigate || (() => {});
-  const view: PortalView = opts.view || "home";
-  const next = view === "home" ? "/account" : `/account/${view}`;
+  const path = opts.path || currentPath(doc);
+  const bookingId = bookingIdFromPath(path);
+  const view: PortalView = bookingId ? "booking" : opts.view || "home";
+  const next = view === "home" ? "/account" : bookingId ? path : `/account/${view}`;
+
   if (!readSignedInHint(doc.cookie || "")) {
     navigate(`/member?next=${encodeURIComponent(next)}`);
     return;
@@ -360,44 +397,321 @@ export function mountAccountPortal(
   if (!mount) return;
   const fetchImpl = opts.fetchImpl;
   const fallback = cookieFallbackSession(doc.cookie || "");
-  const paint = (session: unknown, extra?: { past?: unknown; upcomingOverride?: unknown }) => {
-    mount.innerHTML = accountPortalHTML(buildPortalModel(session, view, extra));
-  };
   if (!fetchImpl) {
-    paint(fallback);
+    // No fetch seam (a server render, a test host): paint what the cookie
+    // knows rather than an empty page. Never the booking view — one booking
+    // is entirely server data, and a shell with no booking in it would read
+    // as "this booking is gone".
+    if (view !== "booking") mount.innerHTML = accountPortalHTML(buildPortalModel(fallback, view));
     return;
   }
-  const sessionP = fetchImpl("/api/auth/session?include=upcoming", { credentials: "same-origin" }).then((r) =>
-    r.ok ? r.json() : null,
-  );
-  const extraP =
-    view === "bookings"
-      ? Promise.all([
-          fetchImpl("/api/auth/proxy/client/booking/appointments?filter=upcoming&limit=50", {
-            credentials: "same-origin",
-          }).then((r) => (r.ok ? r.json() : null)),
-          fetchImpl("/api/auth/proxy/client/booking/appointments?filter=past&limit=50", {
-            credentials: "same-origin",
-          }).then((r) => (r.ok ? r.json() : null)),
-        ])
-      : Promise.resolve(null);
+
+  const read = (url: string): Promise<unknown> =>
+    fetchImpl(url, { credentials: "same-origin" }).then(
+      (r) => (r.ok ? r.json() : null),
+      () => null,
+    );
+
+  const sessionP = read("/api/auth/session?include=upcoming");
 
   void sessionP
     .then((body) => {
       if (body && typeof body === "object" && (body as { signedIn?: boolean }).signedIn === false) {
         navigate(`/member?next=${encodeURIComponent(next)}`);
-        return;
+        return undefined;
       }
-      return extraP.then((extra) => {
-        const upcomingOverride = extra ? extra[0] : undefined;
-        const past = extra ? extra[1] : undefined;
-        paint(body || fallback, { upcomingOverride, past });
+      const session = body || fallback;
+      const emailMasked = String(
+        ((session as Record<string, unknown>).profile as Record<string, unknown> | undefined)?.emailMasked ?? "",
+      );
+
+      if (view === "booking" && bookingId) {
+        return read(`/api/auth/proxy/client/booking/appointments/${encodeURIComponent(bookingId)}`).then(
+          (detail) => {
+            const model = buildBookingDetailModel(detail, bookingId);
+            mount.innerHTML = bookingDetailHTML(model);
+            bindBookingActions(doc, mount, model, opts);
+          },
+        );
+      }
+
+      if (view === "bookings") {
+        return Promise.all(requestsFor(view).map(read)).then(([upcoming, past]) => {
+          mount.innerHTML = accountPortalHTML(
+            buildPortalModel(session, view, { upcomingOverride: upcoming, past }),
+          );
+        });
+      }
+
+      const urls = requestsFor(view);
+      if (!urls.length) {
+        mount.innerHTML = accountPortalHTML(buildPortalModel(session, view));
+        return undefined;
+      }
+      return Promise.all(urls.map(read)).then((answers) => {
+        mount.innerHTML = portalShellHTML({
+          view,
+          title: titleFor(view, "Your account"),
+          emailMasked,
+          body: bodyFor(view, answers),
+        });
+        bindMembershipActions(doc, mount, opts);
       });
     })
-    .catch(() => paint(fallback));
+    .catch(() => {
+      if (view !== "booking") mount.innerHTML = accountPortalHTML(buildPortalModel(fallback, view));
+    });
 
   // Sign-out on this page is handled by mountAccountPanel's document listener
   // (layout calls hydrateAll). Binding it here as well would double-POST.
+}
+
+/** The current path, without leaning on a `location` the seam may not have. */
+function currentPath(doc: MinimalDocument): string {
+  const loc = (doc as unknown as { location?: { pathname?: string } }).location;
+  return typeof loc?.pathname === "string" ? loc.pathname : "";
+}
+
+/** A banner above the page, for a refusal or a confirmation. */
+function say(mount: MinimalElement, text: string, tone: "ok" | "bad"): void {
+  const el = (mount as unknown as { querySelector?: (s: string) => MinimalElement | null }).querySelector?.(
+    ".carisma-portal__flash",
+  );
+  const html = `<p class="carisma-portal__flash is-${tone}">${text.replace(/[<>&]/g, "")}</p>`;
+  if (el) (el as unknown as { outerHTML: string }).outerHTML = html;
+  else mount.innerHTML = html + mount.innerHTML;
+}
+
+function postJson(
+  fetchImpl: FetchLike,
+  call: ProxyCall,
+): Promise<{ ok: boolean; status: number; body: unknown }> {
+  return fetchImpl(call.path, {
+    method: call.method,
+    credentials: "same-origin",
+    headers: call.body ? { "content-type": "application/json" } : undefined,
+    body: call.body ? JSON.stringify(call.body) : undefined,
+  } as never).then(
+    (r) => r.json().then(
+      (body: unknown) => ({ ok: r.ok, status: r.status, body }),
+      () => ({ ok: r.ok, status: r.status, body: null }),
+    ),
+    () => ({ ok: false, status: 0, body: null }),
+  );
+}
+
+/**
+ * Bind the buttons on one booking.
+ *
+ * Delegated from the mount, so a re-render replaces the handlers with the
+ * markup and a stale listener cannot act on a booking that is no longer shown.
+ */
+function bindBookingActions(
+  doc: MinimalDocument,
+  mount: MinimalElement,
+  model: BookingDetailModel,
+  opts: HydrateOptions,
+): void {
+  const fetchImpl = opts.fetchImpl;
+  if (!fetchImpl) return;
+  const navigate = opts.navigate || (() => {});
+  const reload = () => navigate(`/account/bookings/${encodeURIComponent(model.id)}`);
+  const confirmWith =
+    (opts as { confirmImpl?: (q: string) => boolean }).confirmImpl ??
+    ((q: string) => {
+      const w = (doc as unknown as { defaultView?: { confirm?: (m: string) => boolean } }).defaultView;
+      return w?.confirm ? w.confirm(q) : true;
+    });
+
+  const onClick = (ev: MinimalMouseEvent) => {
+    const target = ev.target as unknown as {
+      closest?: (s: string) => (MinimalElement & { getAttribute(n: string): string | null }) | null;
+    };
+    const btn = target?.closest?.("[data-cw-action]");
+    if (!btn) return;
+    const action = btn.getAttribute("data-cw-action");
+    if (!action) return;
+    (ev as unknown as { preventDefault?: () => void }).preventDefault?.();
+
+    if (action === "confirm") {
+      void postJson(fetchImpl, confirmCall(model.id)).then((r) =>
+        r.ok ? reload() : say(mount, messageFromError(r.body, r.status, "We couldn't confirm that just now."), "bad"),
+      );
+      return;
+    }
+
+    if (action === "cancel") {
+      // Free? Ask plainly. Not free — or we do not know — read the server's
+      // own preview and put ITS figures in the question. Never our own.
+      const ask = (preview: ReturnType<typeof readCancellationPreview> | null) => {
+        const question = preview ? cancelQuestion(preview) : "Cancel this booking?";
+        if (!confirmWith(question)) return;
+        void postJson(fetchImpl, cancelCall(model.id, Boolean(preview && preview.chargeAmount + preview.forfeitAmount > 0))).then(
+          (r) =>
+            r.ok
+              ? navigate("/account/bookings")
+              : say(mount, messageFromError(r.body, r.status, "We couldn't cancel that just now."), "bad"),
+        );
+      };
+      if (!needsPreview(model.actions)) {
+        ask(null);
+        return;
+      }
+      void postJson(fetchImpl, cancellationPreviewCall(model.id)).then((r) =>
+        ask(r.ok ? readCancellationPreview(r.body) : null),
+      );
+      return;
+    }
+
+    if (action === "pay") {
+      void postJson(fetchImpl, payBalanceCall(model.id)).then((r) => {
+        const data = (r.body && typeof r.body === "object" ? (r.body as Record<string, unknown>) : {}) as Record<
+          string,
+          unknown
+        >;
+        const inner = (data.success === true && data.data ? data.data : data) as Record<string, unknown>;
+        const url = typeof inner.checkoutUrl === "string" ? inner.checkoutUrl : "";
+        if (r.ok && url) navigate(url);
+        else say(mount, messageFromError(r.body, r.status, "We couldn't open the payment page."), "bad");
+      });
+      return;
+    }
+
+    if (action === "rebook") {
+      navigate("/");
+      return;
+    }
+
+    if (action === "reschedule") {
+      openReschedule(doc, mount, model, opts);
+      return;
+    }
+  };
+
+  (mount as unknown as { addEventListener?: (t: string, h: (e: MinimalMouseEvent) => void) => void }).addEventListener?.(
+    "click",
+    onClick,
+  );
+}
+
+/** Pause / resume on the membership page. */
+function bindMembershipActions(doc: MinimalDocument, mount: MinimalElement, opts: HydrateOptions): void {
+  const fetchImpl = opts.fetchImpl;
+  if (!fetchImpl) return;
+  const navigate = opts.navigate || (() => {});
+  (mount as unknown as { addEventListener?: (t: string, h: (e: MinimalMouseEvent) => void) => void }).addEventListener?.(
+    "click",
+    (ev: MinimalMouseEvent) => {
+      const target = ev.target as unknown as {
+        closest?: (s: string) => (MinimalElement & { getAttribute(n: string): string | null }) | null;
+      };
+      const btn = target?.closest?.("[data-cw-action^='membership-']");
+      if (!btn) return;
+      const id = btn.getAttribute("data-cw-membership");
+      const action = btn.getAttribute("data-cw-action");
+      if (!id || !action) return;
+      (ev as unknown as { preventDefault?: () => void }).preventDefault?.();
+      const verb = action === "membership-pause" ? "pause" : "resume";
+      void postJson(fetchImpl, membershipCall(id, verb)).then((r) =>
+        r.ok
+          ? navigate("/account/membership")
+          : say(mount, messageFromError(r.body, r.status, "We couldn't change that just now."), "bad"),
+      );
+    },
+  );
+}
+
+/**
+ * The reschedule picker: a day, the free times on it, and one PATCH.
+ *
+ * Same treatment, same venue — that is all `PATCH /reschedule` can do (it
+ * shifts every service line by one delta), so the picker offers nothing else
+ * and says so rather than letting a member hunt for a control that is not there.
+ */
+function openReschedule(
+  doc: MinimalDocument,
+  mount: MinimalElement,
+  model: BookingDetailModel,
+  opts: HydrateOptions,
+): void {
+  const fetchImpl = opts.fetchImpl;
+  if (!fetchImpl) return;
+  const navigate = opts.navigate || (() => {});
+  if (!model.brandLocationId) {
+    say(mount, "We can't move this booking online. Please call the venue.", "bad");
+    return;
+  }
+  const host = (mount as unknown as { querySelector?: (s: string) => MinimalElement | null }).querySelector?.(
+    ".carisma-portal__actions",
+  );
+  const paintInto = host ?? mount;
+  const minDate = venueDateString(new Date(), "Europe/Malta");
+
+  const load = (date: string) => {
+    void fetchImpl(
+      slotsCall({
+        brandLocationId: model.brandLocationId as string,
+        date,
+        serviceId: model.serviceId,
+        durationMins: model.durationMins,
+      }).path,
+      { credentials: "same-origin" },
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        const slots = buildSlotsModel(body, date);
+        const box = (paintInto as unknown as { querySelector?: (s: string) => MinimalElement | null }).querySelector?.(
+          ".carisma-reschedule",
+        );
+        const html = reschedulePickerHTML(slots, { minDate });
+        if (box) (box as unknown as { outerHTML: string }).outerHTML = html;
+        else paintInto.innerHTML = paintInto.innerHTML + html;
+
+        const root = (paintInto as unknown as { querySelector?: (s: string) => MinimalElement | null }).querySelector?.(
+          ".carisma-reschedule",
+        );
+        if (!root) return;
+        (root as unknown as { addEventListener?: (t: string, h: (e: MinimalMouseEvent) => void) => void }).addEventListener?.(
+          "click",
+          (ev: MinimalMouseEvent) => {
+            const t = ev.target as unknown as {
+              closest?: (s: string) => (MinimalElement & { getAttribute(n: string): string | null }) | null;
+            };
+            const jump = t?.closest?.("[data-cw-date]");
+            if (jump) {
+              (ev as unknown as { preventDefault?: () => void }).preventDefault?.();
+              load(jump.getAttribute("data-cw-date") || date);
+              return;
+            }
+            const slot = t?.closest?.("[data-cw-slot]");
+            if (!slot) return;
+            (ev as unknown as { preventDefault?: () => void }).preventDefault?.();
+            const time = slot.getAttribute("data-cw-slot") || "";
+            // The venue's wall clock becomes a UTC instant HERE, using the
+            // zone the SERVER named — not the handset's.
+            const startTime = venueLocalToUtcIso(slots.date, time, slots.timeZone);
+            if (!startTime) return;
+            void postJson(fetchImpl, rescheduleCall(model.id, startTime)).then((r) =>
+              r.ok
+                ? navigate(`/account/bookings/${encodeURIComponent(model.id)}`)
+                : say(mount, messageFromError(r.body, r.status, "We couldn't move it to that time."), "bad"),
+            );
+          },
+        );
+        const dayInput = (root as unknown as { querySelector?: (s: string) => MinimalElement | null }).querySelector?.(
+          "[data-cw-reschedule-date]",
+        );
+        (dayInput as unknown as { addEventListener?: (t: string, h: () => void) => void } | null)?.addEventListener?.(
+          "change",
+          () => {
+            const v = (dayInput as unknown as { value?: string }).value || date;
+            load(v);
+          },
+        );
+      });
+  };
+
+  load(minDate);
 }
 
 /** Wire everything the account UI needs after hydration. */

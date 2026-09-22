@@ -238,5 +238,37 @@ export const ACCOUNT_CHROME_CSS = `
   #carisma-account-backdrop,
   .carisma-panel { transition: none; }
 }
+
+/* The member account pages. Brand skin arrives through --cw-account-*, so a
+   site overrides the accent once and every rule below follows. Nothing here
+   names a brand colour. */
+.carisma-portal__subtitle { font-size: 20px; font-weight: 500; letter-spacing: -0.01em; margin: 2px 0 6px; }
+.carisma-portal__status { display: inline-block; font-size: 13px; color: var(--cw-account-muted); border: 1px solid var(--cw-account-line); border-radius: 999px; padding: 3px 12px; margin: 0 0 14px; }
+.carisma-portal__block { border-top: 1px solid var(--cw-account-line); padding-top: 18px; margin-top: 22px; }
+.carisma-portal__row { display: flex; justify-content: space-between; gap: 16px; padding: 6px 0; font-size: 15px; }
+.carisma-portal__row.is-strong { font-weight: 600; }
+.carisma-portal__fine { font-size: 12px; color: var(--cw-account-muted); margin: 6px 0 0; }
+.carisma-portal__note { font-size: 14px; color: var(--cw-account-muted); margin: 14px 0 0; line-height: 1.5; }
+.carisma-portal__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.carisma-portal__actions .carisma-portal__note { flex-basis: 100%; }
+/* 44px is the tap target, not a look: these are pressed one-handed, often by
+   someone already late for the appointment they are trying to move. */
+.carisma-portal__btn { min-height: 44px; padding: 0 20px; border-radius: 999px; border: 1px solid var(--cw-account-line); background: transparent; color: var(--cw-account-ink); font: inherit; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; text-decoration: none; }
+.carisma-portal__btn:hover { background: rgba(28, 25, 23, 0.05); }
+.carisma-portal__btn.is-primary { background: var(--cw-account-ink); color: #fff; border-color: var(--cw-account-ink); }
+.carisma-portal__btn.is-quiet { color: var(--cw-account-muted); font-size: 14px; }
+.carisma-portal__cardlink { display: block; text-decoration: none; color: inherit; border-radius: 14px; }
+.carisma-portal__cardlink:hover { background: rgba(28, 25, 23, 0.04); }
+.carisma-portal__flash { border-radius: 12px; padding: 12px 14px; margin: 0 0 16px; font-size: 14px; line-height: 1.5; }
+.carisma-portal__flash.is-bad { background: rgba(180, 35, 24, 0.08); color: #8c1d18; }
+.carisma-portal__flash.is-ok { background: rgba(23, 120, 70, 0.08); color: #10643b; }
+.carisma-reschedule { flex-basis: 100%; margin-top: 18px; }
+.carisma-reschedule__day { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--cw-account-muted); margin-bottom: 14px; max-width: 220px; }
+.carisma-reschedule__day input { min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--cw-account-line); background: transparent; color: var(--cw-account-ink); font: inherit; }
+/* auto-fill wraps to one column at phone width with no media query. */
+.carisma-reschedule__times { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.carisma-reschedule__time, .carisma-reschedule__jump { min-height: 44px; border-radius: 12px; border: 1px solid var(--cw-account-line); background: transparent; color: var(--cw-account-ink); font: inherit; font-size: 15px; cursor: pointer; }
+.carisma-reschedule__time:hover, .carisma-reschedule__jump:hover { background: rgba(28, 25, 23, 0.06); }
+.carisma-reschedule__jump { min-height: 0; padding: 2px 10px; font-size: 14px; }
 `.replace(/^\s+/gm, "").trim();
 //# sourceMappingURL=chromeCss.js.map
