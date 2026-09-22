@@ -430,6 +430,13 @@ export function mountAccountPortal(
           (detail) => {
             const model = buildBookingDetailModel(detail, bookingId);
             mount.innerHTML = bookingDetailHTML(model);
+            // Stripe sends the member back here after settling a balance. The
+            // page is already showing the new figure; this says the payment
+            // landed, so nobody has to infer it from a number that changed.
+            const note = paymentReturnNote(
+              (doc as unknown as { location?: { search?: string } }).location?.search ?? "",
+            );
+            if (note) say(mount, note.text, note.tone);
             bindBookingActions(doc, mount, model, opts);
           },
         );
@@ -470,6 +477,22 @@ export function mountAccountPortal(
 function currentPath(doc: MinimalDocument): string {
   const loc = (doc as unknown as { location?: { pathname?: string } }).location;
   return typeof loc?.pathname === "string" ? loc.pathname : "";
+}
+
+/**
+ * What to say when Stripe sends the member back.
+ *
+ * `paid=1` is our own success_url, `paid=cancelled` our own cancel_url, and
+ * anything else is an ordinary visit that must say nothing at all — a page
+ * that congratulated everyone on a payment would be worse than silent.
+ */
+export function paymentReturnNote(search: string): { text: string; tone: "ok" | "bad" } | null {
+  const q = String(search || "");
+  if (/[?&]paid=1(&|$)/.test(q)) return { text: "Payment received — thank you.", tone: "ok" };
+  if (/[?&]paid=cancelled(&|$)/.test(q)) {
+    return { text: "Payment cancelled. Nothing has been charged.", tone: "bad" };
+  }
+  return null;
 }
 
 /** A banner above the page, for a refusal or a confirmation. */
@@ -564,7 +587,13 @@ function bindBookingActions(
     }
 
     if (action === "pay") {
-      void postJson(fetchImpl, payBalanceCall(model.id)).then((r) => {
+      // This site's own origin, so Stripe returns the member to this booking
+      // on this brand. Read from the document rather than hard-coded, because
+      // one kit serves five brands and a sixth host (a preview build) must not
+      // be able to send anyone to the wrong one.
+      const origin =
+        (doc as unknown as { location?: { origin?: string } }).location?.origin ?? null;
+      void postJson(fetchImpl, payBalanceCall(model.id, origin)).then((r) => {
         const data = (r.body && typeof r.body === "object" ? (r.body as Record<string, unknown>) : {}) as Record<
           string,
           unknown

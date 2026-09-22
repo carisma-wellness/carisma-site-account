@@ -74,6 +74,17 @@ export declare function mountAccountPortal(doc: MinimalDocument, opts?: HydrateO
     portalMountId?: string;
     path?: string;
 }): void;
+/**
+ * What to say when Stripe sends the member back.
+ *
+ * `paid=1` is our own success_url, `paid=cancelled` our own cancel_url, and
+ * anything else is an ordinary visit that must say nothing at all — a page
+ * that congratulated everyone on a payment would be worse than silent.
+ */
+export declare function paymentReturnNote(search: string): {
+    text: string;
+    tone: "ok" | "bad";
+} | null;
 /** Wire everything the account UI needs after hydration. */
 export declare function hydrateAll(doc: MinimalDocument, opts?: HydrateOptions): void;
 //# sourceMappingURL=browser.d.ts.map

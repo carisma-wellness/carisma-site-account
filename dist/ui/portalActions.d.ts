@@ -29,7 +29,16 @@ export declare const cancellationPreviewCall: (id: string) => ProxyCall;
  */
 export declare const cancelCall: (id: string, acceptFee: boolean) => ProxyCall;
 export declare const rescheduleCall: (id: string, startTimeIso: string) => ProxyCall;
-export declare const payBalanceCall: (id: string) => ProxyCall;
+/**
+ * Settle an outstanding balance.
+ *
+ * `returnOrigin` is this brand site, so Stripe sends the member back to the
+ * booking they paid for rather than to the CarismaSoft app host. The server
+ * looks it up in its registered-origin map and takes the host from THAT, so
+ * this is a request for a destination, never an instruction — and a site that
+ * is not registered simply lands on the old default.
+ */
+export declare const payBalanceCall: (id: string, returnOrigin?: string | null) => ProxyCall;
 export declare const slotsCall: (opts: {
     brandLocationId: string;
     date: string;

@@ -31,7 +31,7 @@ export { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appo
 export { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";
 export { resolveBrandLink, installBrandLinkInterceptor } from "./linkInterceptor.js";
 export type { BrandLinkInput, InterceptorOptions } from "./linkInterceptor.js";
-export { hydrateAccountMark, hydrateAccountMarks, mountAccountPanel, mountAccountPortal, hydrateAll, loadAccountMarkPhoto, accountMarkPhotoUrl, } from "./browser.js";
+export { hydrateAccountMark, hydrateAccountMarks, mountAccountPanel, mountAccountPortal, hydrateAll, loadAccountMarkPhoto, accountMarkPhotoUrl, paymentReturnNote, } from "./browser.js";
 export type { HydrateOptions, FetchLike, StorageLike } from "./browser.js";
 export { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, sanitizeAvatarUrl, avatarUrlFromSession, accountMarkPhotoHTML, } from "./avatar.js";
 export type { MinimalDocument, MinimalElement, MinimalAnchor, MinimalMouseEvent } from "./dom.js";

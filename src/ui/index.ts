@@ -115,6 +115,7 @@ export {
   hydrateAll,
   loadAccountMarkPhoto,
   accountMarkPhotoUrl,
+  paymentReturnNote,
 } from "./browser.js";
 export type { HydrateOptions, FetchLike, StorageLike } from "./browser.js";
 
