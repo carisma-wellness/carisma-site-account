@@ -25,6 +25,8 @@ import {
   messageFromError,
   eur,
   PORTAL_SECTIONS,
+  payBalanceCall,
+  paymentReturnNote,
 } from "../dist/ui/index.js";
 
 /* ── The capability block decides every button ─────────────────────────── */
@@ -350,4 +352,31 @@ test("every personal string carries the session-recorder mask", () => {
 test("bodyFor renders a section from its own answers, in order", () => {
   const html = bodyFor("payments", [{ data: { totalDue: 10, due: [{ description: "X", amountDue: 10 }], history: [] } }]);
   assert.match(html, /Due now · €10\.00/);
+});
+
+/* ── Paying a balance returns the member to this brand ─────────────────── */
+
+test("the Pay call carries this site's origin so Stripe returns here", () => {
+  const call = payBalanceCall("appt-1", "https://www.carismaaesthetics.com");
+  assert.equal(call.method, "POST");
+  assert.match(call.path, /\/pay-balance$/);
+  assert.deepEqual(call.body, { returnOrigin: "https://www.carismaaesthetics.com" });
+});
+
+test("NEGATIVE CONTROL: no origin sends no origin, rather than an empty one", () => {
+  // An empty string would be a value the server has to decide about. Sending
+  // nothing keeps the phone app's existing behaviour exactly as it was.
+  assert.deepEqual(payBalanceCall("appt-1", null).body, {});
+  assert.deepEqual(payBalanceCall("appt-1").body, {});
+  assert.deepEqual(payBalanceCall("appt-1", "").body, {});
+});
+
+test("coming back from Stripe says what happened, and an ordinary visit says nothing", () => {
+  assert.equal(paymentReturnNote("?paid=1").tone, "ok");
+  assert.match(paymentReturnNote("?paid=1").text, /Payment received/);
+  assert.match(paymentReturnNote("?paid=cancelled").text, /Nothing has been charged/);
+  // The control: every other visit to this page must be silent.
+  assert.equal(paymentReturnNote(""), null);
+  assert.equal(paymentReturnNote("?from=email"), null);
+  assert.equal(paymentReturnNote("?paid=11"), null);
 });

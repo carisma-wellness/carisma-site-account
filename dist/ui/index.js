@@ -22,7 +22,7 @@ export { confirmCall, cancelCall, cancellationPreviewCall, rescheduleCall, payBa
 export { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
 export { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";
 export { resolveBrandLink, installBrandLinkInterceptor } from "./linkInterceptor.js";
-export { hydrateAccountMark, hydrateAccountMarks, mountAccountPanel, mountAccountPortal, hydrateAll, loadAccountMarkPhoto, accountMarkPhotoUrl, } from "./browser.js";
+export { hydrateAccountMark, hydrateAccountMarks, mountAccountPanel, mountAccountPortal, hydrateAll, loadAccountMarkPhoto, accountMarkPhotoUrl, paymentReturnNote, } from "./browser.js";
 export { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, sanitizeAvatarUrl, avatarUrlFromSession, accountMarkPhotoHTML, } from "./avatar.js";
 export { ssoProbeDecision, runSsoProbe, earlySsoProbeScript, isPaidLanding, SSO_PROBE_SKIP_PREFIXES, SSO_PAID_LANDING_PREFIXES, SSO_PROBE_TTL_SECONDS, PAID_CLICK_PARAM, } from "./ssoProbe.js";
 //# sourceMappingURL=index.js.map

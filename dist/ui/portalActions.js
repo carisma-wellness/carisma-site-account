@@ -26,9 +26,19 @@ export const rescheduleCall = (id, startTimeIso) => ({
     method: "PATCH",
     body: { startTime: startTimeIso },
 });
-export const payBalanceCall = (id) => ({
+/**
+ * Settle an outstanding balance.
+ *
+ * `returnOrigin` is this brand site, so Stripe sends the member back to the
+ * booking they paid for rather than to the CarismaSoft app host. The server
+ * looks it up in its registered-origin map and takes the host from THAT, so
+ * this is a request for a destination, never an instruction — and a site that
+ * is not registered simply lands on the old default.
+ */
+export const payBalanceCall = (id, returnOrigin) => ({
     path: `${PROXY}/client/booking/appointments/${encodeURIComponent(id)}/pay-balance`,
     method: "POST",
+    body: returnOrigin ? { returnOrigin } : {},
 });
 export const slotsCall = (opts) => {
     const q = new URLSearchParams();
