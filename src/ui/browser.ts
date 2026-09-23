@@ -67,6 +67,7 @@ import {
   clockOf,
   dateWords,
   dayChipsHTML,
+  dialogFrameHTML,
   instantWords,
   rescheduleDialogHTML,
   rescheduleTimesHTML,
@@ -826,7 +827,15 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
               // and says so.
               body: allFailed
                 ? errorBlockHTML(subjectFor(view), opts.contactPhone)
-                : `<div class="cw-legacy cw-rise">${bodyFor(view, reads.map((r) => (r.state === "failed" ? null : r.body)))}</div>`,
+                : // The record pages are built on the new system now; the
+                  // legacy wrapper only existed to hold their old markup. They
+                  // also need the member's first name (the membership card) and
+                  // the brand phone (a tel link beside "speak to the team").
+                  `<div class="cw-rise">${bodyFor(
+                    view,
+                    reads.map((r) => (r.state === "failed" ? null : r.body)),
+                    { memberName, contactPhone: opts.contactPhone },
+                  )}</div>`,
             }),
           );
           if (!portalMembershipBound.has(mount)) {
@@ -1364,16 +1373,67 @@ function bindMembershipActions(mount: MinimalElement, opts: HydrateOptions): voi
     ev.preventDefault?.();
     if (btn.getAttribute("aria-disabled") === "true") return;
     const verb = action === "membership-pause" ? "pause" : "resume";
-    const done = setBusy(btn, verb === "pause" ? "Pausing…" : "Resuming…");
-    void postJson(fetchImpl, membershipCall(id, verb)).then((r) => {
-      if (r.ok) {
-        navigate("/account/membership");
-        return;
-      }
-      done();
-      announce(mount, messageFromError(r.body, r.status, GENERIC_FAILURE), "bad");
-    });
+    const send = () => {
+      const done = setBusy(btn, verb === "pause" ? "Pausing…" : "Resuming…");
+      void postJson(fetchImpl, membershipCall(id, verb)).then((r) => {
+        if (r.ok) {
+          navigate("/account/membership");
+          return;
+        }
+        done();
+        announce(mount, messageFromError(r.body, r.status, GENERIC_FAILURE), "bad");
+      });
+    };
+    // Resuming gives something back, so it acts on the tap. Pausing takes a
+    // paid membership off — the same class of act as cancelling a booking — so
+    // it asks first, in the same sheet the cancel flow uses, with the safe
+    // choice focused. It used to pause on a single tap.
+    if (verb === "resume") return send();
+    confirmPause(mount, btn, send);
   });
+}
+
+/** The "Pause your membership?" sheet. Keep is primary and takes focus. */
+function confirmPause(mount: MinimalElement, opener: LiveEl, onConfirm: () => void): void {
+  const host = qs(mount, ".carisma-portal") ?? live(mount);
+  if (!host) return onConfirm();
+  qsa(host, "dialog.cw-dialog").forEach((d) => {
+    d.close?.();
+    d.remove?.();
+  });
+  host.insertAdjacentHTML?.(
+    "beforeend",
+    dialogFrameHTML({
+      kind: "cancel",
+      title: "Pause your membership?",
+      body:
+        `<p class="cw-cx-summary">Your membership stays yours, and you can resume it any time from this page.</p>`,
+      foot:
+        `<div class="cw-rs-review__actions">` +
+        `<button type="button" class="cw-btn cw-btn--primary" data-cw-dialog-close data-cw-pause-keep>Keep my membership</button>` +
+        `<button type="button" class="cw-btn cw-btn--secondary" data-cw-pause-confirm>Pause membership</button>` +
+        `</div>`,
+    }),
+  );
+  const dlg = qsa(host, "dialog.cw-dialog").pop() ?? null;
+  if (!dlg) return onConfirm();
+  let confirmed = false;
+  dlg.addEventListener?.("click", (ev: LiveEvent) => {
+    if (closestOf(ev.target, "[data-cw-pause-confirm]")) {
+      confirmed = true;
+      dlg.close?.();
+      return;
+    }
+    if (closestOf(ev.target, "[data-cw-dialog-close]")) dlg.close?.();
+  });
+  dlg.addEventListener?.("close", () => {
+    dlg.remove?.();
+    if (confirmed) onConfirm();
+    else opener.focus?.();
+  });
+  if (typeof dlg.showModal === "function") dlg.showModal();
+  else dlg.setAttribute("open", "");
+  qs(dlg, "[data-cw-pause-keep]")?.focus?.();
 }
 
 /** Wire everything the account UI needs after hydration. */
