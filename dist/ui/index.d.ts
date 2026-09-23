@@ -17,15 +17,15 @@ export { buildPanelModel, accountPanelHTML, ACCOUNT_HOME_HREF, ACCOUNT_BOOKINGS_
 export type { PanelModel, PanelVisit } from "./panel.js";
 export { buildPortalModel, accountPortalHTML, portalShellHTML, bookingDetailHref, PORTAL_QC, PORTAL_SECTIONS, } from "./portal.js";
 export type { PortalModel, PortalView } from "./portal.js";
-export { requestsFor, titleFor, bodyFor, bookingIdFromPath } from "./portalData.js";
+export { requestsFor, titleFor, ledeFor, bodyFor, bookingIdFromPath } from "./portalData.js";
 export { buildBookingDetailModel, bookingDetailHTML, bookingViewParts, bookingSkeletonHTML, bookingPrimary, bookingTreatment, isActiveBooking, dueLabel, policyLead, rebookHref, readActions, statusLabel, BOOKING_DETAIL_QC, } from "./bookingDetail.js";
 export type { BookingDetailModel, BookingActions, BookingServiceLine, BookingRenderOptions, BookingPrimary, BookingViewParts, } from "./bookingDetail.js";
 export { addDays, daysBetween, dateWords, instantWords, clockOf, buildDayStrip, timeOptions, dayPart, groupTimes, dialogFrameHTML, rescheduleSubline, dayChipsHTML, rescheduleTimesHTML, reviewBarHTML, rescheduleDialogHTML, cancelTitle, cancelBodyHTML, cancelFootHTML, cancelDialogHTML, } from "./dialogs.js";
 export type { DayChip, TimeOption, DayPart, TimesState, RescheduleContext, DateStyle } from "./dialogs.js";
 export { buildIcs, icsUtc, icsEscape, icsFold, icsFileName, icsLocation, stripVenuePrefix } from "./ics.js";
 export type { IcsEvent } from "./ics.js";
-export { buildWalletModel, walletHTML, buildStatementModel, statementHTML, buildDocumentsModel, documentsHTML, buildMembershipModel, membershipHTML, MEMBER_RECORDS_QC, } from "./records.js";
-export type { WalletModel, StatementModel, MembershipModel, DocumentView, GiftCardView, PackageView, } from "./records.js";
+export { buildWalletModel, walletHTML, buildStatementModel, statementHTML, buildDocumentsModel, documentsHTML, buildMembershipModel, membershipHTML, walletTotal, walletSources, documentTitle, monthOf, MEMBER_RECORDS_QC, } from "./records.js";
+export type { WalletModel, StatementModel, MembershipModel, DocumentView, GiftCardView, PackageView, StatementLineView, RecordsContext, } from "./records.js";
 export { eur, longDate, timeOfDay, shortWhen, plainDate, whenRange, untilPhrase } from "./money.js";
 export { venueLocalToUtcIso, venueDateString, buildSlotsModel, reschedulePickerHTML, RESCHEDULE_QC, } from "./reschedule.js";
 export type { SlotsModel, SlotView } from "./reschedule.js";

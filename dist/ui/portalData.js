@@ -58,12 +58,13 @@ export function subjectFor(view) {
  */
 export function ledeFor(view) {
     switch (view) {
+        // Wallet, Payments and Membership open on a hero that says the one
+        // thing a lede would (what you can spend / what you owe / your plan).
+        // Documents: its rows (or its empty sentence) already say what it holds.
         case "wallet":
-            return "Credit, gift cards and treatment packages, ready to spend.";
         case "payments":
-            return "What you've paid, and anything still to pay.";
         case "documents":
-            return "Consent forms and aftercare guides from your visits.";
+            return "";
         case "membership":
             return "";
         default:
@@ -96,8 +97,12 @@ export function titleFor(view, greeting) {
  * that as "nothing here", so one dead endpoint costs its own block and never
  * the page: a member whose gift-card read 500s still sees their packages and
  * their credit.
+ *
+ * `ctx` is optional page context (the member's first name for the membership
+ * card, the brand phone for "speak to the team"). Without it every view still
+ * renders; those two touches simply do not appear.
  */
-export function bodyFor(view, answers) {
+export function bodyFor(view, answers, ctx = {}) {
     switch (view) {
         case "wallet":
             return walletHTML(buildWalletModel({ giftCards: answers[0], packages: answers[1], credit: answers[2] }));
@@ -106,7 +111,7 @@ export function bodyFor(view, answers) {
         case "documents":
             return documentsHTML(buildDocumentsModel(answers[0]));
         case "membership":
-            return membershipHTML(buildMembershipModel(answers[0]));
+            return membershipHTML(buildMembershipModel(answers[0]), ctx);
         default:
             return "";
     }

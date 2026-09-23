@@ -44,7 +44,7 @@ export {
 } from "./portal.js";
 export type { PortalModel, PortalView } from "./portal.js";
 
-export { requestsFor, titleFor, bodyFor, bookingIdFromPath } from "./portalData.js";
+export { requestsFor, titleFor, ledeFor, bodyFor, bookingIdFromPath } from "./portalData.js";
 
 export {
   buildBookingDetailModel,
@@ -105,6 +105,10 @@ export {
   documentsHTML,
   buildMembershipModel,
   membershipHTML,
+  walletTotal,
+  walletSources,
+  documentTitle,
+  monthOf,
   MEMBER_RECORDS_QC,
 } from "./records.js";
 export type {
@@ -114,6 +118,8 @@ export type {
   DocumentView,
   GiftCardView,
   PackageView,
+  StatementLineView,
+  RecordsContext,
 } from "./records.js";
 
 export { eur, longDate, timeOfDay, shortWhen, plainDate, whenRange, untilPhrase } from "./money.js";
