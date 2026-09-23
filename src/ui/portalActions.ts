@@ -192,3 +192,107 @@ export function messageFromError(body: unknown, status: number, fallback: string
   if (status === 401 || status === 403) return "Please sign in again to change this booking.";
   return fallback;
 }
+
+/* ── The cancel sheet, from the server's own figures ───────────────────── */
+
+export interface CancelSummary {
+  /** The label over the figure — "Cancellation fee", "Free to cancel" — or null when unknown. */
+  headline: string | null;
+  /** The figure itself, formatted; null when there is none to show. */
+  amount: string | null;
+  tone: "ok" | "warn" | "neutral";
+  /** Plain sentences, in reading order. */
+  lines: string[];
+  policyText: string;
+  /** The destructive button's words: "Cancel booking" or "Cancel booking and pay €60.00". */
+  confirmLabel: string;
+  /**
+   * Sent as `acceptFee`. True ONLY when the sheet showed the member a figure
+   * they are agreeing to lose. Unknown is false: the server then refuses a
+   * fee-bearing cancel (409) rather than charging on a guess.
+   */
+  acceptFee: boolean;
+}
+
+/**
+ * What the cancel sheet says. `preview` is the server's
+ * `cancellation-preview`; `free` is `actions.cancelIsFree`. When `free` is
+ * true we never read the preview (the server has already said so), and when
+ * the preview could not be read we say so instead of implying it is free.
+ */
+export function cancelSummary(preview: CancellationPreview | null, free: boolean, fallbackPolicy = ""): CancelSummary {
+  const policyText = (preview && preview.policyText) || fallbackPolicy || "";
+  if (free && !preview) {
+    return {
+      headline: "Free to cancel",
+      amount: null,
+      tone: "ok",
+      lines: ["There's nothing to pay."],
+      policyText,
+      confirmLabel: "Cancel booking",
+      acceptFee: false,
+    };
+  }
+  if (!preview) {
+    return {
+      headline: null,
+      amount: null,
+      tone: "neutral",
+      lines: ["We couldn't check whether a fee applies just now. If one does, we'll ask you before anything is charged."],
+      policyText,
+      confirmLabel: "Cancel booking",
+      acceptFee: false,
+    };
+  }
+  const lines: string[] = [];
+  if (preview.chargeAmount > 0) {
+    lines.push(
+      preview.cardLast4
+        ? `We'll charge ${money(preview.chargeAmount)} to the card ending ${preview.cardLast4}.`
+        : `A charge of ${money(preview.chargeAmount)} applies.`,
+    );
+  }
+  if (preview.forfeitAmount > 0) lines.push(`${money(preview.forfeitAmount)} of what you've already paid is kept.`);
+  if (preview.chargeAmount <= 0 && preview.forfeitAmount <= 0) {
+    return {
+      headline: "Free to cancel",
+      amount: null,
+      tone: "ok",
+      lines: ["There's nothing to pay."],
+      policyText,
+      confirmLabel: "Cancel booking",
+      acceptFee: false,
+    };
+  }
+  return {
+    headline: preview.chargeAmount > 0 ? "Cancellation fee" : "Kept from what you've paid",
+    amount: money(preview.chargeAmount > 0 ? preview.chargeAmount : preview.forfeitAmount),
+    tone: "warn",
+    lines,
+    policyText,
+    confirmLabel: preview.chargeAmount > 0 ? `Cancel booking and pay ${money(preview.chargeAmount)}` : "Cancel booking",
+    acceptFee: true,
+  };
+}
+
+/* ── Wallet passes ─────────────────────────────────────────────────────── */
+
+export const walletAvailabilityCall = (): ProxyCall => ({
+  path: `${PROXY}/client/wallet/availability`,
+  method: "GET",
+});
+
+/** Answers `{ url }` — a signed pass download (Apple) or a save link (Google). */
+export const walletPassCall = (id: string, which: "apple" | "google"): ProxyCall => ({
+  path: `${PROXY}/client/wallet/appointments/${encodeURIComponent(id)}/${which}`,
+  method: "GET",
+});
+
+/** `{ apple, google }` from the availability read; anything else is "no". */
+export function readWalletAvailability(body: unknown): { apple: boolean; google: boolean } {
+  const envelope = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const inner = (
+    "data" in envelope && envelope.data !== null && typeof envelope.data === "object" ? envelope.data : envelope
+  ) as Record<string, unknown>;
+  return { apple: inner?.apple === true, google: inner?.google === true };
+}

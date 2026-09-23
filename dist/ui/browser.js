@@ -15,11 +15,18 @@ import { accountMarkSignedInHTML, accountMarkState, ACCOUNT_MARK_ATTR } from "./
 import { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, avatarUrlFromSession, sanitizeAvatarUrl } from "./avatar.js";
 import { readInitialsHint, readSignedInHint } from "./hint.js";
 import { buildPanelModel, accountPanelHTML } from "./panel.js";
-import { accountPortalHTML, buildPortalModel, portalShellHTML } from "./portal.js";
-import { bodyFor, bookingIdFromPath, requestsFor, titleFor } from "./portalData.js";
-import { bookingDetailHTML, buildBookingDetailModel } from "./bookingDetail.js";
-import { buildSlotsModel, reschedulePickerHTML, venueDateString, venueLocalToUtcIso, } from "./reschedule.js";
-import { cancelCall, cancelQuestion, cancellationPreviewCall, confirmCall, membershipCall, messageFromError, needsPreview, payBalanceCall, readCancellationPreview, rescheduleCall, slotsCall, } from "./portalActions.js";
+import { accountPortalHTML, buildPortalModel, errorBlockHTML, greetingFor, portalShellHTML, skeletonHTML, } from "./portal.js";
+import { bodyFor, bookingIdFromPath, ledeFor, requestsFor, subjectFor, titleFor } from "./portalData.js";
+import { buildWalletModel } from "./records.js";
+import { unwrapEnvelope } from "./appointments.js";
+import { escapeHtml } from "./html.js";
+import { ACCOUNT_BOOKINGS_HREF } from "./panel.js";
+import { linkifyPhones } from "./portal.js";
+import { bookingSkeletonHTML, bookingTreatment, bookingViewParts, buildBookingDetailModel, isActiveBooking, } from "./bookingDetail.js";
+import { buildSlotsModel, venueDateString, venueLocalToUtcIso } from "./reschedule.js";
+import { cancelCall, cancelSummary, cancellationPreviewCall, confirmCall, membershipCall, messageFromError, needsPreview, payBalanceCall, readCancellationPreview, readWalletAvailability, rescheduleCall, slotsCall, walletAvailabilityCall, walletPassCall, } from "./portalActions.js";
+import { buildDayStrip, cancelBodyHTML, cancelDialogHTML, cancelFootHTML, clockOf, dateWords, dayChipsHTML, dialogFrameHTML, instantWords, rescheduleDialogHTML, rescheduleTimesHTML, reviewBarHTML, } from "./dialogs.js";
+import { buildIcs, icsFileName, icsLocation } from "./ics.js";
 import { installBrandLinkInterceptor } from "./linkInterceptor.js";
 import { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";
 /**
@@ -293,17 +300,162 @@ export function mountAccountPanel(doc, opts = {}) {
     }, false);
 }
 /**
- * Mount one account page.
- *
- * Three shapes of page, one mount:
- *   · `booking` — ONE booking, read from `/account/bookings/<id>`, with the
- *     server's capability block deciding every button;
- *   · a data section (wallet / payments / documents / membership) — the paths
- *     portalData names, rendered by the builder it names;
- *   · home / bookings / details — the original model-driven views.
- *
- * Nothing here decides what a member may do. That arrived with the appointment.
+ * Classify one answer. A 2xx whose list is empty is `empty`; anything not
+ * 2xx — or no answer at all (status 0) — is `failed`. The two never merge.
  */
+export function classifyRead(ok, status, body) {
+    if (!ok)
+        return { state: "failed", status, body: null };
+    const inner = unwrapEnvelope(body);
+    let empty = false;
+    if (Array.isArray(inner))
+        empty = inner.length === 0;
+    else if (inner && typeof inner === "object") {
+        const data = inner.data;
+        empty = Array.isArray(data) && data.length === 0;
+    }
+    else if (inner === null || inner === undefined)
+        empty = true;
+    return { state: empty ? "empty" : "ok", status, body };
+}
+/** The brand a host serves, for the cross-brand label on a card. "" when unknown. */
+export function siteBrandFromHost(host) {
+    const h = String(host || "").toLowerCase();
+    if (h.includes("aesthetics"))
+        return "Carisma Aesthetics";
+    if (h.includes("slimming"))
+        return "Carisma Slimming";
+    if (h.includes("hairclinic") || h.includes("hair-clinic"))
+        return "Carisma Hair Clinic";
+    if (h.includes("pulse"))
+        return "Pulse";
+    if (h.includes("carismaspa") || h.includes("spa."))
+        return "Carisma Spa";
+    return "";
+}
+function live(el) {
+    return el ?? null;
+}
+function qs(el, sel) {
+    return live(el)?.querySelector?.(sel) ?? null;
+}
+function qsa(el, sel) {
+    const list = live(el)?.querySelectorAll?.(sel);
+    return list ? Array.from(list) : [];
+}
+function closestOf(el, sel) {
+    return live(el)?.closest?.(sel) ?? null;
+}
+const portalListBound = new WeakSet();
+const portalMembershipBound = new WeakSet();
+const GENERIC_FAILURE = "That didn't go through. Nothing has changed — try again.";
+/**
+ * Write a toast into the shell's persistent status region. An optional action
+ * ("Update your calendar") rides with it as a real button, handled by the
+ * mount's delegated listener through `data-cw-toast-action`.
+ */
+function announce(mount, text, tone = "ok", action) {
+    const region = qs(mount, ".cw-status");
+    if (!region)
+        return;
+    const clean = text.replace(/[<>&]/g, "");
+    region.innerHTML =
+        `<p class="cw-toast cw-toast--${tone}"><span class="cw-toast__text">${clean}</span>` +
+            (action
+                ? `<button type="button" class="cw-toast__action" data-cw-toast-action="${action.key}">${action.label.replace(/[<>&"]/g, "")}</button>`
+                : "") +
+            `</p>`;
+    const clear = () => {
+        if (region.innerHTML.includes(clean))
+            region.innerHTML = "";
+    };
+    try {
+        setTimeout(clear, action ? 12000 : 7000);
+    }
+    catch {
+        /* no timers (a test host): the toast simply stays */
+    }
+}
+/** A button mid-request: disabled to a second tap, saying what it is doing. */
+function setBusy(btn, label) {
+    const html = btn.innerHTML;
+    const cls = btn.getAttribute("class") || "";
+    btn.setAttribute("aria-disabled", "true");
+    btn.setAttribute("class", `${cls} is-busy`);
+    btn.innerHTML = label;
+    return () => {
+        btn.removeAttribute?.("aria-disabled");
+        btn.setAttribute("class", cls);
+        btn.innerHTML = html;
+    };
+}
+/** Keep the current tab in view on a phone's scrolling tab row. */
+function revealCurrentTab(mount) {
+    const navEl = qs(mount, ".cw-nav");
+    const cur = qs(mount, '.cw-nav [aria-current="page"]');
+    if (!navEl || !cur?.getBoundingClientRect || !navEl.getBoundingClientRect)
+        return;
+    if ((navEl.scrollWidth ?? 0) <= (navEl.clientWidth ?? 0))
+        return;
+    // Relative to the row itself, so it holds whatever the tab's offsetParent is.
+    const delta = cur.getBoundingClientRect().left - navEl.getBoundingClientRect().left - 16;
+    navEl.scrollLeft = Math.max(0, (navEl.scrollLeft ?? 0) + delta);
+}
+/** Hand a file to the member: a Blob URL and a download link, clicked once. */
+function downloadFile(doc, name, text, type) {
+    const g = globalThis;
+    const make = bindCreateElement(doc);
+    if (!g.Blob || !g.URL?.createObjectURL || !make || !doc.body)
+        return false;
+    const url = g.URL.createObjectURL(new g.Blob([text], { type }));
+    const a = make("a");
+    a.setAttribute("href", url);
+    a.setAttribute("download", name);
+    a.setAttribute("hidden", "");
+    doc.body.appendChild(a);
+    a.click?.();
+    try {
+        setTimeout(() => {
+            g.URL?.revokeObjectURL?.(url);
+            a.remove?.();
+        }, 1000);
+    }
+    catch {
+        /* ignore */
+    }
+    return true;
+}
+function calendarFromModel(m, sequence = 0) {
+    return {
+        id: m.id,
+        startIso: m.startIso,
+        endIso: m.endIso,
+        treatment: bookingTreatment(m),
+        brand: m.brand,
+        venue: m.venue,
+        address: m.address,
+        sequence,
+    };
+}
+function downloadCalendar(doc, e) {
+    const host = doc.location?.host || "carisma";
+    const ics = buildIcs({
+        id: e.id,
+        host,
+        startIso: e.startIso,
+        endIso: e.endIso,
+        summary: [e.treatment, e.brand].filter(Boolean).join(" · "),
+        location: icsLocation(e.venue, e.address),
+        sequence: e.sequence,
+    });
+    if (!ics)
+        return false;
+    return downloadFile(doc, icsFileName(e.startIso), ics, "text/calendar;charset=utf-8");
+}
+/** The dialog's inner markup, from the frame builder (the element itself stays open). */
+function innerOfDialog(html) {
+    return html.replace(/^<dialog[^>]*>/, "").replace(/<\/dialog>$/, "");
+}
 export function mountAccountPortal(doc, opts = {}) {
     try {
         injectChrome(doc);
@@ -318,6 +470,9 @@ export function mountAccountPortal(doc, opts = {}) {
     const bookingId = bookingIdFromPath(path);
     const view = bookingId ? "booking" : opts.view || "home";
     const next = view === "home" ? "/account" : bookingId ? path : `/account/${view}`;
+    const loc = doc.location;
+    const siteBrand = opts.siteBrand ?? siteBrandFromHost(loc?.host ?? "");
+    const extras = { siteBrand, bookHref: opts.bookHref, contactPhone: opts.contactPhone };
     if (!readSignedInHint(doc.cookie || "")) {
         navigate(`/member?next=${encodeURIComponent(next)}`);
         return;
@@ -332,58 +487,641 @@ export function mountAccountPortal(doc, opts = {}) {
         // is entirely server data, and a shell with no booking in it would read
         // as "this booking is gone".
         if (view !== "booking")
-            mount.innerHTML = accountPortalHTML(buildPortalModel(fallback, view));
+            mount.innerHTML = accountPortalHTML(buildPortalModel(fallback, view, extras));
         return;
     }
-    const read = (url) => fetchImpl(url, { credentials: "same-origin" }).then((r) => (r.ok ? r.json() : null), () => null);
-    const sessionP = read("/api/auth/session?include=upcoming");
-    void sessionP
-        .then((body) => {
-        if (body && typeof body === "object" && body.signedIn === false) {
-            navigate(`/member?next=${encodeURIComponent(next)}`);
-            return undefined;
+    const readT = (url) => fetchImpl(url, { credentials: "same-origin" }).then((r) => r.ok
+        ? r.json().then((body) => classifyRead(true, r.status, body), () => classifyRead(false, r.status, null))
+        : classifyRead(false, r.status, null), () => classifyRead(false, 0, null));
+    const signIn = () => navigate(`/member?next=${encodeURIComponent(next)}`);
+    /** Cards on screen, so a toast can name the day without another read. */
+    let onScreen = [];
+    /** The booking on screen (booking view), so dialogs never re-read it. */
+    let detail = null;
+    /** The last reschedule, for "Update your calendar". */
+    let movedEntry = null;
+    /** Wallet availability, read once per mount. */
+    let walletOnce = null;
+    let noteShown = false;
+    let identity = { emailMasked: "", memberName: "" };
+    const paint = (html) => {
+        mount.innerHTML = html;
+        revealCurrentTab(mount);
+    };
+    const focusTitle = () => qs(mount, ".cw-title")?.focus?.({ preventScroll: false });
+    const skeleton = () => {
+        paint(portalShellHTML({
+            view,
+            title: view === "home" ? greetingFor() : view === "booking" ? "Your booking" : titleFor(view, "Your account"),
+            emailMasked: identity.emailMasked,
+            memberName: identity.memberName || undefined,
+            body: view === "booking" ? bookingSkeletonHTML() : skeletonHTML(view),
+            busy: true,
+        }));
+    };
+    const readWallet = () => {
+        if (!walletOnce) {
+            walletOnce = readT(walletAvailabilityCall().path).then((r) => r.state === "failed" ? { apple: false, google: false } : readWalletAvailability(r.body));
         }
-        const session = body || fallback;
-        const emailMasked = String(session.profile?.emailMasked ?? "");
-        if (view === "booking" && bookingId) {
-            return read(`/api/auth/proxy/client/booking/appointments/${encodeURIComponent(bookingId)}`).then((detail) => {
-                const model = buildBookingDetailModel(detail, bookingId);
-                mount.innerHTML = bookingDetailHTML(model);
-                // Stripe sends the member back here after settling a balance. The
-                // page is already showing the new figure; this says the payment
-                // landed, so nobody has to infer it from a number that changed.
-                const note = paymentReturnNote(doc.location?.search ?? "");
-                if (note)
-                    say(mount, note.text, note.tone);
-                bindBookingActions(doc, mount, model, opts);
+        return walletOnce;
+    };
+    const showReturnNote = () => {
+        if (noteShown)
+            return;
+        noteShown = true;
+        const note = paymentReturnNote(loc?.search ?? "");
+        if (note)
+            announce(mount, note.text, note.tone);
+    };
+    const load = (after, quiet = false) => {
+        // A re-render after an action keeps the page on screen; only the first
+        // paint (and Try again) shows the skeleton.
+        if (!quiet)
+            skeleton();
+        return readT("/api/auth/session?include=upcoming")
+            .then((sessionRead) => {
+            const body = sessionRead.body;
+            if (sessionRead.status === 401 || (body && body.signedIn === false)) {
+                signIn();
+                return undefined;
+            }
+            const session = (sessionRead.state !== "failed" && body) || fallback;
+            const profile = (session.profile ?? {});
+            const emailMasked = String(profile.emailMasked ?? "");
+            const memberName = String(profile.firstName ?? "") || buildPanelModel(session).name;
+            identity = { emailMasked, memberName };
+            if (view === "booking" && bookingId) {
+                const id = encodeURIComponent(bookingId);
+                // The preview is read beside the booking, not after it: it is only
+                // USED when the server says cancelling is not free, but waiting for
+                // the booking to find that out would cost a whole round trip.
+                const previewRead = postJson(fetchImpl, cancellationPreviewCall(bookingId)).then((r) => r.ok ? readCancellationPreview(r.body) : null);
+                return Promise.all([readT(`/api/auth/proxy/client/booking/appointments/${id}`), readWallet(), previewRead]).then(([read, wallet, preview]) => {
+                    if (read.status === 401)
+                        return signIn();
+                    if (read.state === "failed" && read.status !== 404) {
+                        detail = null;
+                        paint(portalShellHTML({
+                            view,
+                            title: "Your booking",
+                            emailMasked,
+                            memberName,
+                            body: errorBlockHTML("booking", opts.contactPhone),
+                        }));
+                        return;
+                    }
+                    const model = buildBookingDetailModel(read.state === "failed" ? null : read.body, bookingId);
+                    detail = model.found && !model.isMedical ? model : null;
+                    const needPreview = model.found && !model.actions.cancelIsFree && model.actions.canCancel;
+                    const parts = bookingViewParts(model, {
+                        siteBrand,
+                        wallet,
+                        preview: needPreview ? preview : null,
+                        bookHref: opts.bookHref,
+                    });
+                    paint(portalShellHTML({ view, title: parts.title, lede: parts.lede, body: parts.body, emailMasked, memberName }));
+                });
+            }
+            if (view === "home" || view === "bookings") {
+                return Promise.all(requestsFor(view).map(readT)).then((reads) => {
+                    if (reads.some((r) => r.status === 401))
+                        return signIn();
+                    const [up, past, gifts, packs, credit] = reads;
+                    const walletReads = [gifts, packs, credit].filter(Boolean);
+                    const wallet = view === "home" && walletReads.some((r) => r && r.state !== "failed")
+                        ? buildWalletModel({ giftCards: gifts?.body, packages: packs?.body, credit: credit?.body })
+                        : null;
+                    const model = buildPortalModel(session, view, {
+                        ...extras,
+                        upcomingOverride: up.state === "failed" ? [] : up.body ?? [],
+                        upcomingState: up.state,
+                        past: past && past.state !== "failed" ? past.body ?? [] : [],
+                        pastState: past ? past.state : "empty",
+                        wallet,
+                    });
+                    onScreen = [...model.upcomingCards, ...model.pastCards];
+                    paint(accountPortalHTML(model));
+                });
+            }
+            if (view === "details") {
+                paint(accountPortalHTML(buildPortalModel(session, view, extras)));
+                return undefined;
+            }
+            const urls = requestsFor(view);
+            return Promise.all(urls.map(readT)).then((reads) => {
+                if (reads.some((r) => r.status === 401))
+                    return signIn();
+                const allFailed = reads.length > 0 && reads.every((r) => r.state === "failed");
+                paint(portalShellHTML({
+                    view,
+                    title: titleFor(view, "Your account"),
+                    lede: allFailed ? "" : ledeFor(view),
+                    emailMasked,
+                    memberName,
+                    // ONE dead endpoint costs its own block (the builders treat a
+                    // null answer as nothing there); ALL of them dead is an outage,
+                    // and says so.
+                    body: allFailed
+                        ? errorBlockHTML(subjectFor(view), opts.contactPhone)
+                        : // The record pages are built on the new system now; the
+                            // legacy wrapper only existed to hold their old markup. They
+                            // also need the member's first name (the membership card) and
+                            // the brand phone (a tel link beside "speak to the team").
+                            `<div class="cw-rise">${bodyFor(view, reads.map((r) => (r.state === "failed" ? null : r.body)), { memberName, contactPhone: opts.contactPhone })}</div>`,
+                }));
+                if (!portalMembershipBound.has(mount)) {
+                    portalMembershipBound.add(mount);
+                    bindMembershipActions(mount, opts);
+                }
             });
-        }
-        if (view === "bookings") {
-            return Promise.all(requestsFor(view).map(read)).then(([upcoming, past]) => {
-                mount.innerHTML = accountPortalHTML(buildPortalModel(session, view, { upcomingOverride: upcoming, past }));
-            });
-        }
-        const urls = requestsFor(view);
-        if (!urls.length) {
-            mount.innerHTML = accountPortalHTML(buildPortalModel(session, view));
-            return undefined;
-        }
-        return Promise.all(urls.map(read)).then((answers) => {
-            mount.innerHTML = portalShellHTML({
-                view,
-                title: titleFor(view, "Your account"),
-                emailMasked,
-                body: bodyFor(view, answers),
-            });
-            bindMembershipActions(doc, mount, opts);
+        })
+            .then(() => {
+            showReturnNote();
+            after?.();
+        }, () => {
+            if (view === "booking") {
+                paint(portalShellHTML({
+                    view,
+                    title: "Your booking",
+                    emailMasked: identity.emailMasked,
+                    body: errorBlockHTML("booking", opts.contactPhone),
+                }));
+            }
+            else
+                paint(accountPortalHTML(buildPortalModel(fallback, view, { ...extras, upcomingState: "failed" })));
         });
-    })
-        .catch(() => {
-        if (view !== "booking")
-            mount.innerHTML = accountPortalHTML(buildPortalModel(fallback, view));
-    });
+    };
+    /** The booking a dialog is about: the one on screen, or a fresh read. */
+    const bookingFor = (id) => {
+        if (detail && detail.id === id)
+            return Promise.resolve(detail);
+        return readT(`/api/auth/proxy/client/booking/appointments/${encodeURIComponent(id)}`).then((r) => {
+            if (r.state === "failed")
+                return null;
+            const m = buildBookingDetailModel(r.body, id);
+            return m.found && !m.isMedical ? m : null;
+        });
+    };
+    /* ── Dialogs ──────────────────────────────────────────────────────────── */
+    /**
+     * One dialog at a time, appended inside `.carisma-portal` so it inherits
+     * the brand tokens. `onClose` runs once, after the element is gone.
+     */
+    const openDialog = (html, opener, onClose) => {
+        qsa(mount, "dialog.cw-dialog").forEach((d) => {
+            d.close?.();
+            d.remove?.();
+        });
+        const host = qs(mount, ".carisma-portal") ?? live(mount);
+        host?.insertAdjacentHTML?.("beforeend", html);
+        const dlg = qsa(host, "dialog.cw-dialog").pop() ?? null;
+        if (!dlg)
+            return null;
+        const root = doc.documentElement;
+        const prevOverflow = root?.style?.overflow ?? "";
+        if (root?.style)
+            root.style.overflow = "hidden";
+        let closed = false;
+        dlg.addEventListener?.("close", () => {
+            if (closed)
+                return;
+            closed = true;
+            if (root?.style)
+                root.style.overflow = prevOverflow;
+            dlg.remove?.();
+            onClose?.();
+            // Back where the member was — unless a re-render replaced it, in
+            // which case the page's own title is the honest place to land.
+            if (opener && opener.isConnected !== false)
+                opener.focus?.();
+            else
+                focusTitle();
+        });
+        // A tap on the dimmed page closes; a tap inside the sheet never does.
+        dlg.addEventListener?.("click", (ev) => {
+            if (ev.target !== dlg)
+                return;
+            const r = dlg.getBoundingClientRect?.();
+            const x = ev.clientX ?? 0;
+            const y = ev.clientY ?? 0;
+            if (r && (x < r.left || x > r.right || y < r.top || y > r.bottom))
+                dlg.close?.();
+        });
+        if (typeof dlg.showModal === "function")
+            dlg.showModal();
+        else
+            dlg.setAttribute("open", "");
+        return dlg;
+    };
+    const openReschedule = (id, opener) => {
+        const dlg = openDialog(rescheduleDialogHTML(null, [], ""), opener);
+        if (!dlg)
+            return;
+        let alive = true;
+        dlg.addEventListener?.("close", () => {
+            alive = false;
+        });
+        const times = () => qs(dlg, "[data-cw-rs-times]");
+        const foot = () => qs(dlg, ".cw-dialog__foot");
+        void bookingFor(id).then((m) => {
+            if (!alive)
+                return;
+            const refuse = (text) => {
+                const body = qs(dlg, ".cw-dialog__body");
+                if (body) {
+                    body.innerHTML = `<div class="cw-rs-none" role="alert"><p class="cw-rs-none__title">${escapeHtml(text.split("\n")[0])}</p>${text.includes("\n") ? `<p class="cw-rs-none__text">${linkifyPhones(text.split("\n")[1])}</p>` : ""}</div>`;
+                }
+                const f = foot();
+                if (f)
+                    f.innerHTML = `<div class="cw-rs-review__actions"><button type="button" class="cw-btn cw-btn--secondary" data-cw-dialog-close>Close</button></div>`;
+                qs(dlg, "[data-cw-dialog-close]")?.focus?.();
+            };
+            if (!m)
+                return refuse("We couldn't open this booking just now.\nNothing has changed — try again in a moment.");
+            // The server decides. A sheet opened from a card whose window has
+            // since closed says why instead of offering times it will refuse.
+            if (!m.actions.canReschedule || !isActiveBooking(m)) {
+                return refuse(`This booking can't be moved online.\n${m.actions.reason || "Please call us and we'll move it for you."}`);
+            }
+            if (!m.brandLocationId || !m.startIso)
+                return refuse("We can't move this booking online.\nPlease call the venue and we'll do it for you.");
+            const tz = "Europe/Malta";
+            const currentDate = venueDateString(new Date(m.startIso), tz);
+            const currentTime = clockOf(m.startIso, tz);
+            const today = venueDateString(new Date(), tz);
+            let stripStart = currentDate > today ? currentDate : today;
+            let days = buildDayStrip(stripStart, 14, currentDate);
+            let selectedDate = currentDate >= today ? currentDate : today;
+            let selectedTime = null;
+            let alert = null;
+            const taken = new Map();
+            const cache = new Map();
+            const ctx = {
+                treatment: bookingTreatment(m),
+                venue: m.venue,
+                startIso: m.startIso,
+                stripStart,
+                currentDate,
+                minDate: today,
+            };
+            const frame = rescheduleDialogHTML(ctx, days, selectedDate);
+            dlg.innerHTML = innerOfDialog(frame);
+            const describedBy = /aria-describedby="([^"]+)"/.exec(frame);
+            if (describedBy)
+                dlg.setAttribute("aria-describedby", describedBy[1]);
+            const oldLabel = instantWords(m.startIso, "short");
+            const renderTimes = () => {
+                const el = times();
+                if (!el)
+                    return;
+                const c = cache.get(selectedDate);
+                el.innerHTML = rescheduleTimesHTML({
+                    date: selectedDate,
+                    phase: c === undefined ? "loading" : c === "failed" ? "failed" : "ready",
+                    slots: c && c !== "failed" ? c : null,
+                    currentDate,
+                    currentTime,
+                    selected: selectedTime,
+                    alert,
+                    taken: taken.get(selectedDate),
+                });
+            };
+            const renderReview = () => {
+                const f = foot();
+                if (!f)
+                    return;
+                if (!selectedTime) {
+                    f.innerHTML = "";
+                    f.removeAttribute?.("data-open");
+                    return;
+                }
+                const newLabel = `${dateWords(selectedDate, "shortMonth")}, ${selectedTime}`;
+                f.innerHTML = reviewBarHTML(oldLabel, newLabel);
+                f.setAttribute("data-open", "");
+            };
+            const pressDays = () => {
+                qsa(dlg, "[data-cw-rs-day].cw-rs-day").forEach((b) => b.setAttribute("aria-pressed", b.getAttribute("data-cw-rs-day") === selectedDate ? "true" : "false"));
+            };
+            const loadDay = (date) => {
+                if (cache.has(date) && cache.get(date) !== "failed")
+                    return renderTimes();
+                cache.delete(date);
+                renderTimes();
+                void readT(slotsCall({ brandLocationId: m.brandLocationId, date, serviceId: m.serviceId, durationMins: m.durationMins }).path).then((r) => {
+                    if (!alive)
+                        return;
+                    cache.set(date, r.state === "failed" ? "failed" : buildSlotsModel(r.body, date));
+                    if (date === selectedDate)
+                        renderTimes();
+                });
+            };
+            const selectDay = (date, focusChip = false) => {
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
+                    return;
+                if (date < today)
+                    date = today;
+                if (!days.some((d) => d.date === date)) {
+                    // Outside the strip (the native picker, or the server's next free
+                    // day): the strip re-opens on that date rather than hiding it.
+                    stripStart = date;
+                    days = buildDayStrip(stripStart, 14, currentDate);
+                    const strip = qs(dlg, ".cw-rs-days");
+                    if (strip)
+                        strip.innerHTML = dayChipsHTML(days, date);
+                }
+                selectedDate = date;
+                selectedTime = null;
+                alert = null;
+                pressDays();
+                renderReview();
+                const chip = qs(dlg, `[data-cw-rs-day="${date}"].cw-rs-day`);
+                chip?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+                if (focusChip)
+                    chip?.focus?.();
+                loadDay(date);
+            };
+            const commit = (btn) => {
+                if (!selectedTime || btn.getAttribute("aria-disabled") === "true")
+                    return;
+                const c = cache.get(selectedDate);
+                const zone = c && c !== "failed" ? c.timeZone : tz;
+                // The venue's wall clock becomes a UTC instant HERE, in the zone the
+                // SERVER named — never the handset's.
+                const startTime = venueLocalToUtcIso(selectedDate, selectedTime, zone);
+                if (!startTime)
+                    return;
+                const time = selectedTime;
+                const restore = setBusy(btn, "Moving…");
+                void postJson(fetchImpl, rescheduleCall(m.id, startTime)).then((r) => {
+                    if (!alive)
+                        return;
+                    if (r.ok) {
+                        const length = Date.parse(m.endIso) - Date.parse(m.startIso);
+                        const ms = Number.isFinite(length) && length > 0 ? length : (m.durationMins || 60) * 60_000;
+                        movedEntry = {
+                            ...calendarFromModel(m, 1),
+                            startIso: startTime,
+                            endIso: new Date(Date.parse(startTime) + ms).toISOString(),
+                        };
+                        const said = `Moved to ${instantWords(startTime, "long")}. We've sent you a new confirmation.`;
+                        dlg.close?.();
+                        void load(() => {
+                            focusTitle();
+                            announce(mount, said, "ok", { label: "Update your calendar", key: "calendar-update" });
+                        }, true);
+                        return;
+                    }
+                    restore();
+                    if (r.status === 409) {
+                        // Taken between reading the day and pressing Move: say which time,
+                        // hide it, and keep the sheet open on the same day.
+                        taken.set(selectedDate, [...(taken.get(selectedDate) ?? []), time]);
+                        alert = `Someone just took ${time}. Pick another time.`;
+                        selectedTime = null;
+                        renderReview();
+                    }
+                    else {
+                        alert = messageFromError(r.body, r.status, GENERIC_FAILURE);
+                    }
+                    renderTimes();
+                    qs(dlg, ".cw-rs-alert")?.scrollIntoView?.({ block: "nearest" });
+                });
+            };
+            dlg.addEventListener?.("click", (ev) => {
+                const t = ev.target;
+                if (closestOf(t, "[data-cw-dialog-close]")) {
+                    ev.preventDefault();
+                    dlg.close?.();
+                    return;
+                }
+                const day = closestOf(t, "[data-cw-rs-day]");
+                if (day) {
+                    ev.preventDefault();
+                    const date = day.getAttribute("data-cw-rs-day") || "";
+                    // "Show Sat 26" and Try again land focus on the new day's chip.
+                    selectDay(date, !day.getAttribute("class")?.includes("cw-rs-day"));
+                    return;
+                }
+                const slot = closestOf(t, "[data-cw-rs-time]");
+                if (slot) {
+                    ev.preventDefault();
+                    selectedTime = slot.getAttribute("data-cw-rs-time");
+                    alert = null;
+                    qs(dlg, ".cw-rs-alert")?.remove?.();
+                    qsa(dlg, "[data-cw-rs-time]").forEach((b) => b.setAttribute("aria-pressed", b === slot ? "true" : "false"));
+                    renderReview();
+                    return;
+                }
+                const other = closestOf(t, "[data-cw-rs-other]");
+                if (other) {
+                    ev.preventDefault();
+                    const field = qs(dlg, ".cw-rs-other__field");
+                    if (field) {
+                        const opening = field.hidden !== false;
+                        field.hidden = !opening;
+                        other.setAttribute("aria-expanded", opening ? "true" : "false");
+                        if (opening) {
+                            const input = qs(field, "input");
+                            if (input)
+                                input.value = selectedDate;
+                            input?.focus?.();
+                        }
+                    }
+                    return;
+                }
+                const go = closestOf(t, "[data-cw-rs-commit]");
+                if (go) {
+                    ev.preventDefault();
+                    commit(go);
+                }
+            });
+            qs(dlg, "[data-cw-rs-date]")?.addEventListener?.("change", () => {
+                const v = qs(dlg, "[data-cw-rs-date]")?.value || "";
+                if (v)
+                    selectDay(v);
+            });
+            qs(dlg, ".cw-rs-day")?.focus?.();
+            loadDay(selectedDate);
+        });
+    };
+    const openCancel = (opener) => {
+        const m = detail;
+        if (!m)
+            return;
+        const free = !needsPreview(m.actions);
+        let summary = free ? cancelSummary(null, true, m.policyText) : null;
+        const dlg = openDialog(cancelDialogHTML({ startIso: m.startIso, treatment: bookingTreatment(m), summary, canReschedule: canRescheduleNow(m) }), opener);
+        if (!dlg)
+            return;
+        let alive = true;
+        dlg.addEventListener?.("close", () => {
+            alive = false;
+        });
+        const render = (alert) => {
+            const body = qs(dlg, ".cw-dialog__body");
+            const foot = qs(dlg, ".cw-dialog__foot");
+            if (body)
+                body.innerHTML = cancelBodyHTML(summary, canRescheduleNow(m), alert);
+            if (foot)
+                foot.innerHTML = cancelFootHTML(summary);
+        };
+        qs(dlg, ".cw-btn--primary")?.focus?.();
+        if (!free) {
+            // Not free — or we cannot tell: the server's own figures go in the
+            // sheet before the member can press anything that costs money.
+            void postJson(fetchImpl, cancellationPreviewCall(m.id)).then((r) => {
+                if (!alive)
+                    return;
+                summary = cancelSummary(r.ok ? readCancellationPreview(r.body) : null, false, m.policyText);
+                render();
+                qs(dlg, ".cw-btn--primary")?.focus?.();
+            });
+        }
+        dlg.addEventListener?.("click", (ev) => {
+            const t = ev.target;
+            if (closestOf(t, "[data-cw-dialog-close]")) {
+                ev.preventDefault();
+                dlg.close?.();
+                return;
+            }
+            if (closestOf(t, "[data-cw-cx-reschedule]")) {
+                ev.preventDefault();
+                dlg.close?.();
+                openReschedule(m.id, opener);
+                return;
+            }
+            const go = closestOf(t, "[data-cw-cx-commit]");
+            if (!go || !summary || go.getAttribute("aria-disabled") === "true")
+                return;
+            ev.preventDefault();
+            const restore = setBusy(go, "Cancelling…");
+            void postJson(fetchImpl, cancelCall(m.id, summary.acceptFee)).then((r) => {
+                if (!alive)
+                    return;
+                if (r.ok) {
+                    dlg.close?.();
+                    navigate(`${ACCOUNT_BOOKINGS_HREF}?cancelled=1`);
+                    return;
+                }
+                restore();
+                // 409 on a cancel is the server refusing a fee nobody agreed to — the
+                // policy moved under the member. Never the "time was taken" words.
+                render(r.status === 409
+                    ? "Cancelling now carries a fee we haven't shown you. Close this and open it again to see it before you decide."
+                    : messageFromError(r.body, r.status, GENERIC_FAILURE));
+            });
+        });
+    };
+    /* ── One delegated listener for every view ────────────────────────────── */
+    if (!portalListBound.has(mount)) {
+        portalListBound.add(mount);
+        mount.addEventListener?.("click", (ev) => {
+            const t = ev.target;
+            // A dialog handles its own controls.
+            if (closestOf(t, "dialog.cw-dialog"))
+                return;
+            if (closestOf(t, "[data-cw-retry]")) {
+                ev.preventDefault?.();
+                void load();
+                return;
+            }
+            if (closestOf(t, '[data-cw-toast-action="calendar-update"]')) {
+                ev.preventDefault?.();
+                if (movedEntry && !downloadCalendar(doc, movedEntry))
+                    announce(mount, GENERIC_FAILURE, "bad");
+                return;
+            }
+            const btn = closestOf(t, "[data-cw-action]");
+            if (!btn)
+                return;
+            const action = btn.getAttribute("data-cw-action") || "";
+            const id = btn.getAttribute("data-cw-appt") || "";
+            if (!id || !["pay", "reschedule", "confirm", "cancel", "calendar", "wallet"].includes(action))
+                return;
+            ev.preventDefault?.();
+            if (btn.getAttribute("aria-disabled") === "true")
+                return;
+            const card = onScreen.find((c) => c.id === id);
+            if (action === "reschedule") {
+                openReschedule(id, btn);
+                return;
+            }
+            if (action === "cancel") {
+                openCancel(btn);
+                return;
+            }
+            if (action === "calendar") {
+                if (!detail || !downloadCalendar(doc, calendarFromModel(detail)))
+                    announce(mount, GENERIC_FAILURE, "bad");
+                return;
+            }
+            if (action === "wallet") {
+                const which = btn.getAttribute("data-cw-wallet") === "google" ? "google" : "apple";
+                const done = setBusy(btn, "Opening wallet…");
+                void readT(walletPassCall(id, which).path).then((r) => {
+                    const inner = unwrapEnvelope(r.body);
+                    const url = inner && typeof inner.url === "string" ? inner.url : "";
+                    done();
+                    if (r.state !== "failed" && /^https:\/\//.test(url))
+                        navigate(url);
+                    else
+                        announce(mount, GENERIC_FAILURE, "bad");
+                });
+                return;
+            }
+            if (action === "pay") {
+                const done = setBusy(btn, "Opening payment…");
+                // This site's own origin, so Stripe returns the member to this
+                // booking on this brand (the server checks it against its own map).
+                void postJson(fetchImpl, payBalanceCall(id, loc?.origin ?? null)).then((r) => {
+                    const data = (r.body && typeof r.body === "object" ? r.body : {});
+                    const inner = (data.success === true && data.data ? data.data : data);
+                    const url = typeof inner.checkoutUrl === "string" ? inner.checkoutUrl : "";
+                    if (r.ok && url) {
+                        navigate(url);
+                        return;
+                    }
+                    done();
+                    announce(mount, messageFromError(r.body, r.status, GENERIC_FAILURE), "bad");
+                });
+                return;
+            }
+            // confirm
+            const done = setBusy(btn, "Confirming…");
+            void postJson(fetchImpl, confirmCall(id)).then((r) => {
+                if (!r.ok) {
+                    done();
+                    announce(mount, messageFromError(r.body, r.status, GENERIC_FAILURE), "bad");
+                    return;
+                }
+                const startIso = detail?.id === id ? detail.startIso : card?.startIso || "";
+                const day = weekdayOf(startIso) || "soon";
+                void load(() => {
+                    focusTitle();
+                    announce(mount, `Thanks — we'll see you ${day}.`);
+                }, true);
+            });
+        });
+    }
+    void load();
     // Sign-out on this page is handled by mountAccountPanel's document listener
     // (layout calls hydrateAll). Binding it here as well would double-POST.
+}
+/** A booking is movable from a sheet only when the server says so, and it is still ahead. */
+function canRescheduleNow(m) {
+    return isActiveBooking(m) && m.actions.canReschedule;
+}
+/** "Thursday" on the Malta clock. */
+function weekdayOf(iso) {
+    const ms = Date.parse(iso);
+    if (!Number.isFinite(ms))
+        return "";
+    try {
+        return new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Malta", weekday: "long" }).format(new Date(ms));
+    }
+    catch {
+        return "";
+    }
 }
 /** The current path, without leaning on a `location` the seam may not have. */
 function currentPath(doc) {
@@ -391,29 +1129,23 @@ function currentPath(doc) {
     return typeof loc?.pathname === "string" ? loc.pathname : "";
 }
 /**
- * What to say when Stripe sends the member back.
+ * What to say when the member comes back to the account.
  *
- * `paid=1` is our own success_url, `paid=cancelled` our own cancel_url, and
- * anything else is an ordinary visit that must say nothing at all — a page
- * that congratulated everyone on a payment would be worse than silent.
+ * `paid=1` is our own Stripe success_url, `paid=cancelled` its cancel_url,
+ * `cancelled=1` our own redirect after a cancellation. Anything else is an
+ * ordinary visit that must say nothing at all — a page that congratulated
+ * everyone on a payment would be worse than silent.
  */
 export function paymentReturnNote(search) {
     const q = String(search || "");
     if (/[?&]paid=1(&|$)/.test(q))
-        return { text: "Payment received — thank you.", tone: "ok" };
+        return { text: "Paid. Thank you — nothing more to pay for this visit.", tone: "ok" };
     if (/[?&]paid=cancelled(&|$)/.test(q)) {
         return { text: "Payment cancelled. Nothing has been charged.", tone: "bad" };
     }
+    if (/[?&]cancelled=1(&|$)/.test(q))
+        return { text: "Cancelled. We've emailed you a confirmation.", tone: "ok" };
     return null;
-}
-/** A banner above the page, for a refusal or a confirmation. */
-function say(mount, text, tone) {
-    const el = mount.querySelector?.(".carisma-portal__flash");
-    const html = `<p class="carisma-portal__flash is-${tone}">${text.replace(/[<>&]/g, "")}</p>`;
-    if (el)
-        el.outerHTML = html;
-    else
-        mount.innerHTML = html + mount.innerHTML;
 }
 function postJson(fetchImpl, call) {
     return fetchImpl(call.path, {
@@ -423,91 +1155,14 @@ function postJson(fetchImpl, call) {
         body: call.body ? JSON.stringify(call.body) : undefined,
     }).then((r) => r.json().then((body) => ({ ok: r.ok, status: r.status, body }), () => ({ ok: r.ok, status: r.status, body: null })), () => ({ ok: false, status: 0, body: null }));
 }
-/**
- * Bind the buttons on one booking.
- *
- * Delegated from the mount, so a re-render replaces the handlers with the
- * markup and a stale listener cannot act on a booking that is no longer shown.
- */
-function bindBookingActions(doc, mount, model, opts) {
-    const fetchImpl = opts.fetchImpl;
-    if (!fetchImpl)
-        return;
-    const navigate = opts.navigate || (() => { });
-    const reload = () => navigate(`/account/bookings/${encodeURIComponent(model.id)}`);
-    const confirmWith = opts.confirmImpl ??
-        ((q) => {
-            const w = doc.defaultView;
-            return w?.confirm ? w.confirm(q) : true;
-        });
-    const onClick = (ev) => {
-        const target = ev.target;
-        const btn = target?.closest?.("[data-cw-action]");
-        if (!btn)
-            return;
-        const action = btn.getAttribute("data-cw-action");
-        if (!action)
-            return;
-        ev.preventDefault?.();
-        if (action === "confirm") {
-            void postJson(fetchImpl, confirmCall(model.id)).then((r) => r.ok ? reload() : say(mount, messageFromError(r.body, r.status, "We couldn't confirm that just now."), "bad"));
-            return;
-        }
-        if (action === "cancel") {
-            // Free? Ask plainly. Not free — or we do not know — read the server's
-            // own preview and put ITS figures in the question. Never our own.
-            const ask = (preview) => {
-                const question = preview ? cancelQuestion(preview) : "Cancel this booking?";
-                if (!confirmWith(question))
-                    return;
-                void postJson(fetchImpl, cancelCall(model.id, Boolean(preview && preview.chargeAmount + preview.forfeitAmount > 0))).then((r) => r.ok
-                    ? navigate("/account/bookings")
-                    : say(mount, messageFromError(r.body, r.status, "We couldn't cancel that just now."), "bad"));
-            };
-            if (!needsPreview(model.actions)) {
-                ask(null);
-                return;
-            }
-            void postJson(fetchImpl, cancellationPreviewCall(model.id)).then((r) => ask(r.ok ? readCancellationPreview(r.body) : null));
-            return;
-        }
-        if (action === "pay") {
-            // This site's own origin, so Stripe returns the member to this booking
-            // on this brand. Read from the document rather than hard-coded, because
-            // one kit serves five brands and a sixth host (a preview build) must not
-            // be able to send anyone to the wrong one.
-            const origin = doc.location?.origin ?? null;
-            void postJson(fetchImpl, payBalanceCall(model.id, origin)).then((r) => {
-                const data = (r.body && typeof r.body === "object" ? r.body : {});
-                const inner = (data.success === true && data.data ? data.data : data);
-                const url = typeof inner.checkoutUrl === "string" ? inner.checkoutUrl : "";
-                if (r.ok && url)
-                    navigate(url);
-                else
-                    say(mount, messageFromError(r.body, r.status, "We couldn't open the payment page."), "bad");
-            });
-            return;
-        }
-        if (action === "rebook") {
-            navigate("/");
-            return;
-        }
-        if (action === "reschedule") {
-            openReschedule(doc, mount, model, opts);
-            return;
-        }
-    };
-    mount.addEventListener?.("click", onClick);
-}
 /** Pause / resume on the membership page. */
-function bindMembershipActions(doc, mount, opts) {
+function bindMembershipActions(mount, opts) {
     const fetchImpl = opts.fetchImpl;
     if (!fetchImpl)
         return;
     const navigate = opts.navigate || (() => { });
     mount.addEventListener?.("click", (ev) => {
-        const target = ev.target;
-        const btn = target?.closest?.("[data-cw-action^='membership-']");
+        const btn = closestOf(ev.target, "[data-cw-action^='membership-']");
         if (!btn)
             return;
         const id = btn.getAttribute("data-cw-membership");
@@ -515,80 +1170,72 @@ function bindMembershipActions(doc, mount, opts) {
         if (!id || !action)
             return;
         ev.preventDefault?.();
+        if (btn.getAttribute("aria-disabled") === "true")
+            return;
         const verb = action === "membership-pause" ? "pause" : "resume";
-        void postJson(fetchImpl, membershipCall(id, verb)).then((r) => r.ok
-            ? navigate("/account/membership")
-            : say(mount, messageFromError(r.body, r.status, "We couldn't change that just now."), "bad"));
-    });
-}
-/**
- * The reschedule picker: a day, the free times on it, and one PATCH.
- *
- * Same treatment, same venue — that is all `PATCH /reschedule` can do (it
- * shifts every service line by one delta), so the picker offers nothing else
- * and says so rather than letting a member hunt for a control that is not there.
- */
-function openReschedule(doc, mount, model, opts) {
-    const fetchImpl = opts.fetchImpl;
-    if (!fetchImpl)
-        return;
-    const navigate = opts.navigate || (() => { });
-    if (!model.brandLocationId) {
-        say(mount, "We can't move this booking online. Please call the venue.", "bad");
-        return;
-    }
-    const host = mount.querySelector?.(".carisma-portal__actions");
-    const paintInto = host ?? mount;
-    const minDate = venueDateString(new Date(), "Europe/Malta");
-    const load = (date) => {
-        void fetchImpl(slotsCall({
-            brandLocationId: model.brandLocationId,
-            date,
-            serviceId: model.serviceId,
-            durationMins: model.durationMins,
-        }).path, { credentials: "same-origin" })
-            .then((r) => (r.ok ? r.json() : null))
-            .then((body) => {
-            const slots = buildSlotsModel(body, date);
-            const box = paintInto.querySelector?.(".carisma-reschedule");
-            const html = reschedulePickerHTML(slots, { minDate });
-            if (box)
-                box.outerHTML = html;
-            else
-                paintInto.innerHTML = paintInto.innerHTML + html;
-            const root = paintInto.querySelector?.(".carisma-reschedule");
-            if (!root)
-                return;
-            root.addEventListener?.("click", (ev) => {
-                const t = ev.target;
-                const jump = t?.closest?.("[data-cw-date]");
-                if (jump) {
-                    ev.preventDefault?.();
-                    load(jump.getAttribute("data-cw-date") || date);
+        const send = () => {
+            const done = setBusy(btn, verb === "pause" ? "Pausing…" : "Resuming…");
+            void postJson(fetchImpl, membershipCall(id, verb)).then((r) => {
+                if (r.ok) {
+                    navigate("/account/membership");
                     return;
                 }
-                const slot = t?.closest?.("[data-cw-slot]");
-                if (!slot)
-                    return;
-                ev.preventDefault?.();
-                const time = slot.getAttribute("data-cw-slot") || "";
-                // The venue's wall clock becomes a UTC instant HERE, using the
-                // zone the SERVER named — not the handset's.
-                const startTime = venueLocalToUtcIso(slots.date, time, slots.timeZone);
-                if (!startTime)
-                    return;
-                void postJson(fetchImpl, rescheduleCall(model.id, startTime)).then((r) => r.ok
-                    ? navigate(`/account/bookings/${encodeURIComponent(model.id)}`)
-                    : say(mount, messageFromError(r.body, r.status, "We couldn't move it to that time."), "bad"));
+                done();
+                announce(mount, messageFromError(r.body, r.status, GENERIC_FAILURE), "bad");
             });
-            const dayInput = root.querySelector?.("[data-cw-reschedule-date]");
-            dayInput?.addEventListener?.("change", () => {
-                const v = dayInput.value || date;
-                load(v);
-            });
-        });
-    };
-    load(minDate);
+        };
+        // Resuming gives something back, so it acts on the tap. Pausing takes a
+        // paid membership off — the same class of act as cancelling a booking — so
+        // it asks first, in the same sheet the cancel flow uses, with the safe
+        // choice focused. It used to pause on a single tap.
+        if (verb === "resume")
+            return send();
+        confirmPause(mount, btn, send);
+    });
+}
+/** The "Pause your membership?" sheet. Keep is primary and takes focus. */
+function confirmPause(mount, opener, onConfirm) {
+    const host = qs(mount, ".carisma-portal") ?? live(mount);
+    if (!host)
+        return onConfirm();
+    qsa(host, "dialog.cw-dialog").forEach((d) => {
+        d.close?.();
+        d.remove?.();
+    });
+    host.insertAdjacentHTML?.("beforeend", dialogFrameHTML({
+        kind: "cancel",
+        title: "Pause your membership?",
+        body: `<p class="cw-cx-summary">Your membership stays yours, and you can resume it any time from this page.</p>`,
+        foot: `<div class="cw-rs-review__actions">` +
+            `<button type="button" class="cw-btn cw-btn--primary" data-cw-dialog-close data-cw-pause-keep>Keep my membership</button>` +
+            `<button type="button" class="cw-btn cw-btn--secondary" data-cw-pause-confirm>Pause membership</button>` +
+            `</div>`,
+    }));
+    const dlg = qsa(host, "dialog.cw-dialog").pop() ?? null;
+    if (!dlg)
+        return onConfirm();
+    let confirmed = false;
+    dlg.addEventListener?.("click", (ev) => {
+        if (closestOf(ev.target, "[data-cw-pause-confirm]")) {
+            confirmed = true;
+            dlg.close?.();
+            return;
+        }
+        if (closestOf(ev.target, "[data-cw-dialog-close]"))
+            dlg.close?.();
+    });
+    dlg.addEventListener?.("close", () => {
+        dlg.remove?.();
+        if (confirmed)
+            onConfirm();
+        else
+            opener.focus?.();
+    });
+    if (typeof dlg.showModal === "function")
+        dlg.showModal();
+    else
+        dlg.setAttribute("open", "");
+    qs(dlg, "[data-cw-pause-keep]")?.focus?.();
 }
 /** Wire everything the account UI needs after hydration. */
 export function hydrateAll(doc, opts = {}) {

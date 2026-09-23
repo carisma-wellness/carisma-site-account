@@ -84,4 +84,37 @@ export declare function needsPreview(actions: Pick<BookingActions, "cancelIsFree
  * never show is a status code, a field path or a Joi message.
  */
 export declare function messageFromError(body: unknown, status: number, fallback: string): string;
+export interface CancelSummary {
+    /** The label over the figure — "Cancellation fee", "Free to cancel" — or null when unknown. */
+    headline: string | null;
+    /** The figure itself, formatted; null when there is none to show. */
+    amount: string | null;
+    tone: "ok" | "warn" | "neutral";
+    /** Plain sentences, in reading order. */
+    lines: string[];
+    policyText: string;
+    /** The destructive button's words: "Cancel booking" or "Cancel booking and pay €60.00". */
+    confirmLabel: string;
+    /**
+     * Sent as `acceptFee`. True ONLY when the sheet showed the member a figure
+     * they are agreeing to lose. Unknown is false: the server then refuses a
+     * fee-bearing cancel (409) rather than charging on a guess.
+     */
+    acceptFee: boolean;
+}
+/**
+ * What the cancel sheet says. `preview` is the server's
+ * `cancellation-preview`; `free` is `actions.cancelIsFree`. When `free` is
+ * true we never read the preview (the server has already said so), and when
+ * the preview could not be read we say so instead of implying it is free.
+ */
+export declare function cancelSummary(preview: CancellationPreview | null, free: boolean, fallbackPolicy?: string): CancelSummary;
+export declare const walletAvailabilityCall: () => ProxyCall;
+/** Answers `{ url }` — a signed pass download (Apple) or a save link (Google). */
+export declare const walletPassCall: (id: string, which: "apple" | "google") => ProxyCall;
+/** `{ apple, google }` from the availability read; anything else is "no". */
+export declare function readWalletAvailability(body: unknown): {
+    apple: boolean;
+    google: boolean;
+};
 //# sourceMappingURL=portalActions.d.ts.map

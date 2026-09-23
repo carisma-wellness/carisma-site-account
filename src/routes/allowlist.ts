@@ -107,6 +107,10 @@ export const PROXY_ALLOWLIST: readonly AllowRule[] = [
   // Built long ago, deployed, and never called by a website.
   { method: "GET", label: "apple wallet pass", match: (p) => /^\/client\/wallet\/(appointments|memberships)\/[^/]+\/apple$/.test(p) },
   { method: "GET", label: "google wallet pass", match: (p) => /^\/client\/wallet\/(appointments|memberships)\/[^/]+\/google$/.test(p) },
+  // Whether either pass can be issued at all. The credentials do not exist
+  // yet, so the buttons render only when this answers true — a Wallet button
+  // that 500s on the tap is the defect this read prevents. Exact path only.
+  { method: "GET", label: "wallet pass availability", match: (p) => p === "/client/wallet/availability" },
 ];
 
 /**

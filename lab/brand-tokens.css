@@ -1,0 +1,208 @@
+/* Lab stand-in for the token block each site's globals.css will carry.
+   Generated from Docs/member-account-portal-2026-09-22/critiques/tokens-final.json.
+   The same selector and the same ground override go into every site. */
+body[data-lab-brand="spa"] .cw-account-page,
+body[data-lab-brand="spa"] #carisma-account-panel {
+  --cw-account-ground: #FCF8F0;
+  --cw-account-surface: #FFFFFF;
+  --cw-account-ink: #2A2420;
+  --cw-account-display-ink: #2A2420;
+  --cw-account-muted: #6E6459;
+  --cw-account-line: #E6DBC6;
+  --cw-account-line-strong: #A6822F;
+  --cw-account-accent: #C2A05E;
+  --cw-account-accent-fill: linear-gradient(145deg, #E7D6A8 0%, #C2A05E 100%);
+  --cw-account-accent-ink: #2A2420;
+  --cw-account-accent-text: #8A6A1C;
+  --cw-account-focus: #8A6A1C;
+  --cw-account-display-font: "Trajan Pro", Georgia, serif;
+  --cw-account-display-weight: 400;
+  --cw-account-display-case: lowercase;
+  --cw-account-display-tracking: 0.045em;
+  --cw-account-body-font: "Roboto", "Roboto Local", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --cw-account-label-font: "Novecento Wide", sans-serif;
+  --cw-account-label-tracking: 0.25em;
+  --cw-account-button-weight: 700;
+  --cw-account-button-case: uppercase;
+  --cw-account-button-tracking: 0.14em;
+  --cw-account-radius: 16px;
+  --cw-account-button-radius: 999px;
+  --cw-account-shadow: 0 14px 36px rgba(120, 95, 40, 0.16);
+  --cw-account-surface-2: #F6EFE2;
+  --cw-account-accent-soft: rgba(194,160,94,0.14);
+  --cw-account-card-bg: linear-gradient(145deg,#2A2420 0%,#3B3129 100%);
+  --cw-account-card-ink: #F3E6C4;
+  --cw-account-ok-soft: rgba(74,107,78,0.12);
+  --cw-account-ok-text: #3D5A41;
+  --cw-account-warn-soft: rgba(176,120,20,0.12);
+  --cw-account-warn-text: #7A5210;
+  --cw-account-bad-soft: rgba(160,48,36,0.10);
+  --cw-account-bad-text: #8C2A1F;
+  --cw-account-radius-control: 12px;
+}
+body[data-lab-brand="aesthetics"] .cw-account-page,
+body[data-lab-brand="aesthetics"] #carisma-account-panel {
+  --cw-account-ground: #FFFFFF;
+  --cw-account-surface: #F7FAFA;
+  --cw-account-ink: #245052;
+  --cw-account-display-ink: #245052;
+  --cw-account-muted: #7A6E52;
+  --cw-account-line: rgba(150, 178, 178, 0.3);
+  --cw-account-line-strong: #4F7373;
+  --cw-account-accent: #245052;
+  --cw-account-accent-fill: linear-gradient(155deg, #3A6A73 0%, #245052 45%, #1A3D42 100%);
+  --cw-account-accent-ink: #FFFFFF;
+  --cw-account-accent-text: #245052;
+  --cw-account-focus: #245052;
+  --cw-account-display-font: "Trajan Pro", Georgia, serif;
+  --cw-account-display-weight: 400;
+  --cw-account-display-case: lowercase;
+  --cw-account-display-tracking: 0.08em;
+  --cw-account-body-font: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --cw-account-label-font: "Novecento Wide", sans-serif;
+  --cw-account-label-tracking: 0.14em;
+  --cw-account-button-weight: 600;
+  --cw-account-button-case: uppercase;
+  --cw-account-button-tracking: 0.14em;
+  --cw-account-radius: 16px;
+  --cw-account-button-radius: 999px;
+  --cw-account-shadow: 0 16px 40px rgba(28, 30, 30, 0.16);
+  --cw-account-surface-2: #F1F6F6;
+  --cw-account-accent-soft: rgba(150,178,178,0.20);
+  --cw-account-card-bg: linear-gradient(155deg,#3A6A73 0%,#1A3D42 100%);
+  --cw-account-card-ink: #F2F7F7;
+  --cw-account-ok-soft: rgba(36,80,82,0.10);
+  --cw-account-ok-text: #1D4A44;
+  --cw-account-warn-soft: rgba(176,120,20,0.12);
+  --cw-account-warn-text: #7A5210;
+  --cw-account-bad-soft: rgba(160,48,36,0.10);
+  --cw-account-bad-text: #8C2A1F;
+  --cw-account-radius-control: 12px;
+}
+body[data-lab-brand="slimming"] .cw-account-page,
+body[data-lab-brand="slimming"] #carisma-account-panel {
+  --cw-account-ground: #F6F4EF;
+  --cw-account-surface: #FFFFFF;
+  --cw-account-ink: #333333;
+  --cw-account-display-ink: #3C5A40;
+  --cw-account-muted: #595959;
+  --cw-account-line: rgba(2, 76, 39, 0.14);
+  --cw-account-line-strong: #4F7256;
+  --cw-account-accent: #4F7256;
+  --cw-account-accent-fill: linear-gradient(135deg, #557B5B 0%, #4F7256 55%, #3E5C44 100%);
+  --cw-account-accent-ink: #FFFFFF;
+  --cw-account-accent-text: #024C27;
+  --cw-account-focus: #024C27;
+  --cw-account-display-font: "Trajan Pro", serif;
+  --cw-account-display-weight: 400;
+  --cw-account-display-case: lowercase;
+  --cw-account-display-tracking: 0;
+  --cw-account-body-font: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --cw-account-label-font: "Novecento Wide Book", "Novecento Wide", sans-serif;
+  --cw-account-label-tracking: 0.08em;
+  --cw-account-button-weight: 700;
+  --cw-account-button-case: uppercase;
+  --cw-account-button-tracking: 0.1em;
+  --cw-account-radius: 16px;
+  --cw-account-button-radius: 999px;
+  --cw-account-shadow: 0 14px 36px rgba(40, 55, 44, 0.16);
+  --cw-account-surface-2: #F2F6EF;
+  --cw-account-accent-soft: rgba(142,176,147,0.22);
+  --cw-account-card-bg: linear-gradient(135deg,#024C27 0%,#3E5C44 100%);
+  --cw-account-card-ink: #E8F0E4;
+  --cw-account-ok-soft: rgba(142,176,147,0.24);
+  --cw-account-ok-text: #024C27;
+  --cw-account-warn-soft: rgba(176,120,20,0.12);
+  --cw-account-warn-text: #7A5210;
+  --cw-account-bad-soft: rgba(160,48,36,0.10);
+  --cw-account-bad-text: #8C2A1F;
+  --cw-account-radius-control: 14px;
+}
+body[data-lab-brand="hair-clinic"] .cw-account-page,
+body[data-lab-brand="hair-clinic"] #carisma-account-panel {
+  --cw-account-ground: #FBF7EF;
+  --cw-account-surface: #FFFFFF;
+  --cw-account-ink: #241F18;
+  --cw-account-display-ink: #241F18;
+  --cw-account-muted: #6E6453;
+  --cw-account-line: rgba(138, 115, 80, 0.18);
+  --cw-account-line-strong: #8A7350;
+  --cw-account-accent: #AFA58F;
+  --cw-account-accent-fill: linear-gradient(155deg, #C9BDA1 0%, #AFA58F 52%, #9C9177 100%);
+  --cw-account-accent-ink: #1A150E;
+  --cw-account-accent-text: #6E5A3C;
+  --cw-account-focus: #8A7350;
+  --cw-account-display-font: "Trajan Pro", Georgia, serif;
+  --cw-account-display-weight: 400;
+  --cw-account-display-case: lowercase;
+  --cw-account-display-tracking: 0.015em;
+  --cw-account-body-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+  --cw-account-label-font: "Novecento Wide", sans-serif;
+  --cw-account-label-tracking: 0.22em;
+  --cw-account-button-weight: 700;
+  --cw-account-button-case: uppercase;
+  --cw-account-button-tracking: 0.1em;
+  --cw-account-radius: 20px;
+  --cw-account-button-radius: 999px;
+  --cw-account-shadow: 0 2px 10px rgba(36, 31, 24, 0.1);
+  --cw-account-surface-2: #F3ECDF;
+  --cw-account-accent-soft: rgba(138,115,80,0.14);
+  --cw-account-card-bg: linear-gradient(155deg,#241F18 0%,#3A3226 100%);
+  --cw-account-card-ink: #EFE4CD;
+  --cw-account-ok-soft: rgba(74,107,78,0.12);
+  --cw-account-ok-text: #3D5A41;
+  --cw-account-warn-soft: rgba(176,120,20,0.12);
+  --cw-account-warn-text: #7A5210;
+  --cw-account-bad-soft: rgba(160,48,36,0.10);
+  --cw-account-bad-text: #8C2A1F;
+  --cw-account-radius-control: 12px;
+}
+body[data-lab-brand="pulse"] .cw-account-page,
+body[data-lab-brand="pulse"] #carisma-account-panel {
+  --cw-account-ground: #161411;
+  --cw-account-surface: #1E1B17;
+  --cw-account-ink: #F5F0EA;
+  --cw-account-display-ink: #F5F0EA;
+  --cw-account-muted: #C9C3BA;
+  --cw-account-line: rgba(210, 196, 156, 0.16);
+  --cw-account-line-strong: rgba(210, 196, 156, 0.45);
+  --cw-account-accent: #D2C49C;
+  --cw-account-accent-fill: linear-gradient(135deg, #E8D9A8 0%, #D2C49C 40%, #B8A068 100%);
+  --cw-account-accent-ink: #161411;
+  --cw-account-accent-text: #D2C49C;
+  --cw-account-focus: #D2C49C;
+  --cw-account-display-font: "Trajan Pro", Georgia, "Times New Roman", serif;
+  --cw-account-display-weight: 400;
+  --cw-account-display-case: lowercase;
+  --cw-account-display-tracking: 0.03em;
+  --cw-account-body-font: "Roboto", "Roboto Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --cw-account-label-font: "Novecento Wide", "Roboto", sans-serif;
+  --cw-account-label-tracking: 0.26em;
+  --cw-account-button-weight: 400;
+  --cw-account-button-case: uppercase;
+  --cw-account-button-tracking: 0.18em;
+  --cw-account-radius: 16px;
+  --cw-account-button-radius: 999px;
+  --cw-account-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --cw-account-surface-2: #26221D;
+  --cw-account-accent-soft: rgba(210,196,156,0.12);
+  --cw-account-card-bg: linear-gradient(135deg,#2A251E 0%,#1E1B17 60%,#3A3120 100%);
+  --cw-account-card-ink: #E8D9A8;
+  --cw-account-ok-soft: rgba(142,176,147,0.16);
+  --cw-account-ok-text: #A9C9AE;
+  --cw-account-warn-soft: rgba(232,190,110,0.16);
+  --cw-account-warn-text: #E8C47A;
+  --cw-account-bad-soft: rgba(230,120,100,0.16);
+  --cw-account-bad-text: #F0A090;
+  --cw-account-radius-control: 12px;
+}
+/* The site wrapper paints the brand ground instead of the hard-coded #fff every
+   site ships today — the rule that makes Pulse's title and header vanish. */
+.cw-account-page { background: var(--cw-account-ground, #fff); color: var(--cw-account-ink, #1c1917); }
+/* Slimming's phone header is 158px (stacked logo + pill), not the 70px the
+   other four ship, and its .cw-account-page pads only 110px — so the tab row
+   sits under the pill. The site's wrapper must clear its own header; the lab
+   does it here so the portal is judged, not the offset. */
+@media (max-width: 1023.98px) {
+  body[data-lab-brand="slimming"] .cw-account-page { padding-top: 150px; }
+}

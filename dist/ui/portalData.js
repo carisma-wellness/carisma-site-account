@@ -16,8 +16,59 @@ export function requestsFor(view) {
                 `${PROXY}/client/booking/appointments?filter=upcoming&limit=50`,
                 `${PROXY}/client/booking/appointments?filter=past&limit=50`,
             ];
+        // Overview reads the SAME appointment list as Bookings, because only that
+        // list carries each booking's `actions` block — `session.upcoming` does
+        // not, and a card built from it could never offer Reschedule. Past is
+        // read for one reason: a missed-visit fee is something that needs you.
+        // The wallet three feed the strip, which only appears when there is value.
+        case "home":
+            return [
+                `${PROXY}/client/booking/appointments?filter=upcoming&limit=50`,
+                `${PROXY}/client/booking/appointments?filter=past&limit=20`,
+                `${PROXY}/client/gift-cards`,
+                `${PROXY}/client/packages`,
+                `${PROXY}/client/credit-balance`,
+            ];
         default:
             return [];
+    }
+}
+/** What a section's failed read is called in the error block ("We couldn't load your …"). */
+export function subjectFor(view) {
+    switch (view) {
+        case "home":
+        case "bookings":
+        case "booking":
+            return "bookings";
+        case "wallet":
+            return "wallet";
+        case "payments":
+            return "payments";
+        case "documents":
+            return "documents";
+        case "membership":
+            return "membership";
+        default:
+            return "details";
+    }
+}
+/**
+ * The one informative line under a record section's title. Empty when the
+ * section has nothing worth saying before its own body says it.
+ */
+export function ledeFor(view) {
+    switch (view) {
+        // Wallet, Payments and Membership open on a hero that says the one
+        // thing a lede would (what you can spend / what you owe / your plan).
+        // Documents: its rows (or its empty sentence) already say what it holds.
+        case "wallet":
+        case "payments":
+        case "documents":
+            return "";
+        case "membership":
+            return "";
+        default:
+            return "";
     }
 }
 /** The page heading for a section. */
@@ -46,8 +97,12 @@ export function titleFor(view, greeting) {
  * that as "nothing here", so one dead endpoint costs its own block and never
  * the page: a member whose gift-card read 500s still sees their packages and
  * their credit.
+ *
+ * `ctx` is optional page context (the member's first name for the membership
+ * card, the brand phone for "speak to the team"). Without it every view still
+ * renders; those two touches simply do not appear.
  */
-export function bodyFor(view, answers) {
+export function bodyFor(view, answers, ctx = {}) {
     switch (view) {
         case "wallet":
             return walletHTML(buildWalletModel({ giftCards: answers[0], packages: answers[1], credit: answers[2] }));
@@ -56,7 +111,7 @@ export function bodyFor(view, answers) {
         case "documents":
             return documentsHTML(buildDocumentsModel(answers[0]));
         case "membership":
-            return membershipHTML(buildMembershipModel(answers[0]));
+            return membershipHTML(buildMembershipModel(answers[0]), ctx);
         default:
             return "";
     }
