@@ -49,11 +49,52 @@ export { requestsFor, titleFor, bodyFor, bookingIdFromPath } from "./portalData.
 export {
   buildBookingDetailModel,
   bookingDetailHTML,
+  bookingViewParts,
+  bookingSkeletonHTML,
+  bookingPrimary,
+  bookingTreatment,
+  isActiveBooking,
+  dueLabel,
+  policyLead,
+  rebookHref,
   readActions,
   statusLabel,
   BOOKING_DETAIL_QC,
 } from "./bookingDetail.js";
-export type { BookingDetailModel, BookingActions, BookingServiceLine } from "./bookingDetail.js";
+export type {
+  BookingDetailModel,
+  BookingActions,
+  BookingServiceLine,
+  BookingRenderOptions,
+  BookingPrimary,
+  BookingViewParts,
+} from "./bookingDetail.js";
+
+export {
+  addDays,
+  daysBetween,
+  dateWords,
+  instantWords,
+  clockOf,
+  buildDayStrip,
+  timeOptions,
+  dayPart,
+  groupTimes,
+  dialogFrameHTML,
+  rescheduleSubline,
+  dayChipsHTML,
+  rescheduleTimesHTML,
+  reviewBarHTML,
+  rescheduleDialogHTML,
+  cancelTitle,
+  cancelBodyHTML,
+  cancelFootHTML,
+  cancelDialogHTML,
+} from "./dialogs.js";
+export type { DayChip, TimeOption, DayPart, TimesState, RescheduleContext, DateStyle } from "./dialogs.js";
+
+export { buildIcs, icsUtc, icsEscape, icsFold, icsFileName, icsLocation, stripVenuePrefix } from "./ics.js";
+export type { IcsEvent } from "./ics.js";
 
 export {
   buildWalletModel,
@@ -96,10 +137,14 @@ export {
   membershipCall,
   readCancellationPreview,
   cancelQuestion,
+  cancelSummary,
   needsPreview,
   messageFromError,
+  walletAvailabilityCall,
+  walletPassCall,
+  readWalletAvailability,
 } from "./portalActions.js";
-export type { ProxyCall, CancellationPreview, PortalActionName } from "./portalActions.js";
+export type { ProxyCall, CancellationPreview, PortalActionName, CancelSummary } from "./portalActions.js";
 
 export { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
 export { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";

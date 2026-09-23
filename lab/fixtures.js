@@ -118,10 +118,20 @@ export const DOCUMENTS = [
 export const MEMBERSHIP_ACTIVE = [{ id: "m1", status: "ACTIVE", price: 49, membership: { name: "Gold Membership" }, nextBillingAt: at(24 * 8), storedValue: 30 }];
 export const MEMBERSHIP_PAUSED = [{ id: "m1", status: "PAUSED", price: 49, membership: { name: "Gold Membership" }, nextBillingAt: null, storedValue: 30 }];
 
-const SLOTS = (date) => ({
-  date, timeZone: "Europe/Malta", nextAvailableDate: null, serviceOfferedHere: true,
-  slots: ["09:00", "09:30", "10:00", "11:30", "13:00", "14:30", "15:00", "16:30", "17:00"].map((t, i) => ({ time: t, available: i % 4 !== 1 })),
-});
+/** The venue's day: Sundays are closed (nothing free, the server names Monday). */
+const addDay = (date, n) => new Date(Date.parse(`${date}T12:00:00Z`) + n * 24 * H).toISOString().slice(0, 10);
+const SLOTS = (date) => {
+  const sunday = new Date(`${date}T12:00:00Z`).getUTCDay() === 0;
+  const times = ["09:00", "09:30", "10:00", "10:30", "11:30", "12:00", "13:00", "14:30", "15:00", "16:30", "17:00", "18:30"];
+  return {
+    date, timeZone: "Europe/Malta", serviceOfferedHere: true,
+    nextAvailableDate: sunday ? addDay(date, 1) : null,
+    slots: times.map((t, i) => ({ time: t, available: !sunday && i % 4 !== 1 })),
+  };
+};
+
+/** Which wallets this lab brand "has configured" — Spa has both, the rest none. */
+const labBrand = () => (typeof document !== "undefined" && document.body && document.body.dataset.labBrand) || "";
 
 /** state = "full" | "empty" — which world the member lives in. */
 export function fixtureFetch(state = "full") {
@@ -136,6 +146,22 @@ export function fixtureFetch(state = "full") {
     const method = (init.method || "GET").toUpperCase();
     console.log("[lab fetch]", method, u.pathname + u.search);
     if (u.pathname === "/api/auth/session") return Promise.resolve(new Response(JSON.stringify(empty ? EMPTY_SESSION : SESSION), { status: 200 }));
+    // A reschedule moves the fixture, so the re-render shows the new time —
+    // unless the lab asked for the race ("taken"), where someone else won.
+    const rs = /^\/client\/booking\/appointments\/([^/]+)\/reschedule$/.exec(p);
+    if (rs && method === "PATCH") {
+      if (state === "taken") return Promise.resolve(new Response(JSON.stringify({ success: false, message: "SLOT_TAKEN" }), { status: 409 }));
+      const body = JSON.parse(init.body || "{}");
+      const d = DETAIL[rs[1]];
+      if (d && body.startTime) {
+        const len = Date.parse(d.endTime) - Date.parse(d.startTime);
+        d.startTime = body.startTime;
+        d.endTime = new Date(Date.parse(body.startTime) + len).toISOString();
+        const c = UPCOMING.find((x) => x.id === rs[1]);
+        if (c) { c.startTime = d.startTime; c.endTime = d.endTime; }
+      }
+      return ok({ id: rs[1], startTime: body.startTime });
+    }
     if (method !== "GET") return ok({ ok: true, checkoutUrl: "#stripe" });
     // "error": every member read fails (503) while the session is fine — the
     // state a member must never read as "you have no bookings".
@@ -157,7 +183,8 @@ export function fixtureFetch(state = "full") {
     if (p === "/client/account/statement") return ok(empty ? { totalDue: 0, due: [], history: [] } : STATEMENT);
     if (p === "/client/account/documents") return ok(empty ? [] : DOCUMENTS);
     if (p === "/client/membership") return ok(empty ? [] : state === "paused" ? MEMBERSHIP_PAUSED : MEMBERSHIP_ACTIVE);
-    if (p === "/client/wallet/availability") return ok({ apple: false, google: false });
+    if (p === "/client/wallet/availability") return ok(labBrand() === "spa" ? { apple: true, google: true } : { apple: false, google: false });
+    if (/^\/client\/wallet\/appointments\/[^/]+\/(apple|google)$/.test(p)) return ok({ url: "https://pay.google.com/gp/v/save/lab" });
     return Promise.resolve(new Response("{}", { status: 404 }));
   };
 }

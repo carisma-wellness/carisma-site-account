@@ -136,4 +136,79 @@ export function messageFromError(body, status, fallback) {
         return "Please sign in again to change this booking.";
     return fallback;
 }
+/**
+ * What the cancel sheet says. `preview` is the server's
+ * `cancellation-preview`; `free` is `actions.cancelIsFree`. When `free` is
+ * true we never read the preview (the server has already said so), and when
+ * the preview could not be read we say so instead of implying it is free.
+ */
+export function cancelSummary(preview, free, fallbackPolicy = "") {
+    const policyText = (preview && preview.policyText) || fallbackPolicy || "";
+    if (free && !preview) {
+        return {
+            headline: "Free to cancel",
+            amount: null,
+            tone: "ok",
+            lines: ["There's nothing to pay."],
+            policyText,
+            confirmLabel: "Cancel booking",
+            acceptFee: false,
+        };
+    }
+    if (!preview) {
+        return {
+            headline: null,
+            amount: null,
+            tone: "neutral",
+            lines: ["We couldn't check whether a fee applies just now. If one does, we'll ask you before anything is charged."],
+            policyText,
+            confirmLabel: "Cancel booking",
+            acceptFee: false,
+        };
+    }
+    const lines = [];
+    if (preview.chargeAmount > 0) {
+        lines.push(preview.cardLast4
+            ? `We'll charge ${money(preview.chargeAmount)} to the card ending ${preview.cardLast4}.`
+            : `A charge of ${money(preview.chargeAmount)} applies.`);
+    }
+    if (preview.forfeitAmount > 0)
+        lines.push(`${money(preview.forfeitAmount)} of what you've already paid is kept.`);
+    if (preview.chargeAmount <= 0 && preview.forfeitAmount <= 0) {
+        return {
+            headline: "Free to cancel",
+            amount: null,
+            tone: "ok",
+            lines: ["There's nothing to pay."],
+            policyText,
+            confirmLabel: "Cancel booking",
+            acceptFee: false,
+        };
+    }
+    return {
+        headline: preview.chargeAmount > 0 ? "Cancellation fee" : "Kept from what you've paid",
+        amount: money(preview.chargeAmount > 0 ? preview.chargeAmount : preview.forfeitAmount),
+        tone: "warn",
+        lines,
+        policyText,
+        confirmLabel: preview.chargeAmount > 0 ? `Cancel booking and pay ${money(preview.chargeAmount)}` : "Cancel booking",
+        acceptFee: true,
+    };
+}
+/* ── Wallet passes ─────────────────────────────────────────────────────── */
+export const walletAvailabilityCall = () => ({
+    path: `${PROXY}/client/wallet/availability`,
+    method: "GET",
+});
+/** Answers `{ url }` — a signed pass download (Apple) or a save link (Google). */
+export const walletPassCall = (id, which) => ({
+    path: `${PROXY}/client/wallet/appointments/${encodeURIComponent(id)}/${which}`,
+    method: "GET",
+});
+/** `{ apple, google }` from the availability read; anything else is "no". */
+export function readWalletAvailability(body) {
+    const envelope = body && typeof body === "object" ? body : {};
+    const inner = ("data" in envelope && envelope.data !== null && typeof envelope.data === "object" ? envelope.data : envelope);
+    return { apple: inner?.apple === true, google: inner?.google === true };
+}
 //# sourceMappingURL=portalActions.js.map

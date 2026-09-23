@@ -66,16 +66,18 @@ const APPT = {
 
 test("a booking renders its treatment, venue, money and every permitted action", () => {
   const m = buildBookingDetailModel({ success: true, data: APPT }, "appt-1");
-  const html = bookingDetailHTML(m);
+  // Wave 2A: Pay is the one primary ("Pay €40.00"), the wallets appear only
+  // when the availability read says so, and VAT reads "Prices include VAT".
+  const html = bookingDetailHTML(m, { wallet: { apple: true, google: false } });
   assert.match(html, /Lipocavitation/);
   assert.match(html, /Grand Hotel Excelsior/);
   assert.match(html, /Confirm I&#39;m coming/);
   assert.match(html, /Reschedule/);
   assert.match(html, /Cancel booking/);
-  assert.match(html, /Pay €40\.00 now/);
+  assert.match(html, /Pay €40\.00/);
   assert.match(html, /Apple Wallet/);
   assert.match(html, /google\.com\/maps/);
-  assert.match(html, /VAT included/);
+  assert.match(html, /Prices include VAT/);
 });
 
 test("the reschedule picker's three inputs survive the wire", () => {
@@ -125,7 +127,7 @@ test("an unpaid hold is never called Booked", () => {
 
 test("a missing booking says so instead of rendering an empty shell", () => {
   const html = bookingDetailHTML(buildBookingDetailModel(null, "gone"));
-  assert.match(html, /couldn't find that booking/);
+  assert.match(html, /couldn(&#39;|')t find that booking/);
 });
 
 /* ── Malta wall clock → UTC instant ────────────────────────────────────── */
@@ -373,7 +375,7 @@ test("NEGATIVE CONTROL: no origin sends no origin, rather than an empty one", ()
 
 test("coming back from Stripe says what happened, and an ordinary visit says nothing", () => {
   assert.equal(paymentReturnNote("?paid=1").tone, "ok");
-  assert.match(paymentReturnNote("?paid=1").text, /Payment received/);
+  assert.match(paymentReturnNote("?paid=1").text, /nothing more to pay for this visit/);
   assert.match(paymentReturnNote("?paid=cancelled").text, /Nothing has been charged/);
   // The control: every other visit to this page must be silent.
   assert.equal(paymentReturnNote(""), null);

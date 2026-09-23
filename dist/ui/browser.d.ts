@@ -99,11 +99,12 @@ export declare function classifyRead(ok: boolean, status: number, body: unknown)
 export declare function siteBrandFromHost(host: string): string;
 export declare function mountAccountPortal(doc: MinimalDocument, opts?: PortalMountOptions): void;
 /**
- * What to say when Stripe sends the member back.
+ * What to say when the member comes back to the account.
  *
- * `paid=1` is our own success_url, `paid=cancelled` our own cancel_url, and
- * anything else is an ordinary visit that must say nothing at all — a page
- * that congratulated everyone on a payment would be worse than silent.
+ * `paid=1` is our own Stripe success_url, `paid=cancelled` its cancel_url,
+ * `cancelled=1` our own redirect after a cancellation. Anything else is an
+ * ordinary visit that must say nothing at all — a page that congratulated
+ * everyone on a payment would be worse than silent.
  */
 export declare function paymentReturnNote(search: string): {
     text: string;
