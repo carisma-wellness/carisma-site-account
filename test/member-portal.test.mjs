@@ -254,8 +254,8 @@ test("the wallet shows credit, gift cards and packages together", () => {
   assert.match(html, /€85\.00/);
   assert.match(html, /GC-9/);
   assert.match(html, /€50\.00/);
-  assert.match(html, /4 of 6 left/);
-  assert.match(html, /Valid until/);
+  assert.match(html, /4 of 6 sessions left/);
+  assert.match(html, /valid until/i);
 });
 
 test("ONE dead endpoint costs its own block, never the page", () => {
@@ -268,7 +268,7 @@ test("ONE dead endpoint costs its own block, never the page", () => {
 });
 
 test("an empty wallet invites rather than apologises", () => {
-  assert.match(walletHTML(buildWalletModel({})), /Nothing in your wallet yet/);
+  assert.match(walletHTML(buildWalletModel({})), /No credit or gift cards yet/);
 });
 
 test("the statement separates what is due from what is paid, and links to the booking", () => {
@@ -281,7 +281,7 @@ test("the statement separates what is due from what is paid, and links to the bo
     },
   });
   const html = statementHTML(m);
-  assert.match(html, /Due now · €40\.00/);
+  assert.match(html.replace(/<[^>]+>/g, ""), /€40\.00 to pay/);
   assert.match(html, /\/account\/bookings\/appt-1/);
   assert.match(html, /Swedish Massage/);
 });
@@ -289,14 +289,15 @@ test("the statement separates what is due from what is paid, and links to the bo
 test("documents open through the signed link and never mention the desk's note", () => {
   const docs = buildDocumentsModel({ success: true, data: [{ id: "d1", name: "consent-form.pdf", url: "https://s3/x?X-Amz-Signature=a", uploadedAt: "2026-09-14T09:00:00.000Z" }] });
   const html = documentsHTML(docs);
-  assert.match(html, /consent-form\.pdf/);
+  assert.match(html, /consent-form/);
+  assert.doesNotMatch(html.replace(/href="[^"]*"/g, ""), /consent-form\.pdf/);
   assert.match(html, /X-Amz-Signature/);
   assert.match(html, /rel="noreferrer"/);
 });
 
 test("a document with no link still appears, with somewhere to go", () => {
   const html = documentsHTML(buildDocumentsModel({ data: [{ id: "d1", name: "consent.pdf", url: null }] }));
-  assert.match(html, /consent\.pdf/);
+  assert.match(html, /cw-doc__title">consent</);
   assert.match(html, /Ask at the desk/);
 });
 
@@ -351,7 +352,7 @@ test("every personal string carries the session-recorder mask", () => {
 
 test("bodyFor renders a section from its own answers, in order", () => {
   const html = bodyFor("payments", [{ data: { totalDue: 10, due: [{ description: "X", amountDue: 10 }], history: [] } }]);
-  assert.match(html, /Due now · €10\.00/);
+  assert.match(html.replace(/<[^>]+>/g, ""), /€10\.00 to pay/);
 });
 
 /* ── Paying a balance returns the member to this brand ─────────────────── */

@@ -12,6 +12,7 @@
  * and the section renders its empty state, never a broken page.
  */
 import type { PortalView } from "./portal.js";
+import { type RecordsContext } from "./records.js";
 /** The proxy reads a section needs, in a fixed order `bodyFor` relies on. */
 export declare function requestsFor(view: PortalView): string[];
 /** What a section's failed read is called in the error block ("We couldn't load your …"). */
@@ -30,8 +31,12 @@ export declare function titleFor(view: PortalView, greeting: string): string;
  * that as "nothing here", so one dead endpoint costs its own block and never
  * the page: a member whose gift-card read 500s still sees their packages and
  * their credit.
+ *
+ * `ctx` is optional page context (the member's first name for the membership
+ * card, the brand phone for "speak to the team"). Without it every view still
+ * renders; those two touches simply do not appear.
  */
-export declare function bodyFor(view: PortalView, answers: unknown[]): string;
+export declare function bodyFor(view: PortalView, answers: unknown[], ctx?: RecordsContext): string;
 /**
  * `/account/bookings/<id>` → the id. Anything else → null.
  *
