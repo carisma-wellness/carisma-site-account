@@ -236,6 +236,7 @@ export function buildPortalModel(session, view, extra = {}) {
         pastState: extra.pastState ?? (pastCards.length ? "ok" : "empty"),
         wallet: extra.wallet ?? null,
         now: extra.now ?? new Date(),
+        referRail: extra.referRail === true,
     };
 }
 /* ── Navigation ────────────────────────────────────────────────────────── */
@@ -255,17 +256,22 @@ export const PORTAL_SECTIONS = [
         label: "Refer a friend",
         group: "Money",
         sites: ["Carisma Aesthetics", "Carisma Hair Clinic", "Carisma Slimming", "Carisma Spa"],
+        optIn: true,
     },
     { id: "documents", href: "/account/documents", label: "Documents", group: "You" },
     { id: "details", href: ACCOUNT_DETAILS_HREF, label: "Details", group: "You" },
 ];
-/** The sections this site's rail shows. A section limited to some sites still shows on its own page. */
-export function sectionsFor(view, siteBrand = "") {
-    return PORTAL_SECTIONS.filter((s) => !s.sites || s.id === view || s.sites.includes(siteBrand));
+/**
+ * The sections this site's rail shows. An opt-in section is off everywhere
+ * (its own page included) unless `referRail` is true. A section limited to
+ * some sites still shows on its own page.
+ */
+export function sectionsFor(view, siteBrand = "", referRail = false) {
+    return PORTAL_SECTIONS.filter((s) => (!s.optIn || referRail) && (!s.sites || s.id === view || s.sites.includes(siteBrand)));
 }
-function nav(view, siteBrand = "") {
+function nav(view, siteBrand = "", referRail = false) {
     const current = view === "booking" ? "bookings" : view;
-    const sections = sectionsFor(current, siteBrand);
+    const sections = sectionsFor(current, siteBrand, referRail);
     const groups = [];
     for (const s of sections)
         if (!groups.includes(s.group))
@@ -305,7 +311,7 @@ export function portalShellHTML(opts) {
     const lede = opts.lede ? `<p class="cw-lede" ${M}>${opts.lede}</p>` : "";
     return (`<main class="carisma-portal" data-cw-qc="${PORTAL_QC}" data-cw-portal="${escapeHtml(opts.view)}">` +
         `<div class="cw-shell">` +
-        `<aside class="cw-rail">${member}${nav(opts.view, opts.siteBrand)}<div class="cw-rail__foot">${signOutLinks()}</div></aside>` +
+        `<aside class="cw-rail">${member}${nav(opts.view, opts.siteBrand, opts.referRail === true)}<div class="cw-rail__foot">${signOutLinks()}</div></aside>` +
         `<div class="cw-main">` +
         `<header class="cw-head"><h1 class="cw-title" tabindex="-1" ${M}>${escapeHtml(opts.title)}</h1>${lede}</header>` +
         `<div class="cw-body"${opts.busy ? ' aria-busy="true"' : ""}>${opts.body}</div>` +
@@ -601,6 +607,7 @@ export function accountPortalHTML(model) {
         lede,
         memberName: model.firstName || model.name || "Your account",
         siteBrand: model.siteBrand,
+        referRail: model.referRail,
     });
 }
 //# sourceMappingURL=portal.js.map

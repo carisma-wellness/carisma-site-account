@@ -24,7 +24,7 @@ export { addDays, daysBetween, dateWords, instantWords, clockOf, buildDayStrip, 
 export type { DayChip, TimeOption, DayPart, TimesState, RescheduleContext, DateStyle } from "./dialogs.js";
 export { buildIcs, icsUtc, icsEscape, icsFold, icsFileName, icsLocation, stripVenuePrefix } from "./ics.js";
 export type { IcsEvent } from "./ics.js";
-export { buildWalletModel, walletHTML, buildStatementModel, statementHTML, buildDocumentsModel, documentsHTML, buildMembershipModel, membershipHTML, walletTotal, walletSources, documentTitle, monthOf, MEMBER_RECORDS_QC, buildReferModel, referHTML, referShareText, referFamily, } from "./records.js";
+export { buildWalletModel, walletHTML, buildStatementModel, statementHTML, buildDocumentsModel, documentsHTML, buildMembershipModel, membershipHTML, walletTotal, walletElsewhere, walletSources, documentTitle, monthOf, MEMBER_RECORDS_QC, buildReferModel, referHTML, referShareText, referFamily, } from "./records.js";
 export type { WalletModel, StatementModel, MembershipModel, DocumentView, GiftCardView, PackageView, StatementLineView, RecordsContext, ReferModel, ReferProgrammeView, ReferFriendView, ReferFriendStatus, } from "./records.js";
 export { eur, longDate, timeOfDay, shortWhen, plainDate, whenRange, untilPhrase } from "./money.js";
 export { venueLocalToUtcIso, venueDateString, buildSlotsModel, reschedulePickerHTML, RESCHEDULE_QC, } from "./reschedule.js";

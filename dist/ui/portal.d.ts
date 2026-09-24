@@ -70,6 +70,8 @@ export interface PortalModel extends PanelModel {
     pastState: LoadState;
     wallet: WalletModel | null;
     now: Date;
+    /** The rail lists Refer a friend (the site opted in). */
+    referRail: boolean;
 }
 /** `/account/bookings/<id>` — the local detail page, when the row has an id. */
 export declare function bookingDetailHref(row: Record<string, unknown>): string;
@@ -83,6 +85,7 @@ export interface PortalExtra {
     bookHref?: string;
     contactPhone?: string;
     now?: Date;
+    referRail?: boolean;
 }
 export declare function buildPortalModel(session: unknown, view: PortalView, extra?: PortalExtra): PortalModel;
 /**
@@ -100,9 +103,18 @@ export declare const PORTAL_SECTIONS: ReadonlyArray<{
      * link to a page a site never built is a dead link on every page.
      */
     sites?: readonly string[];
+    /**
+     * Off the rail unless the site's mount opts in (`referRail: true`). Refer a
+     * friend stays unlisted until the pilot; its page still renders when visited.
+     */
+    optIn?: boolean;
 }>;
-/** The sections this site's rail shows. A section limited to some sites still shows on its own page. */
-export declare function sectionsFor(view: PortalView, siteBrand?: string): typeof PORTAL_SECTIONS;
+/**
+ * The sections this site's rail shows. An opt-in section is off everywhere
+ * (its own page included) unless `referRail` is true. A section limited to
+ * some sites still shows on its own page.
+ */
+export declare function sectionsFor(view: PortalView, siteBrand?: string, referRail?: boolean): typeof PORTAL_SECTIONS;
 /**
  * The chrome every section shares: rail (or tabs), the page header, one
  * persistent status region, the body the caller built, and sign-out OUTSIDE
@@ -123,6 +135,8 @@ export declare function portalShellHTML(opts: {
     busy?: boolean;
     /** This site's brand name, which decides the site-limited rail rows. */
     siteBrand?: string;
+    /** Show the opt-in Refer a friend row (off by default until the pilot). */
+    referRail?: boolean;
 }): string;
 /** The failed-read block. Never the empty state: "you have no bookings" is a lie when we could not ask. */
 export declare function errorBlockHTML(what: string, phone?: string): string;

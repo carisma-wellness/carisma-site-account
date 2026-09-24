@@ -107,6 +107,7 @@ export {
   buildMembershipModel,
   membershipHTML,
   walletTotal,
+  walletElsewhere,
   walletSources,
   documentTitle,
   monthOf,

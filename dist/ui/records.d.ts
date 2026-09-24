@@ -9,10 +9,16 @@ export interface RecordsContext {
     memberName?: string;
     /** The brand's phone ("+35627802062"), offered beside "speak to the team". */
     contactPhone?: string;
-    /** This site's brand ("Carisma Aesthetics"), so Refer a friend leads with this site's programme. */
+    /**
+     * This site's brand ("Carisma Aesthetics"), so Refer a friend leads with this
+     * site's programme and the wallet's "Available to spend" counts this site's
+     * gift cards.
+     */
     siteBrand?: string;
     /** This site's origin, so the shared link is this site's own (https only). */
     siteOrigin?: string;
+    /** The clock, for a voucher's expiry (tests pass one). Defaults to now. */
+    now?: Date;
 }
 /** "September 2026" + a sortable "2026-09" key, on the Malta clock. */
 export declare function monthOf(raw: string): {
@@ -26,6 +32,8 @@ export interface GiftCardView {
     expiresAt: string | null;
     from: string | null;
     brand: string | null;
+    /** The wire's brand key ("aesthetics", "spa"), when it sent one. */
+    brandKey?: string | null;
     /** A free referral voucher (`origin: "REFERRAL_REWARD"`): treatments only, no cash value. */
     referralReward: boolean;
 }
@@ -48,14 +56,19 @@ export declare function buildWalletModel(input: {
     credit?: unknown;
 }): WalletModel;
 /**
- * "Available to spend": account credit plus what is left on gift cards.
+ * "Available to spend": account credit plus what is left on this site's gift
+ * cards. A Spa card cannot pay for an Aesthetics treatment, so on the
+ * Aesthetics site it is listed but not counted (walletElsewhere names it).
+ * Without `siteBrand` (a test, an unknown host) every card counts, as before.
  * Packages are NOT money — they are sessions — so they never add to it, and a
  * spent card (or a negative figure from a bad row) never subtracts from it.
  */
-export declare function walletTotal(m: WalletModel): number;
+export declare function walletTotal(m: WalletModel, siteBrand?: string): number;
+/** What is left on gift cards for OTHER Carisma brands than this site's. 0 without `siteBrand`. */
+export declare function walletElsewhere(m: WalletModel, siteBrand?: string): number;
 /** "Credit €85.00 · 2 gift cards · 1 package" — only the parts that exist. */
 export declare function walletSources(m: WalletModel): string;
-export declare function walletHTML(m: WalletModel): string;
+export declare function walletHTML(m: WalletModel, ctx?: RecordsContext): string;
 export interface StatementLineView {
     description: string;
     kind: string;
@@ -107,8 +120,8 @@ export declare function membershipHTML(m: MembershipModel, ctx?: RecordsContext)
  * and lists the others under it.
  *
  * What the member is told about a friend is deliberately thin: an initial, the
- * brand, the day, and where the voucher is. Never the treatment and never the
- * amount the friend spent (02 §11).
+ * brand and where the voucher is. Never the treatment, the amount the friend
+ * spent, or the day (02 §11).
  */
 export type ReferFriendStatus = "joined" | "on_its_way" | "rewarded" | "not_eligible" | "withdrawn";
 export interface ReferProgrammeView {
@@ -133,8 +146,6 @@ export interface ReferFriendView {
     brandName: string | null;
     /** One of ReferFriendStatus, or whatever a newer server sent (rendered without a chip). */
     status: string;
-    /** A Malta date label from the server ("Tue 18 August 2026"), shown as written. */
-    createdOn: string;
 }
 export interface ReferModel {
     code: string;
@@ -145,7 +156,7 @@ export interface ReferModel {
     /** What Share and Copy link send: this site's own link when it runs the programme. */
     shareUrl: string | null;
     friends: ReferFriendView[];
-    /** Earned vouchers, as wallet gift cards (withdrawn and cancelled ones are left out). */
+    /** Earned vouchers still to spend, as wallet gift cards (withdrawn, cancelled and expired ones are left out). */
     rewards: GiftCardView[];
     /** Vouchers earned and not yet issued ("€20 on its way"), in euros. */
     pending: number;

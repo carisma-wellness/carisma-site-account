@@ -83,6 +83,12 @@ export interface PortalMountOptions extends HydrateOptions {
     bookHref?: string;
     /** The brand's phone, offered in the error block. */
     contactPhone?: string;
+    /**
+     * List Refer a friend in the rail (default false). Off, the row is hidden on
+     * every page, /account/refer included, and that page still renders when
+     * visited. On, the rail's own site gating (the voucher brands) still applies.
+     */
+    referRail?: boolean;
 }
 /** One read's outcome. `failed` carries the status so 401 and 404 can be told apart. */
 export interface ReadResult {

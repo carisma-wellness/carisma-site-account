@@ -502,9 +502,10 @@ export function mountAccountPortal(doc, opts = {}) {
     const next = view === "home" ? "/account" : bookingId ? path : `/account/${view}`;
     const loc = doc.location;
     const siteBrand = opts.siteBrand ?? siteBrandFromHost(loc?.host ?? "");
-    const extras = { siteBrand, bookHref: opts.bookHref, contactPhone: opts.contactPhone };
+    const referRail = opts.referRail === true;
+    const extras = { siteBrand, bookHref: opts.bookHref, contactPhone: opts.contactPhone, referRail };
     /** Every shell this mount paints knows the site, so the rail shows only this site's sections. */
-    const shellHTML = (o) => portalShellHTML({ siteBrand, ...o });
+    const shellHTML = (o) => portalShellHTML({ siteBrand, referRail, ...o });
     if (!readSignedInHint(doc.cookie || "")) {
         navigate(`/member?next=${encodeURIComponent(next)}`);
         return;

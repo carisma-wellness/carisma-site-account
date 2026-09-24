@@ -86,7 +86,13 @@ const ME = {
   },
 };
 
-const AES_SITE = { siteBrand: "Carisma Aesthetics", siteOrigin: "https://www.carismaaesthetics.com" };
+// A fixed Malta clock, so a voucher's expiry is judged against the day the
+// fixture was written for, not the day the suite happens to run.
+const AES_SITE = {
+  siteBrand: "Carisma Aesthetics",
+  siteOrigin: "https://www.carismaaesthetics.com",
+  now: new Date("2026-09-24T10:00:00.000Z"),
+};
 
 /* ── Which programme leads, and which link is shared ──────────────────── */
 
@@ -192,18 +198,36 @@ test("terms: the release and validity are stated, and only an https terms page i
   }
 });
 
-test("friends: an initial and a status, never a name; an unknown status gets no chip", () => {
+test("friends: an initial, the brand and a status, never a name; an unknown status gets no chip", () => {
   const html = referHTML(buildReferModel(ME, AES_SITE));
   const t = text(html);
   assert.match(t, /Friends 5/);
-  assert.match(t, /A\. Carisma Aesthetics · Tue 18 August 2026 Voucher sent/);
-  assert.match(t, /M\. Carisma Aesthetics · Mon 21 September 2026 Voucher on its way/);
-  assert.match(t, /J\. Carisma Slimming · Wed 23 September 2026 Booked/);
-  assert.match(t, /K\. Fri 4 September 2026 Withdrawn/);
+  assert.match(t, /A\. Carisma Aesthetics Voucher sent/);
+  assert.match(t, /M\. Carisma Aesthetics Voucher on its way/);
+  assert.match(t, /J\. Carisma Slimming Booked/);
+  assert.match(t, /K\. Withdrawn/);
   assert.match(html, /cw-chip--bad">Withdrawn/);
   assert.doesNotMatch(t, /SOMETHING_NEW/);
   assert.equal(count(html, /class="cw-chip /g), 4, "four known statuses, four chips");
   assert.match(t, /You'll only ever see a friend's initial\./);
+});
+
+// 02 §11: initial, brand and status only. The backend is dropping `createdOn`;
+// until it has, a date the server still sends must not reach the page.
+test("friends: no date renders, even when the server still sends createdOn", () => {
+  const m = buildReferModel(ME, AES_SITE);
+  assert.ok(ME.data.friends.every((f) => "createdOn" in f), "the fixture carries the field");
+  assert.ok(m.friends.every((f) => !("createdOn" in f)), "the view model drops it");
+  const t = text(referHTML(m));
+  for (const day of ["Tue 18 August 2026", "Mon 21 September 2026", "Wed 23 September 2026", "Fri 4 September 2026"]) {
+    assert.ok(!t.includes(day), day);
+  }
+  const SERVER_DAY = /\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d{1,2} [A-Z][a-z]+ 20\d\d\b/;
+  assert.doesNotMatch(t, SERVER_DAY);
+  // NEGATIVE CONTROLS: the pattern catches the row as it used to render, and
+  // the page text still carries a date where one belongs (a voucher's expiry).
+  assert.match("A. Carisma Aesthetics · Tue 18 August 2026 Voucher sent", SERVER_DAY);
+  assert.match(t, /valid until 23 Mar 2027/);
 });
 
 test("vouchers: earned ones show as wallet cards tagged Referral reward; a cancelled one does not; pending is stated", () => {
@@ -213,6 +237,37 @@ test("vouchers: earned ones show as wallet cards tagged Referral reward; a cance
   assert.equal(count(html, /cw-gift__tag">Referral reward/g), 1);
   assert.match(text(html), /€20\.00 on its way/);
   assert.match(text(html), /valid until 23 Mar 2027/);
+});
+
+test("vouchers: an expired one is left out of the list AND the count, by status or by its Malta expiry day", () => {
+  const body = structuredClone(ME);
+  const card = (code, expiresOn, status = "active") => ({
+    giftCardId: code, code, brandId: "b-aes", brandName: "Carisma Aesthetics",
+    amountCents: 2000, balanceCents: 2000, expiresOn, status,
+  });
+  body.data.rewards = [
+    card("LIVE000001", "2027-03-23"),
+    card("TODAY00001", "2026-09-24"),
+    card("GONE000001", "2026-09-23"),
+    card("STAT000001", "2027-01-01", "expired"),
+    card("STAT000002", "2027-01-01", "EXPIRED"),
+  ];
+  // 23:30 on 24 September in Malta (21:30 UTC): the voucher expiring today is
+  // still good through the end of the day; yesterday's is gone.
+  const lateEvening = { ...AES_SITE, now: new Date("2026-09-24T21:30:00.000Z") };
+  const m = buildReferModel(body, lateEvening);
+  assert.deepEqual(m.rewards.map((r) => r.code), ["LIVE000001", "TODAY00001"]);
+  const html = referHTML(m);
+  assert.match(html, /Your vouchers<span class="cw-section__count">2<\/span>/);
+  for (const gone of ["GONE000001", "STAT000001", "STAT000002"]) assert.doesNotMatch(html, new RegExp(gone));
+  // NEGATIVE CONTROL: half an hour later it is 25 September in Malta while it
+  // is still the 24th in UTC. The Malta clock decides: today's voucher is gone.
+  const pastMidnight = buildReferModel(body, { ...AES_SITE, now: new Date("2026-09-24T22:30:00.000Z") });
+  assert.deepEqual(pastMidnight.rewards.map((r) => r.code), ["LIVE000001"]);
+  assert.match(referHTML(pastMidnight), /Your vouchers<span class="cw-section__count">1<\/span>/);
+  // An expiry nothing can read is shown rather than guessed away.
+  body.data.rewards = [card("ODD0000001", "soon")];
+  assert.deepEqual(buildReferModel(body, lateEvening).rewards.map((r) => r.code), ["ODD0000001"]);
 });
 
 test("nothing live and nothing earned: an empty state, and no code to share", () => {
@@ -270,8 +325,20 @@ test("the section reads one member path, which the proxy allows, and bodyFor ren
   assert.equal(bodyFor("refer", [ME], AES_SITE), referHTML(buildReferModel(ME, AES_SITE)));
 });
 
-test("the rail shows Refer a friend on the voucher brands only, and always on its own page", () => {
-  const ids = (view, brand) => sectionsFor(view, brand).map((s) => s.id);
+test("the rail row is OPT-IN: off by default on every site and every page, its own included", () => {
+  const ids = (view, brand, referRail) => sectionsFor(view, brand, referRail).map((s) => s.id);
+  for (const brand of ["Carisma Aesthetics", "Carisma Hair Clinic", "Carisma Slimming", "Carisma Spa", "Pulse", ""]) {
+    for (const view of ["home", "wallet", "refer"]) {
+      assert.ok(!ids(view, brand).includes("refer"), `${brand || "unknown host"} ${view}: default`);
+      assert.ok(!ids(view, brand, false).includes("refer"), `${brand || "unknown host"} ${view}: off`);
+    }
+  }
+  // NEGATIVE CONTROL: the rest of the rail is untouched by the switch.
+  assert.deepEqual(ids("home", "Carisma Aesthetics"), ["home", "bookings", "wallet", "payments", "membership", "documents", "details"]);
+});
+
+test("opted in, the rail shows Refer a friend on the voucher brands only, and always on its own page", () => {
+  const ids = (view, brand) => sectionsFor(view, brand, true).map((s) => s.id);
   for (const brand of ["Carisma Aesthetics", "Carisma Hair Clinic", "Carisma Slimming", "Carisma Spa"]) {
     assert.ok(ids("home", brand).includes("refer"), brand);
   }
@@ -340,27 +407,49 @@ function withNavigator(nav, fn) {
     });
 }
 
-test("the page mounts on its own route with this site's link and a rail that includes it", async () => {
+test("with the rail off (the default), /account/refer still renders, and no rail anywhere links it", async () => {
   const h = harness();
   mountAccountPortal(h.doc, { view: "refer", fetchImpl: h.fetchImpl, navigate() {} });
   await settle();
   assert.match(h.mount.innerHTML, /data-cw-portal="refer"/);
   assert.match(h.mount.innerHTML, /<h1 class="cw-title"[^>]*>Refer a friend<\/h1>/);
-  assert.match(h.mount.innerHTML, /href="\/account\/refer" aria-current="page"/);
   assert.match(h.mount.innerHTML, /data-cw-refer-copy="https:\/\/www\.carismaaesthetics\.com\/\?ref=7K2MX9QA"/);
+  assert.doesNotMatch(h.mount.innerHTML, /href="\/account\/refer"/, "not even as the current row");
+  const w = harness();
+  mountAccountPortal(w.doc, { view: "wallet", fetchImpl: w.fetchImpl, navigate() {} });
+  await settle();
+  assert.match(w.mount.innerHTML, /href="\/account\/wallet"/);
+  assert.doesNotMatch(w.mount.innerHTML, /href="\/account\/refer"/);
+  // NEGATIVE CONTROL: the same mounts, opted in, list it.
+  const on = harness();
+  mountAccountPortal(on.doc, { view: "refer", fetchImpl: on.fetchImpl, navigate() {}, referRail: true });
+  await settle();
+  assert.match(on.mount.innerHTML, /href="\/account\/refer" aria-current="page"/);
 });
 
-test("Pulse's rail does not link to a page Pulse never built", async () => {
+test("opted in, Pulse's rail still does not link to a page Pulse never built", async () => {
   const h = harness("www.pulsewellness.com");
-  mountAccountPortal(h.doc, { view: "wallet", fetchImpl: h.fetchImpl, navigate() {} });
+  mountAccountPortal(h.doc, { view: "wallet", fetchImpl: h.fetchImpl, navigate() {}, referRail: true });
   await settle();
   assert.match(h.mount.innerHTML, /href="\/account\/wallet"/);
   assert.doesNotMatch(h.mount.innerHTML, /href="\/account\/refer"/);
-  // NEGATIVE CONTROL: the Aesthetics rail has it.
+  // NEGATIVE CONTROL: the Aesthetics rail, opted in, has it.
   const a = harness();
-  mountAccountPortal(a.doc, { view: "wallet", fetchImpl: a.fetchImpl, navigate() {} });
+  mountAccountPortal(a.doc, { view: "wallet", fetchImpl: a.fetchImpl, navigate() {}, referRail: true });
   await settle();
   assert.match(a.mount.innerHTML, /href="\/account\/refer"/);
+});
+
+test("the model-driven views (Overview) follow the same switch", async () => {
+  const off = harness();
+  mountAccountPortal(off.doc, { view: "home", fetchImpl: off.fetchImpl, navigate() {} });
+  await settle();
+  assert.match(off.mount.innerHTML, /data-cw-portal="home"/);
+  assert.doesNotMatch(off.mount.innerHTML, /href="\/account\/refer"/);
+  const on = harness();
+  mountAccountPortal(on.doc, { view: "home", fetchImpl: on.fetchImpl, navigate() {}, referRail: true });
+  await settle();
+  assert.match(on.mount.innerHTML, /href="\/account\/refer"/);
 });
 
 test("Copy puts the value on the clipboard and says so; a refused clipboard says so too", async () => {

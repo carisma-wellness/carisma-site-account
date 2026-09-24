@@ -15,6 +15,7 @@
  */
 import { escapeHtml } from "./html.js";
 import { eur, plainDate } from "./money.js";
+import { venueDateString } from "./reschedule.js";
 export const MEMBER_RECORDS_QC = "account-records-20260922";
 const M = 'data-clarity-mask="True"';
 /**
@@ -143,6 +144,7 @@ export function buildWalletModel(input) {
             expiresAt: str(firstOf(g, ["expiresAt", "expiryDate", "validUntil"])) || null,
             from: str(firstOf(g, ["purchaserName", "senderName", "from"])) || null,
             brand: str(firstOf(g, ["brandName"])) || str(brandObj.name) || null,
+            brandKey: str(firstOf(g, ["brandKey"])) || str(brandObj.slug) || null,
             referralReward: str(firstOf(g, ["origin"])) === "REFERRAL_REWARD",
         };
     });
@@ -169,13 +171,37 @@ export function buildWalletModel(input) {
     };
 }
 /**
- * "Available to spend": account credit plus what is left on gift cards.
+ * Whether a gift card is spent on THIS site: its brand is this site's family
+ * (referFamily, so a Hair Clinic site counts Aesthetics cards). A card that
+ * names no brand counts; with no site brand known, every card counts.
+ */
+function spendableHere(g, siteFamily) {
+    if (!siteFamily)
+        return true;
+    const label = g.brandKey || g.brand || "";
+    return !label || referFamily(label) === siteFamily;
+}
+function cardsTotal(cards) {
+    return cards.reduce((sum, g) => sum + Math.max(0, g.balance), 0);
+}
+/**
+ * "Available to spend": account credit plus what is left on this site's gift
+ * cards. A Spa card cannot pay for an Aesthetics treatment, so on the
+ * Aesthetics site it is listed but not counted (walletElsewhere names it).
+ * Without `siteBrand` (a test, an unknown host) every card counts, as before.
  * Packages are NOT money — they are sessions — so they never add to it, and a
  * spent card (or a negative figure from a bad row) never subtracts from it.
  */
-export function walletTotal(m) {
-    const cards = m.giftCards.reduce((sum, g) => sum + Math.max(0, g.balance), 0);
+export function walletTotal(m, siteBrand = "") {
+    const family = referFamily(siteBrand);
+    const cards = cardsTotal(m.giftCards.filter((g) => spendableHere(g, family)));
     return Math.round((Math.max(0, m.credit) + cards) * 100) / 100;
+}
+/** What is left on gift cards for OTHER Carisma brands than this site's. 0 without `siteBrand`. */
+export function walletElsewhere(m, siteBrand = "") {
+    const family = referFamily(siteBrand);
+    const cards = cardsTotal(m.giftCards.filter((g) => !spendableHere(g, family)));
+    return Math.round(cards * 100) / 100;
 }
 /** "Credit €85.00 · 2 gift cards · 1 package" — only the parts that exist. */
 export function walletSources(m) {
@@ -250,19 +276,26 @@ function packageHTML(p) {
         (p.amountDue > 0 ? `<p class="cw-pack__due">${escapeHtml(eur(p.amountDue))} still to pay</p>` : "") +
         `</li>`);
 }
-export function walletHTML(m) {
+export function walletHTML(m, ctx = {}) {
     if (m.isEmpty) {
         return recordRoot("wallet", emptyHTML(GIFT_ICON, "No credit or gift cards yet", "Gift cards, treatment packages and account credit will appear here, ready to spend.", `<a class="cw-btn cw-btn--quiet" href="/gifts">Buy a gift card <span aria-hidden="true">→</span></a>`));
     }
-    const total = walletTotal(m);
+    const total = walletTotal(m, ctx.siteBrand);
+    const elsewhere = walletElsewhere(m, ctx.siteBrand);
     const sources = walletSources(m);
     // The hero is money. A member holding only package sessions has no money
     // to show, and "€0.00 available" above four facials reads as a loss.
+    // Other brands' cards stay listed below, each under its brand; the hero only
+    // counts what this site can take, and says how much more there is elsewhere.
     const hero = total > 0 || m.credit > 0 || m.giftCards.length
         ? `<section class="cw-balance cw-rise" aria-label="Available to spend">` +
             `<p class="cw-label">Available to spend</p>` +
             `<p class="cw-balance__value" ${M}>${escapeHtml(eur(total))}</p>` +
             (sources ? `<p class="cw-balance__sources" ${M}>${escapeHtml(sources)}</p>` : "") +
+            (elsewhere > 0
+                ? `<p class="cw-balance__sources cw-balance__elsewhere" ${M}>` +
+                    `${escapeHtml(`${eur(elsewhere)} more on gift cards for other Carisma brands`)}</p>`
+                : "") +
             `</section>`
         : "";
     const gifts = m.giftCards.length
@@ -593,7 +626,16 @@ function referProgramme(o) {
         shareUrl: httpsUrl(o.shareUrl),
     };
 }
-const VOID_VOUCHER = new Set(["cancelled", "canceled", "void", "voided"]);
+/** Vouchers the member can no longer spend: withdrawn, cancelled or expired. */
+const DEAD_VOUCHER = new Set(["cancelled", "canceled", "void", "voided", "expired"]);
+/** A voucher's `expiresOn` ("2027-03-23", or an instant) as a Malta calendar day. "" when unreadable. */
+function maltaDay(raw) {
+    const s = raw.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s))
+        return s;
+    const ms = Date.parse(s);
+    return s && Number.isFinite(ms) ? venueDateString(new Date(ms), MALTA) : "";
+}
 export function buildReferModel(body, ctx = {}) {
     const inner = unwrap(body);
     const o = (inner && typeof inner === "object" && !Array.isArray(inner) ? inner : {});
@@ -611,15 +653,24 @@ export function buildReferModel(body, ctx = {}) {
     // be https: a preview host or localhost falls back to the server's link.
     const origin = /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(ctx.siteOrigin || "") ? String(ctx.siteOrigin) : "";
     const shareUrl = own && origin && code ? `${origin}/?ref=${encodeURIComponent(code)}` : programme?.shareUrl ?? null;
+    // An initial, the brand and the status. Never the day: a date beside an
+    // initial narrows down who the friend is (02 §11), even if a server sends one.
     const friends = list(o.friends).map((f) => ({
         id: str(f.id),
         initial: str(f.friendInitial).trim() || "?",
         brandName: str(f.brandName).trim() || null,
         status: str(f.status),
-        createdOn: str(f.createdOn).trim(),
     }));
+    // A voucher is good through the END of its Malta expiry day (02 §12), so one
+    // expiring today still shows and one that expired yesterday does not,
+    // whatever its status says. An unreadable expiry is shown, not guessed away.
+    const today = venueDateString(ctx.now ?? new Date(), MALTA);
     const rewards = list(o.rewards)
-        .filter((r) => !VOID_VOUCHER.has(str(r.status).toLowerCase()))
+        .filter((r) => !DEAD_VOUCHER.has(str(r.status).toLowerCase()))
+        .filter((r) => {
+        const day = maltaDay(str(r.expiresOn));
+        return !day || !today || day >= today;
+    })
         .map((r) => ({
         code: str(r.code),
         balance: num(r.balanceCents) / 100,
@@ -667,7 +718,7 @@ const FRIEND_CHIP = {
 };
 function friendRowHTML(f) {
     const chip = FRIEND_CHIP[f.status];
-    const meta = [f.brandName || "", f.createdOn].filter(Boolean).join(" · ");
+    const meta = f.brandName || "";
     const letter = f.initial.replace(/[^\p{L}\p{N}]/gu, "").charAt(0) || "?";
     return (`<div class="cw-doc cw-refer__friend" role="listitem" ${M}>` +
         `<span class="cw-refer__initial" aria-hidden="true">${escapeHtml(letter)}</span>` +
