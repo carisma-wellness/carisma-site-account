@@ -461,6 +461,9 @@ export const PORTAL_RECORDS_CSS = `
 }
 .carisma-portal .cw-refer__share { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
 .carisma-portal .cw-refer__link { font-size: 14px; line-height: 20px; color: var(--cw-account-muted); overflow-wrap: anywhere; }
+/* Why the code cannot be shared here yet (canRefer false): said where Share would be. */
+.carisma-portal .cw-refer__blocked { font-size: 15px; line-height: 22px; color: var(--cw-account-ink); max-width: 62ch; text-wrap: pretty; }
+.carisma-portal .cw-doc__meta.cw-refer__blocked { font-size: 14px; line-height: 20px; color: var(--cw-account-muted); }
 .carisma-portal .cw-refer__terms { font-size: 14px; line-height: 21px; color: var(--cw-account-muted); max-width: 62ch; text-wrap: pretty; }
 .carisma-portal .cw-refer__pending { font-size: 15px; line-height: 22px; font-weight: 500; color: var(--cw-account-ok-text); }
 .carisma-portal .cw-refer__initial {

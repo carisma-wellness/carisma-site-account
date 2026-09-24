@@ -794,7 +794,12 @@ export function membershipHTML(m: MembershipModel, ctx: RecordsContext = {}): st
  * spent, or the day (02 §11).
  */
 
-export type ReferFriendStatus = "joined" | "on_its_way" | "rewarded" | "not_eligible" | "withdrawn";
+/**
+ * `no_voucher`: the friend qualified and the member's voucher was skipped for a
+ * programme reason (a cap, the monthly budget, netting). `not_eligible` is for
+ * a friend who did not qualify. Anything newer renders without a chip.
+ */
+export type ReferFriendStatus = "joined" | "on_its_way" | "rewarded" | "no_voucher" | "not_eligible" | "withdrawn";
 
 export interface ReferProgrammeView {
   brandName: string;
@@ -810,6 +815,15 @@ export interface ReferProgrammeView {
   /** https only; anything else is dropped rather than linked. */
   termsUrl: string | null;
   shareUrl: string | null;
+  /**
+   * False while a friend using the code here would be refused because of the
+   * MEMBER (the brand wants a paid visit first). Nothing is offered to share
+   * for this brand then; `referBlockedText` says why. A card without the field
+   * (an older backend) can refer.
+   */
+  canRefer: boolean;
+  /** Why not, in the member's own words ("Your code starts working after your first paid visit with us."). */
+  referBlockedText: string | null;
 }
 
 export interface ReferFriendView {
@@ -856,10 +870,15 @@ function httpsUrl(v: unknown): string | null {
   return /^https:\/\/[^\s"'<>]+$/i.test(s) ? s : null;
 }
 
+/** Said when a card cannot refer and the server sent no reason (it always should). */
+const REFER_BLOCKED_FALLBACK = "Your code can't be shared here yet.";
+
 function referProgramme(o: Record<string, unknown>): ReferProgrammeView | null {
   const brandName = str(o.brandName).trim();
   const offerText = str(o.offerText).trim();
   if (!brandName || !offerText) return null;
+  // Only an explicit false holds sharing back: an older card has no field.
+  const canRefer = o.canRefer !== false;
   return {
     brandName,
     family: referFamily(str(o.brandSlug) || brandName),
@@ -869,6 +888,8 @@ function referProgramme(o: Record<string, unknown>): ReferProgrammeView | null {
     voucherValidityDays: Math.max(0, Math.round(num(o.voucherValidityDays))),
     termsUrl: httpsUrl(o.termsUrl),
     shareUrl: httpsUrl(o.shareUrl),
+    canRefer,
+    referBlockedText: canRefer ? null : str(o.referBlockedText).trim() || REFER_BLOCKED_FALLBACK,
   };
 }
 
@@ -902,8 +923,12 @@ export function buildReferModel(body: unknown, ctx: RecordsContext = {}): ReferM
   // shares carismahairclinic.com, not the Aesthetics domain). The origin must
   // be https: a preview host or localhost falls back to the server's link.
   const origin = /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(ctx.siteOrigin || "") ? String(ctx.siteOrigin) : "";
-  const shareUrl =
-    own && origin && code ? `${origin}/?ref=${encodeURIComponent(code)}` : programme?.shareUrl ?? null;
+  // A programme that cannot refer yet has no link to share at all.
+  const shareUrl = !programme?.canRefer
+    ? null
+    : own && origin && code
+      ? `${origin}/?ref=${encodeURIComponent(code)}`
+      : programme.shareUrl ?? null;
 
   // An initial, the brand and the status. Never the day: a date beside an
   // initial narrows down who the friend is (02 §11), even if a server sends one.
@@ -971,6 +996,7 @@ const FRIEND_CHIP: Record<ReferFriendStatus, { label: string; tone: string }> = 
   joined: { label: "Booked", tone: "neutral" },
   on_its_way: { label: "Voucher on its way", tone: "ok" },
   rewarded: { label: "Voucher sent", tone: "ok" },
+  no_voucher: { label: "No voucher for this one", tone: "neutral" },
   not_eligible: { label: "Didn't qualify", tone: "neutral" },
   withdrawn: { label: "Withdrawn", tone: "bad" },
 };
@@ -1024,10 +1050,15 @@ function otherProgrammeHTML(p: ReferProgrammeView, code: string): string {
     `<div class="cw-doc cw-refer__other" role="listitem">` +
     `<span class="cw-refer__initial" aria-hidden="true">${escapeHtml(p.brandName.replace(/^Carisma\s+/i, "").charAt(0))}</span>` +
     `<div class="cw-doc__main"><div class="cw-doc__title">${escapeHtml(p.brandName)}</div>` +
-    `<p class="cw-doc__meta">${escapeHtml(`Your friend gets ${p.offerText}`)}</p></div>` +
-    `<button type="button" class="cw-btn cw-btn--quiet" data-cw-refer-copy="${escapeHtml(p.shareUrl ?? code)}" ` +
-    `data-cw-refer-done="${escapeHtml(p.shareUrl ? `${p.brandName} link copied.` : "Code copied.")}">` +
-    `Copy ${p.shareUrl ? "link" : "code"}<span class="cw-vh"> for ${escapeHtml(p.brandName)}</span></button>` +
+    `<p class="cw-doc__meta">${escapeHtml(`Your friend gets ${p.offerText}`)}</p>` +
+    // Nothing to copy for a brand that cannot refer yet: the reason instead.
+    (p.canRefer ? "" : `<p class="cw-doc__meta cw-refer__blocked">${escapeHtml(p.referBlockedText ?? "")}</p>`) +
+    `</div>` +
+    (p.canRefer
+      ? `<button type="button" class="cw-btn cw-btn--quiet" data-cw-refer-copy="${escapeHtml(p.shareUrl ?? code)}" ` +
+        `data-cw-refer-done="${escapeHtml(p.shareUrl ? `${p.brandName} link copied.` : "Code copied.")}">` +
+        `Copy ${p.shareUrl ? "link" : "code"}<span class="cw-vh"> for ${escapeHtml(p.brandName)}</span></button>`
+      : "") +
     `</div>`
   );
 }
@@ -1062,8 +1093,12 @@ export function referHTML(m: ReferModel): string {
       `<div class="cw-refer__codebox">` +
       `<p class="cw-label" id="cw-refer-code-label">Your code</p>` +
       `<p class="cw-refer__code" aria-labelledby="cw-refer-code-label" ${M}>${escapeHtml(m.code)}</p>` +
-      shareButtonsHTML(p, m.code, m.shareUrl) +
-      (m.shareUrl ? `<p class="cw-refer__link" ${M}>${escapeHtml(linkLabel(m.shareUrl))}</p>` : "") +
+      // The code is shown either way. Share, WhatsApp, Copy and the link are
+      // offered only while a friend could use it here; otherwise, the reason.
+      (p.canRefer
+        ? shareButtonsHTML(p, m.code, m.shareUrl) +
+          (m.shareUrl ? `<p class="cw-refer__link" ${M}>${escapeHtml(linkLabel(m.shareUrl))}</p>` : "")
+        : `<p class="cw-refer__blocked">${escapeHtml(p.referBlockedText ?? "")}</p>`) +
       `</div>` +
       termsHTML(p) +
       `</section>`;

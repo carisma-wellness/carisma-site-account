@@ -123,7 +123,12 @@ export declare function membershipHTML(m: MembershipModel, ctx?: RecordsContext)
  * brand and where the voucher is. Never the treatment, the amount the friend
  * spent, or the day (02 §11).
  */
-export type ReferFriendStatus = "joined" | "on_its_way" | "rewarded" | "not_eligible" | "withdrawn";
+/**
+ * `no_voucher`: the friend qualified and the member's voucher was skipped for a
+ * programme reason (a cap, the monthly budget, netting). `not_eligible` is for
+ * a friend who did not qualify. Anything newer renders without a chip.
+ */
+export type ReferFriendStatus = "joined" | "on_its_way" | "rewarded" | "no_voucher" | "not_eligible" | "withdrawn";
 export interface ReferProgrammeView {
     brandName: string;
     /** "aesthetics" | "slimming" | "spa" | …: which site family runs this programme. */
@@ -138,6 +143,15 @@ export interface ReferProgrammeView {
     /** https only; anything else is dropped rather than linked. */
     termsUrl: string | null;
     shareUrl: string | null;
+    /**
+     * False while a friend using the code here would be refused because of the
+     * MEMBER (the brand wants a paid visit first). Nothing is offered to share
+     * for this brand then; `referBlockedText` says why. A card without the field
+     * (an older backend) can refer.
+     */
+    canRefer: boolean;
+    /** Why not, in the member's own words ("Your code starts working after your first paid visit with us."). */
+    referBlockedText: string | null;
 }
 export interface ReferFriendView {
     id: string;

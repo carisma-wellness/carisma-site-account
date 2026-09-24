@@ -516,3 +516,92 @@ test("Share opens the share sheet with the link; with no sheet it copies the lin
     },
   );
 });
+
+/* ── Contract of 2026-09-24 (backend c8019face): canRefer, no_voucher ─── */
+
+const BLOCKED = "Your code starts working after your first paid visit with us.";
+/** ME with the lead (Aesthetics) card blocked, and the Slimming card as given. */
+function blockedAesthetics(slimming = {}) {
+  const body = structuredClone(ME);
+  body.data.programmes = [
+    { ...AESTHETICS, canRefer: false, referBlockedText: BLOCKED },
+    { ...SLIMMING, canRefer: true, referBlockedText: null, ...slimming },
+  ];
+  return body;
+}
+
+test("canRefer false: the code is shown, but no Share, WhatsApp, Copy or link for that brand; the reason stands in their place", () => {
+  const m = buildReferModel(blockedAesthetics(), AES_SITE);
+  assert.equal(m.programme?.canRefer, false);
+  assert.equal(m.shareUrl, null, "no link to share");
+  const html = referHTML(m);
+  assert.match(html, /<p class="cw-refer__code"[^>]*>7K2MX9QA<\/p>/, "the code itself is still displayed");
+  assert.match(html, /<p class="cw-refer__blocked">Your code starts working after your first paid visit with us\.<\/p>/);
+  assert.doesNotMatch(html, /data-cw-refer-share/);
+  assert.doesNotMatch(html, /wa\.me/);
+  assert.doesNotMatch(html, /cw-refer__link/);
+  assert.doesNotMatch(html, /carismaaesthetics\.com\/\?ref=/);
+  assert.doesNotMatch(html, /data-cw-refer-copy="7K2MX9QA"/, "no Copy code either");
+  // NEGATIVE CONTROL: the same cards with canRefer true offer all of it.
+  const open = structuredClone(ME);
+  open.data.programmes = [{ ...AESTHETICS, canRefer: true, referBlockedText: null }, SLIMMING];
+  const openHtml = referHTML(buildReferModel(open, AES_SITE));
+  assert.match(openHtml, /data-cw-refer-share/);
+  assert.match(openHtml, /cw-refer__link/);
+  assert.doesNotMatch(openHtml, /cw-refer__blocked/);
+});
+
+test("a card without canRefer (an older backend) can refer", () => {
+  const m = buildReferModel(ME, AES_SITE);
+  assert.equal(m.programme?.canRefer, true);
+  assert.equal(m.programme?.referBlockedText, null);
+  assert.match(referHTML(m), /data-cw-refer-share/);
+  // Only an explicit false holds sharing back (control): a stray value does not.
+  const odd = structuredClone(ME);
+  odd.data.programmes = [{ ...AESTHETICS, canRefer: "no" }];
+  assert.equal(buildReferModel(odd, AES_SITE).programme?.canRefer, true);
+});
+
+test("canRefer false on another brand: its row offers nothing to copy and says why; a brand that can refer keeps its Copy", () => {
+  const body = structuredClone(ME);
+  body.data.programmes = [AESTHETICS, { ...SLIMMING, canRefer: false, referBlockedText: BLOCKED }];
+  const html = referHTML(buildReferModel(body, AES_SITE));
+  const row = html.slice(html.indexOf("Your code works here too"));
+  assert.match(row, /Carisma Slimming/);
+  assert.doesNotMatch(row, /data-cw-refer-copy/);
+  assert.match(row, /<p class="cw-doc__meta cw-refer__blocked">Your code starts working after your first paid visit with us\.<\/p>/);
+  // NEGATIVE CONTROL: the Aesthetics lead can refer, so its share row stands.
+  assert.match(html, /data-cw-refer-share/);
+  const openRow = referHTML(buildReferModel(ME, AES_SITE));
+  assert.match(openRow.slice(openRow.indexOf("Your code works here too")), /data-cw-refer-copy="https:\/\/www\.carismaslimming\.com\/\?ref=7K2MX9QA"/);
+});
+
+test("canRefer false with no reason from the server still says something, never a blank", () => {
+  const body = structuredClone(ME);
+  body.data.programmes = [{ ...AESTHETICS, canRefer: false }];
+  const html = referHTML(buildReferModel(body, AES_SITE));
+  assert.match(html, /<p class="cw-refer__blocked">Your code can&#39;t be shared here yet\.<\/p>/);
+  assert.doesNotMatch(html, /data-cw-refer-share/);
+});
+
+test("no_voucher: the friend qualified but no voucher came of it, a neutral chip; not_eligible still reads Didn't qualify", () => {
+  const body = structuredClone(ME);
+  body.data.friends = [
+    { id: "n1", friendInitial: "N.", brandName: "Carisma Aesthetics", status: "no_voucher" },
+    { id: "n2", friendInitial: "E.", brandName: "Carisma Aesthetics", status: "not_eligible" },
+  ];
+  const html = referHTML(buildReferModel(body, AES_SITE));
+  const t = text(html);
+  assert.match(t, /N\. Carisma Aesthetics No voucher for this one/);
+  assert.match(html, /cw-chip--neutral">No voucher for this one</);
+  // NEGATIVE CONTROL: the two statuses stay apart.
+  assert.match(t, /E\. Carisma Aesthetics Didn't qualify/);
+  assert.doesNotMatch(t, /N\. Carisma Aesthetics Didn't qualify/);
+  assert.equal(count(html, /class="cw-chip /g), 2);
+});
+
+test("the stylesheet carries the blocked line, in tokens only", () => {
+  const block = PORTAL_RECORDS_CSS.slice(PORTAL_RECORDS_CSS.indexOf("/* ── Refer a friend"), PORTAL_RECORDS_CSS.indexOf("/* ── Phones"));
+  assert.match(block, /\.carisma-portal \.cw-refer__blocked \{/);
+  assert.doesNotMatch(block, /#[0-9a-f]{3,8}\b/i);
+});

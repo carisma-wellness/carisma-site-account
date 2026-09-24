@@ -610,11 +610,15 @@ function httpsUrl(v) {
     const s = str(v).trim();
     return /^https:\/\/[^\s"'<>]+$/i.test(s) ? s : null;
 }
+/** Said when a card cannot refer and the server sent no reason (it always should). */
+const REFER_BLOCKED_FALLBACK = "Your code can't be shared here yet.";
 function referProgramme(o) {
     const brandName = str(o.brandName).trim();
     const offerText = str(o.offerText).trim();
     if (!brandName || !offerText)
         return null;
+    // Only an explicit false holds sharing back: an older card has no field.
+    const canRefer = o.canRefer !== false;
     return {
         brandName,
         family: referFamily(str(o.brandSlug) || brandName),
@@ -624,6 +628,8 @@ function referProgramme(o) {
         voucherValidityDays: Math.max(0, Math.round(num(o.voucherValidityDays))),
         termsUrl: httpsUrl(o.termsUrl),
         shareUrl: httpsUrl(o.shareUrl),
+        canRefer,
+        referBlockedText: canRefer ? null : str(o.referBlockedText).trim() || REFER_BLOCKED_FALLBACK,
     };
 }
 /** Vouchers the member can no longer spend: withdrawn, cancelled or expired. */
@@ -652,7 +658,12 @@ export function buildReferModel(body, ctx = {}) {
     // shares carismahairclinic.com, not the Aesthetics domain). The origin must
     // be https: a preview host or localhost falls back to the server's link.
     const origin = /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(ctx.siteOrigin || "") ? String(ctx.siteOrigin) : "";
-    const shareUrl = own && origin && code ? `${origin}/?ref=${encodeURIComponent(code)}` : programme?.shareUrl ?? null;
+    // A programme that cannot refer yet has no link to share at all.
+    const shareUrl = !programme?.canRefer
+        ? null
+        : own && origin && code
+            ? `${origin}/?ref=${encodeURIComponent(code)}`
+            : programme.shareUrl ?? null;
     // An initial, the brand and the status. Never the day: a date beside an
     // initial narrows down who the friend is (02 §11), even if a server sends one.
     const friends = list(o.friends).map((f) => ({
@@ -713,6 +724,7 @@ const FRIEND_CHIP = {
     joined: { label: "Booked", tone: "neutral" },
     on_its_way: { label: "Voucher on its way", tone: "ok" },
     rewarded: { label: "Voucher sent", tone: "ok" },
+    no_voucher: { label: "No voucher for this one", tone: "neutral" },
     not_eligible: { label: "Didn't qualify", tone: "neutral" },
     withdrawn: { label: "Withdrawn", tone: "bad" },
 };
@@ -758,10 +770,15 @@ function otherProgrammeHTML(p, code) {
     return (`<div class="cw-doc cw-refer__other" role="listitem">` +
         `<span class="cw-refer__initial" aria-hidden="true">${escapeHtml(p.brandName.replace(/^Carisma\s+/i, "").charAt(0))}</span>` +
         `<div class="cw-doc__main"><div class="cw-doc__title">${escapeHtml(p.brandName)}</div>` +
-        `<p class="cw-doc__meta">${escapeHtml(`Your friend gets ${p.offerText}`)}</p></div>` +
-        `<button type="button" class="cw-btn cw-btn--quiet" data-cw-refer-copy="${escapeHtml(p.shareUrl ?? code)}" ` +
-        `data-cw-refer-done="${escapeHtml(p.shareUrl ? `${p.brandName} link copied.` : "Code copied.")}">` +
-        `Copy ${p.shareUrl ? "link" : "code"}<span class="cw-vh"> for ${escapeHtml(p.brandName)}</span></button>` +
+        `<p class="cw-doc__meta">${escapeHtml(`Your friend gets ${p.offerText}`)}</p>` +
+        // Nothing to copy for a brand that cannot refer yet: the reason instead.
+        (p.canRefer ? "" : `<p class="cw-doc__meta cw-refer__blocked">${escapeHtml(p.referBlockedText ?? "")}</p>`) +
+        `</div>` +
+        (p.canRefer
+            ? `<button type="button" class="cw-btn cw-btn--quiet" data-cw-refer-copy="${escapeHtml(p.shareUrl ?? code)}" ` +
+                `data-cw-refer-done="${escapeHtml(p.shareUrl ? `${p.brandName} link copied.` : "Code copied.")}">` +
+                `Copy ${p.shareUrl ? "link" : "code"}<span class="cw-vh"> for ${escapeHtml(p.brandName)}</span></button>`
+            : "") +
         `</div>`);
 }
 export function referHTML(m) {
@@ -789,8 +806,12 @@ export function referHTML(m) {
                 `<div class="cw-refer__codebox">` +
                 `<p class="cw-label" id="cw-refer-code-label">Your code</p>` +
                 `<p class="cw-refer__code" aria-labelledby="cw-refer-code-label" ${M}>${escapeHtml(m.code)}</p>` +
-                shareButtonsHTML(p, m.code, m.shareUrl) +
-                (m.shareUrl ? `<p class="cw-refer__link" ${M}>${escapeHtml(linkLabel(m.shareUrl))}</p>` : "") +
+                // The code is shown either way. Share, WhatsApp, Copy and the link are
+                // offered only while a friend could use it here; otherwise, the reason.
+                (p.canRefer
+                    ? shareButtonsHTML(p, m.code, m.shareUrl) +
+                        (m.shareUrl ? `<p class="cw-refer__link" ${M}>${escapeHtml(linkLabel(m.shareUrl))}</p>` : "")
+                    : `<p class="cw-refer__blocked">${escapeHtml(p.referBlockedText ?? "")}</p>`) +
                 `</div>` +
                 termsHTML(p) +
                 `</section>`;
