@@ -22,6 +22,8 @@ export interface GiftCardView {
     expiresAt: string | null;
     from: string | null;
     brand: string | null;
+    /** A free referral voucher (`origin: "REFERRAL_REWARD"`): treatments only, no cash value. */
+    referralReward: boolean;
 }
 export interface PackageView {
     name: string;

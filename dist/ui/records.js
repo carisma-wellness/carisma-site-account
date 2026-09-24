@@ -42,7 +42,14 @@ function rows(body) {
         return pick(inner);
     if (inner && typeof inner === "object") {
         const o = inner;
-        return pick(o.data).length ? pick(o.data) : pick(o.items);
+        // `cards`: GET /client/gift-cards answers `{ cards, totalsByBrand }`
+        // (backend ClientGiftCardWalletDTO). Reading only data/items made every
+        // member's wallet show no gift cards at all (referral v2 pack, P11).
+        for (const key of ["data", "items", "cards"]) {
+            const list = pick(o[key]);
+            if (list.length)
+                return list;
+        }
     }
     return [];
 }
@@ -136,6 +143,7 @@ export function buildWalletModel(input) {
             expiresAt: str(firstOf(g, ["expiresAt", "expiryDate", "validUntil"])) || null,
             from: str(firstOf(g, ["purchaserName", "senderName", "from"])) || null,
             brand: str(firstOf(g, ["brandName"])) || str(brandObj.name) || null,
+            referralReward: str(firstOf(g, ["origin"])) === "REFERRAL_REWARD",
         };
     });
     const packages = rows(input.packages).map((p) => {
@@ -196,9 +204,11 @@ function giftCardHTML(g) {
         `<span class="cw-gift__brand">${escapeHtml(g.brand || "Gift card")}</span>` +
         (spent
             ? `<span class="cw-gift__tag">Spent</span>`
-            : g.from
-                ? `<span class="cw-gift__from">From ${escapeHtml(g.from)}</span>`
-                : "") +
+            : g.referralReward
+                ? `<span class="cw-gift__tag">Referral reward</span>`
+                : g.from
+                    ? `<span class="cw-gift__from">From ${escapeHtml(g.from)}</span>`
+                    : "") +
         `</div>` +
         `<div class="cw-gift__foot">` +
         `<div class="cw-gift__money"><span class="cw-gift__balance">${escapeHtml(eur(g.balance))}</span>` +

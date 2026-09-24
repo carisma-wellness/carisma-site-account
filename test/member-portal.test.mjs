@@ -383,3 +383,29 @@ test("coming back from Stripe says what happened, and an ordinary visit says not
   assert.equal(paymentReturnNote("?from=email"), null);
   assert.equal(paymentReturnNote("?paid=11"), null);
 });
+
+
+// Referral v2 pack, P11: the fixture is the SHAPE GET /client/gift-cards really
+// answers (backend ClientGiftCardWalletDTO inside the success envelope). The
+// test above feeds `data: [...]`, which that endpoint never returns — that is
+// how every member's wallet showed no gift cards behind a green suite.
+test("the wallet reads the real /client/gift-cards shape: { data: { cards, totalsByBrand } }", () => {
+  const m = buildWalletModel({
+    giftCards: {
+      success: true,
+      data: {
+        cards: [
+          { id: "g1", code: "A7K2MX9QAB", brandKey: "aesthetics", brandId: "b1", brandName: "Carisma Aesthetics", amount: 20, balance: 20, currency: "EUR", status: "active", recipientName: "Sarah", expiresAt: "2027-03-23", createdAt: "2026-09-24T10:00:00.000Z", origin: "REFERRAL_REWARD" },
+          { id: "g2", code: "S9ZZ8ZZ7ZZ", brandKey: "spa", brandId: "b2", brandName: "Carisma Spa", amount: 100, balance: 40, currency: "EUR", status: "partially_redeemed", recipientName: "Sarah", expiresAt: null, createdAt: "2026-01-02T10:00:00.000Z" },
+        ],
+        totalsByBrand: { spa: 40, aesthetics: 20, slimming: 0 },
+      },
+    },
+  });
+  assert.equal(m.giftCards.length, 2);
+  const html = walletHTML(m);
+  assert.match(html, /A7K2MX9QAB/);
+  assert.match(html, /S9ZZ8ZZ7ZZ/);
+  assert.match(html, /Referral reward/);
+  assert.equal(m.giftCards[1].referralReward, false);
+});
