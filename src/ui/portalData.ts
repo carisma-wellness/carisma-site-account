@@ -21,6 +21,8 @@ import {
   documentsHTML,
   buildMembershipModel,
   membershipHTML,
+  buildReferModel,
+  referHTML,
   type RecordsContext,
 } from "./records.js";
 
@@ -37,6 +39,8 @@ export function requestsFor(view: PortalView): string[] {
       return [`${PROXY}/client/account/documents`];
     case "membership":
       return [`${PROXY}/client/membership`];
+    case "refer":
+      return [`${PROXY}/client/referrals/me`];
     case "bookings":
       return [
         `${PROXY}/client/booking/appointments?filter=upcoming&limit=50`,
@@ -75,6 +79,8 @@ export function subjectFor(view: PortalView): string {
       return "documents";
     case "membership":
       return "membership";
+    case "refer":
+      return "referrals";
     default:
       return "details";
   }
@@ -115,6 +121,8 @@ export function titleFor(view: PortalView, greeting: string): string {
       return "Your membership";
     case "details":
       return "Your details";
+    case "refer":
+      return "Refer a friend";
     default:
       return greeting;
   }
@@ -144,6 +152,8 @@ export function bodyFor(view: PortalView, answers: unknown[], ctx: RecordsContex
       return documentsHTML(buildDocumentsModel(answers[0]));
     case "membership":
       return membershipHTML(buildMembershipModel(answers[0]), ctx);
+    case "refer":
+      return referHTML(buildReferModel(answers[0], ctx));
     default:
       return "";
   }

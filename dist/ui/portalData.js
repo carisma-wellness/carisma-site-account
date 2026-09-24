@@ -1,4 +1,4 @@
-import { buildWalletModel, walletHTML, buildStatementModel, statementHTML, buildDocumentsModel, documentsHTML, buildMembershipModel, membershipHTML, } from "./records.js";
+import { buildWalletModel, walletHTML, buildStatementModel, statementHTML, buildDocumentsModel, documentsHTML, buildMembershipModel, membershipHTML, buildReferModel, referHTML, } from "./records.js";
 const PROXY = "/api/auth/proxy";
 /** The proxy reads a section needs, in a fixed order `bodyFor` relies on. */
 export function requestsFor(view) {
@@ -11,6 +11,8 @@ export function requestsFor(view) {
             return [`${PROXY}/client/account/documents`];
         case "membership":
             return [`${PROXY}/client/membership`];
+        case "refer":
+            return [`${PROXY}/client/referrals/me`];
         case "bookings":
             return [
                 `${PROXY}/client/booking/appointments?filter=upcoming&limit=50`,
@@ -48,6 +50,8 @@ export function subjectFor(view) {
             return "documents";
         case "membership":
             return "membership";
+        case "refer":
+            return "referrals";
         default:
             return "details";
     }
@@ -86,6 +90,8 @@ export function titleFor(view, greeting) {
             return "Your membership";
         case "details":
             return "Your details";
+        case "refer":
+            return "Refer a friend";
         default:
             return greeting;
     }
@@ -112,6 +118,8 @@ export function bodyFor(view, answers, ctx = {}) {
             return documentsHTML(buildDocumentsModel(answers[0]));
         case "membership":
             return membershipHTML(buildMembershipModel(answers[0]), ctx);
+        case "refer":
+            return referHTML(buildReferModel(answers[0], ctx));
         default:
             return "";
     }

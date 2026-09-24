@@ -9,6 +9,10 @@ export interface RecordsContext {
     memberName?: string;
     /** The brand's phone ("+35627802062"), offered beside "speak to the team". */
     contactPhone?: string;
+    /** This site's brand ("Carisma Aesthetics"), so Refer a friend leads with this site's programme. */
+    siteBrand?: string;
+    /** This site's origin, so the shared link is this site's own (https only). */
+    siteOrigin?: string;
 }
 /** "September 2026" + a sortable "2026-09" key, on the Malta clock. */
 export declare function monthOf(raw: string): {
@@ -96,4 +100,64 @@ export interface MembershipModel {
 }
 export declare function buildMembershipModel(body: unknown): MembershipModel;
 export declare function membershipHTML(m: MembershipModel, ctx?: RecordsContext): string;
+/**
+ * GET /client/referrals/me (referral v2 pack, 06 §3). A member has ONE code,
+ * good at every brand whose programme is live; each live brand sends its own
+ * card with its own words and link. The page leads with THIS site's programme
+ * and lists the others under it.
+ *
+ * What the member is told about a friend is deliberately thin: an initial, the
+ * brand, the day, and where the voucher is. Never the treatment and never the
+ * amount the friend spent (02 §11).
+ */
+export type ReferFriendStatus = "joined" | "on_its_way" | "rewarded" | "not_eligible" | "withdrawn";
+export interface ReferProgrammeView {
+    brandName: string;
+    /** "aesthetics" | "slimming" | "spa" | …: which site family runs this programme. */
+    family: string;
+    /** The friend's side, as the friend reads it: "€20 off your first visit (minimum spend €50)". */
+    offerText: string;
+    /** The member's side: "€20 voucher for you". */
+    rewardText: string;
+    /** "After your friend's visit" | "As soon as your friend has paid". */
+    releaseText: string;
+    voucherValidityDays: number;
+    /** https only; anything else is dropped rather than linked. */
+    termsUrl: string | null;
+    shareUrl: string | null;
+}
+export interface ReferFriendView {
+    id: string;
+    /** "A." — the backend sends an initial, never a name. */
+    initial: string;
+    brandName: string | null;
+    /** One of ReferFriendStatus, or whatever a newer server sent (rendered without a chip). */
+    status: string;
+    /** A Malta date label from the server ("Tue 18 August 2026"), shown as written. */
+    createdOn: string;
+}
+export interface ReferModel {
+    code: string;
+    /** This site's programme; failing that, the first live one. Null when none is live. */
+    programme: ReferProgrammeView | null;
+    /** Every other live programme. */
+    others: ReferProgrammeView[];
+    /** What Share and Copy link send: this site's own link when it runs the programme. */
+    shareUrl: string | null;
+    friends: ReferFriendView[];
+    /** Earned vouchers, as wallet gift cards (withdrawn and cancelled ones are left out). */
+    rewards: GiftCardView[];
+    /** Vouchers earned and not yet issued ("€20 on its way"), in euros. */
+    pending: number;
+}
+/**
+ * Which site family a brand belongs to. Hair Clinic has no programme of its
+ * own: it runs on Aesthetics' (the backend's BRAND_IS_ALIAS), so a Hair Clinic
+ * member is shown the Aesthetics card and shares a Hair Clinic link.
+ */
+export declare function referFamily(brand: string): string;
+export declare function buildReferModel(body: unknown, ctx?: RecordsContext): ReferModel;
+/** What a share sends, before the link: "Here's €20 off your first visit (…) at Carisma Aesthetics. Use my code 7K2MX9QA when you book." */
+export declare function referShareText(p: ReferProgrammeView, code: string): string;
+export declare function referHTML(m: ReferModel): string;
 //# sourceMappingURL=records.d.ts.map

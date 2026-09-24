@@ -401,6 +401,36 @@ function revealCurrentTab(mount) {
     const delta = cur.getBoundingClientRect().left - navEl.getBoundingClientRect().left - 16;
     navEl.scrollLeft = Math.max(0, (navEl.scrollLeft ?? 0) + delta);
 }
+/** Put text on the clipboard. False when the browser has none or refuses (an http page, a denied permission). */
+function clipboardWrite(text) {
+    const nav = globalThis
+        .navigator;
+    const clip = nav?.clipboard;
+    if (!text || !clip || typeof clip.writeText !== "function")
+        return Promise.resolve(false);
+    try {
+        return clip.writeText(text).then(() => true, () => false);
+    }
+    catch {
+        return Promise.resolve(false);
+    }
+}
+/** The phone's share sheet. "unavailable" when there is none, so the caller can copy instead. */
+function nativeShare(data) {
+    const nav = globalThis.navigator;
+    if (!nav || typeof nav.share !== "function")
+        return Promise.resolve("unavailable");
+    try {
+        if (typeof nav.canShare === "function" && !nav.canShare(data))
+            return Promise.resolve("unavailable");
+        return nav.share(data).then(() => "shared", 
+        // Closing the sheet is the member's choice, not a failure to report.
+        (e) => (e?.name === "AbortError" ? "cancelled" : "unavailable"));
+    }
+    catch {
+        return Promise.resolve("unavailable");
+    }
+}
 /** Hand a file to the member: a Blob URL and a download link, clicked once. */
 function downloadFile(doc, name, text, type) {
     const g = globalThis;
@@ -473,6 +503,8 @@ export function mountAccountPortal(doc, opts = {}) {
     const loc = doc.location;
     const siteBrand = opts.siteBrand ?? siteBrandFromHost(loc?.host ?? "");
     const extras = { siteBrand, bookHref: opts.bookHref, contactPhone: opts.contactPhone };
+    /** Every shell this mount paints knows the site, so the rail shows only this site's sections. */
+    const shellHTML = (o) => portalShellHTML({ siteBrand, ...o });
     if (!readSignedInHint(doc.cookie || "")) {
         navigate(`/member?next=${encodeURIComponent(next)}`);
         return;
@@ -510,7 +542,7 @@ export function mountAccountPortal(doc, opts = {}) {
     };
     const focusTitle = () => qs(mount, ".cw-title")?.focus?.({ preventScroll: false });
     const skeleton = () => {
-        paint(portalShellHTML({
+        paint(shellHTML({
             view,
             title: view === "home" ? greetingFor() : view === "booking" ? "Your booking" : titleFor(view, "Your account"),
             emailMasked: identity.emailMasked,
@@ -561,7 +593,7 @@ export function mountAccountPortal(doc, opts = {}) {
                         return signIn();
                     if (read.state === "failed" && read.status !== 404) {
                         detail = null;
-                        paint(portalShellHTML({
+                        paint(shellHTML({
                             view,
                             title: "Your booking",
                             emailMasked,
@@ -579,7 +611,7 @@ export function mountAccountPortal(doc, opts = {}) {
                         preview: needPreview ? preview : null,
                         bookHref: opts.bookHref,
                     });
-                    paint(portalShellHTML({ view, title: parts.title, lede: parts.lede, body: parts.body, emailMasked, memberName }));
+                    paint(shellHTML({ view, title: parts.title, lede: parts.lede, body: parts.body, emailMasked, memberName }));
                 });
             }
             if (view === "home" || view === "bookings") {
@@ -612,7 +644,7 @@ export function mountAccountPortal(doc, opts = {}) {
                 if (reads.some((r) => r.status === 401))
                     return signIn();
                 const allFailed = reads.length > 0 && reads.every((r) => r.state === "failed");
-                paint(portalShellHTML({
+                paint(shellHTML({
                     view,
                     title: titleFor(view, "Your account"),
                     lede: allFailed ? "" : ledeFor(view),
@@ -627,7 +659,7 @@ export function mountAccountPortal(doc, opts = {}) {
                             // legacy wrapper only existed to hold their old markup. They
                             // also need the member's first name (the membership card) and
                             // the brand phone (a tel link beside "speak to the team").
-                            `<div class="cw-rise">${bodyFor(view, reads.map((r) => (r.state === "failed" ? null : r.body)), { memberName, contactPhone: opts.contactPhone })}</div>`,
+                            `<div class="cw-rise">${bodyFor(view, reads.map((r) => (r.state === "failed" ? null : r.body)), { memberName, contactPhone: opts.contactPhone, siteBrand, siteOrigin: loc?.origin })}</div>`,
                 }));
                 if (!portalMembershipBound.has(mount)) {
                     portalMembershipBound.add(mount);
@@ -640,7 +672,7 @@ export function mountAccountPortal(doc, opts = {}) {
             after?.();
         }, () => {
             if (view === "booking") {
-                paint(portalShellHTML({
+                paint(shellHTML({
                     view,
                     title: "Your booking",
                     emailMasked: identity.emailMasked,
@@ -1029,6 +1061,33 @@ export function mountAccountPortal(doc, opts = {}) {
                 ev.preventDefault?.();
                 if (movedEntry && !downloadCalendar(doc, movedEntry))
                     announce(mount, GENERIC_FAILURE, "bad");
+                return;
+            }
+            // Refer a friend: Copy puts the link or code on the clipboard; Share opens
+            // the phone's share sheet, and where there is none (most desktops) copies
+            // the link instead, so the button never does nothing.
+            const copyBtn = closestOf(t, "[data-cw-refer-copy]");
+            if (copyBtn) {
+                ev.preventDefault?.();
+                const value = copyBtn.getAttribute("data-cw-refer-copy") || "";
+                const done = copyBtn.getAttribute("data-cw-refer-done") || "Copied.";
+                void clipboardWrite(value).then((ok) => announce(mount, ok ? done : `Couldn't copy it. Select it here instead: ${value}`, ok ? "ok" : "bad"));
+                return;
+            }
+            const shareBtn = closestOf(t, "[data-cw-refer-share]");
+            if (shareBtn) {
+                ev.preventDefault?.();
+                const url = shareBtn.getAttribute("data-cw-refer-url") || "";
+                const text = shareBtn.getAttribute("data-cw-refer-text") || "";
+                const title = shareBtn.getAttribute("data-cw-refer-title") || "";
+                void nativeShare(url ? { title, text, url } : { title, text }).then((outcome) => {
+                    if (outcome !== "unavailable")
+                        return;
+                    const fallback = url || text;
+                    void clipboardWrite(fallback).then((ok) => announce(mount, ok
+                        ? `${url ? "Link" : "Message"} copied. Paste it anywhere to share.`
+                        : `Couldn't open sharing. Select it here instead: ${fallback}`, ok ? "ok" : "bad"));
+                });
                 return;
             }
             const btn = closestOf(t, "[data-cw-action]");

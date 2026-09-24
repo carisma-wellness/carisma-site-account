@@ -4,7 +4,7 @@ import type { WalletModel } from "./records.js";
 export declare const PORTAL_QC = "account-portal-20260917";
 export type PortalView = "home" | "bookings"
 /** One booking, with its actions. The id comes from the URL, not the view. */
- | "booking" | "wallet" | "payments" | "documents" | "membership" | "details";
+ | "booking" | "wallet" | "payments" | "documents" | "membership" | "refer" | "details";
 /** What a read came back as. `failed` is never shown as `empty`. */
 export type LoadState = "ok" | "empty" | "failed";
 export type ChipTone = "ok" | "warn" | "bad" | "neutral";
@@ -94,7 +94,15 @@ export declare const PORTAL_SECTIONS: ReadonlyArray<{
     href: string;
     label: string;
     group: string;
+    /**
+     * Only on these sites (by brand name). Refer a friend runs on the voucher
+     * brands alone: Pulse has no voucher rail and Medical is excluded, and a rail
+     * link to a page a site never built is a dead link on every page.
+     */
+    sites?: readonly string[];
 }>;
+/** The sections this site's rail shows. A section limited to some sites still shows on its own page. */
+export declare function sectionsFor(view: PortalView, siteBrand?: string): typeof PORTAL_SECTIONS;
 /**
  * The chrome every section shares: rail (or tabs), the page header, one
  * persistent status region, the body the caller built, and sign-out OUTSIDE
@@ -113,6 +121,8 @@ export declare function portalShellHTML(opts: {
     memberName?: string;
     /** True while the body is a skeleton. */
     busy?: boolean;
+    /** This site's brand name, which decides the site-limited rail rows. */
+    siteBrand?: string;
 }): string;
 /** The failed-read block. Never the empty state: "you have no bookings" is a lie when we could not ask. */
 export declare function errorBlockHTML(what: string, phone?: string): string;

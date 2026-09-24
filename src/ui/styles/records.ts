@@ -422,6 +422,62 @@ export const PORTAL_RECORDS_CSS = `
 .carisma-portal .cw-mnote { font-size: 14px; line-height: 21px; color: var(--cw-account-muted); max-width: 60ch; text-wrap: pretty; }
 .carisma-portal .cw-mnote a { white-space: nowrap; }
 
+/* ── Refer a friend ──────────────────────────────────────────────────── */
+/* One card: the deal (what the friend gets, what you get), then the code with
+   its share row. The code is the object here, so it takes the display face. */
+.carisma-portal .cw-refer {
+  display: grid;
+  gap: 24px;
+  padding: 28px;
+  background: var(--cw-account-surface);
+  border: 1px solid var(--cw-account-line);
+  border-radius: var(--cw-account-radius);
+}
+.carisma-portal .cw-refer__brand { color: var(--cw-account-muted); }
+.carisma-portal .cw-refer__deal { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.carisma-portal .cw-refer__side { display: grid; gap: 6px; align-content: start; padding-right: 24px; min-width: 0; }
+.carisma-portal .cw-refer__side + .cw-refer__side { padding: 0 0 0 24px; border-left: 1px solid var(--cw-account-line); }
+.carisma-portal .cw-refer__big {
+  font-family: var(--cw-account-display-font);
+  font-weight: var(--cw-account-display-weight);
+  font-size: 26px;
+  line-height: 1.15;
+  color: var(--cw-account-display-ink);
+  font-variant-numeric: lining-nums tabular-nums;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.carisma-portal .cw-refer__small { font-size: 14px; line-height: 20px; color: var(--cw-account-muted); }
+.carisma-portal .cw-refer__codebox { display: grid; gap: 14px; padding-top: 24px; border-top: 1px solid var(--cw-account-line); }
+.carisma-portal .cw-refer__code {
+  font-family: var(--cw-account-display-font);
+  font-weight: var(--cw-account-display-weight);
+  font-size: 40px;
+  line-height: 1.05;
+  letter-spacing: 0.14em;
+  color: var(--cw-account-display-ink);
+  font-variant-numeric: lining-nums tabular-nums;
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+.carisma-portal .cw-refer__share { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+.carisma-portal .cw-refer__link { font-size: 14px; line-height: 20px; color: var(--cw-account-muted); overflow-wrap: anywhere; }
+.carisma-portal .cw-refer__terms { font-size: 14px; line-height: 21px; color: var(--cw-account-muted); max-width: 62ch; text-wrap: pretty; }
+.carisma-portal .cw-refer__pending { font-size: 15px; line-height: 22px; font-weight: 500; color: var(--cw-account-ok-text); }
+.carisma-portal .cw-refer__initial {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--cw-account-accent-soft);
+  color: var(--cw-account-accent-text);
+  font-family: var(--cw-account-display-font);
+  font-size: 17px;
+  line-height: 1;
+}
+.carisma-portal .cw-rec--refer .cw-section > .cw-mnote { margin-top: 10px; }
+
 /* ── Phones ──────────────────────────────────────────────────────────── */
 @media (max-width: 1023.98px) {
   .carisma-portal .cw-rec { gap: 40px; }
@@ -452,6 +508,13 @@ export const PORTAL_RECORDS_CSS = `
   .carisma-portal .cw-mfact + .cw-mfact { border-left: 0; border-top: 1px solid var(--cw-account-line); }
   .carisma-portal .cw-mfact__value { font-size: 18px; text-align: right; }
   .carisma-portal .cw-mctl__do { justify-items: stretch; }
+  .carisma-portal .cw-refer { padding: 20px; gap: 20px; }
+  .carisma-portal .cw-refer__deal { grid-template-columns: minmax(0, 1fr); }
+  .carisma-portal .cw-refer__side { padding: 0; }
+  .carisma-portal .cw-refer__side + .cw-refer__side { padding: 18px 0 0; margin-top: 18px; border-left: 0; border-top: 1px solid var(--cw-account-line); }
+  .carisma-portal .cw-refer__big { font-size: 22px; }
+  .carisma-portal .cw-refer__code { font-size: 32px; }
+  .carisma-portal .cw-refer__share > .cw-btn--primary { flex: 1 1 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   .carisma-portal :is(.cw-gift, .cw-gift:hover) { transform: none; transition: none; }

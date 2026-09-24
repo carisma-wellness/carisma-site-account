@@ -38,6 +38,7 @@ export type PortalView =
   | "payments"
   | "documents"
   | "membership"
+  | "refer"
   | "details";
 
 /** What a read came back as. `failed` is never shown as `empty`. */
@@ -372,27 +373,51 @@ export function buildPortalModel(session: unknown, view: PortalView, extra: Port
  * Every section, in rail order. `booking` (the detail page) is deliberately
  * absent: it is reached FROM Bookings and highlights Bookings while you are on it.
  */
-export const PORTAL_SECTIONS: ReadonlyArray<{ id: PortalView; href: string; label: string; group: string }> = [
+export const PORTAL_SECTIONS: ReadonlyArray<{
+  id: PortalView;
+  href: string;
+  label: string;
+  group: string;
+  /**
+   * Only on these sites (by brand name). Refer a friend runs on the voucher
+   * brands alone: Pulse has no voucher rail and Medical is excluded, and a rail
+   * link to a page a site never built is a dead link on every page.
+   */
+  sites?: readonly string[];
+}> = [
   { id: "home", href: ACCOUNT_HOME_HREF, label: "Overview", group: "Visits" },
   { id: "bookings", href: ACCOUNT_BOOKINGS_HREF, label: "Bookings", group: "Visits" },
   { id: "wallet", href: "/account/wallet", label: "Wallet", group: "Money" },
   { id: "payments", href: "/account/payments", label: "Payments", group: "Money" },
   { id: "membership", href: "/account/membership", label: "Membership", group: "Money" },
+  {
+    id: "refer",
+    href: "/account/refer",
+    label: "Refer a friend",
+    group: "Money",
+    sites: ["Carisma Aesthetics", "Carisma Hair Clinic", "Carisma Slimming", "Carisma Spa"],
+  },
   { id: "documents", href: "/account/documents", label: "Documents", group: "You" },
   { id: "details", href: ACCOUNT_DETAILS_HREF, label: "Details", group: "You" },
 ];
 
-function nav(view: PortalView): string {
+/** The sections this site's rail shows. A section limited to some sites still shows on its own page. */
+export function sectionsFor(view: PortalView, siteBrand = ""): typeof PORTAL_SECTIONS {
+  return PORTAL_SECTIONS.filter((s) => !s.sites || s.id === view || s.sites.includes(siteBrand));
+}
+
+function nav(view: PortalView, siteBrand = ""): string {
   const current: PortalView = view === "booking" ? "bookings" : view;
+  const sections = sectionsFor(current, siteBrand);
   const groups: string[] = [];
-  for (const s of PORTAL_SECTIONS) if (!groups.includes(s.group)) groups.push(s.group);
+  for (const s of sections) if (!groups.includes(s.group)) groups.push(s.group);
   return (
     `<nav class="cw-nav" aria-label="Account">` +
     groups
       .map(
         (g) =>
           `<div class="cw-nav__group"><p class="cw-label cw-nav__label" aria-hidden="true">${g}</p>` +
-          PORTAL_SECTIONS.filter((s) => s.group === g)
+          sections.filter((s) => s.group === g)
             .map(
               (s) =>
                 `<a class="cw-nav__link" href="${s.href}"${current === s.id ? ' aria-current="page"' : ""}>${s.label}</a>`,
@@ -432,6 +457,8 @@ export function portalShellHTML(opts: {
   memberName?: string;
   /** True while the body is a skeleton. */
   busy?: boolean;
+  /** This site's brand name, which decides the site-limited rail rows. */
+  siteBrand?: string;
 }): string {
   const name = opts.memberName || "";
   const member =
@@ -445,7 +472,7 @@ export function portalShellHTML(opts: {
   return (
     `<main class="carisma-portal" data-cw-qc="${PORTAL_QC}" data-cw-portal="${escapeHtml(opts.view)}">` +
     `<div class="cw-shell">` +
-    `<aside class="cw-rail">${member}${nav(opts.view)}<div class="cw-rail__foot">${signOutLinks()}</div></aside>` +
+    `<aside class="cw-rail">${member}${nav(opts.view, opts.siteBrand)}<div class="cw-rail__foot">${signOutLinks()}</div></aside>` +
     `<div class="cw-main">` +
     `<header class="cw-head"><h1 class="cw-title" tabindex="-1" ${M}>${escapeHtml(opts.title)}</h1>${lede}</header>` +
     `<div class="cw-body"${opts.busy ? ' aria-busy="true"' : ""}>${opts.body}</div>` +
@@ -478,7 +505,9 @@ export function skeletonHTML(view: PortalView): string {
       ? "your bookings"
       : view === "details"
         ? "your details"
-        : `your ${view}`;
+        : view === "refer"
+          ? "your referrals"
+          : `your ${view}`;
   const card = (h: number) => `<span class="cw-skel cw-skel--card" style="height:${h}px"></span>`;
   const rows =
     view === "home"
@@ -785,5 +814,6 @@ export function accountPortalHTML(model: PortalModel): string {
     body,
     lede,
     memberName: model.firstName || model.name || "Your account",
+    siteBrand: model.siteBrand,
   });
 }
