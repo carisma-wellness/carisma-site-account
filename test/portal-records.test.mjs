@@ -11,6 +11,7 @@ import {
   buildWalletModel,
   walletHTML,
   walletTotal,
+  walletElsewhere,
   walletSources,
   buildStatementModel,
   statementHTML,
@@ -50,6 +51,73 @@ test("Available to spend is credit plus gift-card balances — packages are sess
   const html = walletHTML(m);
   assert.match(text(html), /Available to spend €285\.00/);
   assert.match(text(html), /Credit €85\.00 · 2 gift cards · 1 package/);
+});
+
+/* The real GET /client/gift-cards card shape (backend ClientGiftCardWalletDTO). */
+const card = (code, balance, brandKey, brandName) => ({
+  id: code, code, brandKey, brandId: `b-${brandKey}`, brandName, amount: balance, balance, currency: "EUR", status: "active",
+});
+const MIXED_WALLET = {
+  giftCards: {
+    success: true,
+    data: {
+      cards: [
+        card("AES0000001", 30, "aesthetics", "Carisma Aesthetics"),
+        card("SPA0000001", 40, "spa", "Carisma Spa"),
+        card("SLM0000001", 25, "slimming", "Carisma Slimming"),
+        { id: "n1", code: "NOBRAND001", amount: 10, balance: 10, currency: "EUR", status: "active" },
+      ],
+    },
+  },
+  credit: { data: { balance: 5 } },
+};
+
+test("Available to spend counts credit plus THIS site's gift cards; other brands' are listed and named once", () => {
+  const m = buildWalletModel(MIXED_WALLET);
+  // Aesthetics: credit 5 + its own card 30 + the card that names no brand 10.
+  assert.equal(walletTotal(m, "Carisma Aesthetics"), 45);
+  assert.equal(walletElsewhere(m, "Carisma Aesthetics"), 65);
+  const html = walletHTML(m, { siteBrand: "Carisma Aesthetics" });
+  assert.match(text(html), /Available to spend €45\.00/);
+  assert.match(text(html), /€65\.00 more on gift cards for other Carisma brands/);
+  assert.equal(count(html, /more on gift cards for other Carisma brands/g), 1, "one quiet line");
+  assert.match(html, /class="cw-balance__sources cw-balance__elsewhere"/);
+  // Every card is still listed, each under its own brand.
+  assert.equal(count(html, /class="cw-gift[ "]/g), 4);
+  for (const brand of ["Carisma Aesthetics", "Carisma Spa", "Carisma Slimming"]) {
+    assert.match(html, new RegExp(`class="cw-gift__brand">${brand}<`), brand);
+  }
+  // The Spa site counts the Spa card instead.
+  assert.equal(walletTotal(m, "Carisma Spa"), 55);
+  assert.equal(walletElsewhere(m, "Carisma Spa"), 55);
+});
+
+test("Hair Clinic counts Aesthetics cards (one programme family); Slimming does not", () => {
+  const m = buildWalletModel(MIXED_WALLET);
+  assert.equal(walletTotal(m, "Carisma Hair Clinic"), 45);
+  assert.equal(walletTotal(m, "Carisma Slimming"), 40);
+  // A card named only by its brand (no key) is placed by its name.
+  const named = buildWalletModel({ giftCards: [{ code: "X", balance: 20, brandName: "Carisma Hair Clinic" }] });
+  assert.equal(walletTotal(named, "Carisma Aesthetics"), 20);
+  assert.equal(walletTotal(named, "Carisma Spa"), 0);
+});
+
+test("with no site brand (a test, an unknown host) the headline keeps the old total, and no 'more' line", () => {
+  const m = buildWalletModel(MIXED_WALLET);
+  assert.equal(walletTotal(m), 110);
+  assert.equal(walletElsewhere(m), 0);
+  const html = walletHTML(m);
+  assert.match(text(html), /Available to spend €110\.00/);
+  assert.doesNotMatch(html, /more on gift cards for other Carisma brands/);
+  // NEGATIVE CONTROL: only this site's cards held ⇒ no "more" line either.
+  const own = buildWalletModel({ giftCards: [card("AES0000002", 30, "aesthetics", "Carisma Aesthetics")] });
+  assert.doesNotMatch(walletHTML(own, { siteBrand: "Carisma Aesthetics" }), /more on gift cards/);
+});
+
+test("the wallet page gets the site brand from bodyFor's context", () => {
+  const answers = [MIXED_WALLET.giftCards, null, MIXED_WALLET.credit];
+  assert.match(text(bodyFor("wallet", answers, { siteBrand: "Carisma Slimming" })), /Available to spend €40\.00/);
+  assert.match(text(bodyFor("wallet", answers)), /Available to spend €110\.00/);
 });
 
 test("the sources line names only what exists", () => {

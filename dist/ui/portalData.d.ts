@@ -33,8 +33,9 @@ export declare function titleFor(view: PortalView, greeting: string): string;
  * their credit.
  *
  * `ctx` is optional page context (the member's first name for the membership
- * card, the brand phone for "speak to the team"). Without it every view still
- * renders; those two touches simply do not appear.
+ * card, the brand phone for "speak to the team", the site's brand for the
+ * wallet's "Available to spend"). Without it every view still renders; those
+ * touches simply do not appear, and the wallet counts every gift card.
  */
 export declare function bodyFor(view: PortalView, answers: unknown[], ctx?: RecordsContext): string;
 /**

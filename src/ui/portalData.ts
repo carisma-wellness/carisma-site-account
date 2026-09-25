@@ -21,6 +21,8 @@ import {
   documentsHTML,
   buildMembershipModel,
   membershipHTML,
+  buildReferModel,
+  referHTML,
   type RecordsContext,
 } from "./records.js";
 
@@ -37,6 +39,8 @@ export function requestsFor(view: PortalView): string[] {
       return [`${PROXY}/client/account/documents`];
     case "membership":
       return [`${PROXY}/client/membership`];
+    case "refer":
+      return [`${PROXY}/client/referrals/me`];
     case "bookings":
       return [
         `${PROXY}/client/booking/appointments?filter=upcoming&limit=50`,
@@ -75,6 +79,8 @@ export function subjectFor(view: PortalView): string {
       return "documents";
     case "membership":
       return "membership";
+    case "refer":
+      return "referrals";
     default:
       return "details";
   }
@@ -115,6 +121,8 @@ export function titleFor(view: PortalView, greeting: string): string {
       return "Your membership";
     case "details":
       return "Your details";
+    case "refer":
+      return "Refer a friend";
     default:
       return greeting;
   }
@@ -129,14 +137,16 @@ export function titleFor(view: PortalView, greeting: string): string {
  * their credit.
  *
  * `ctx` is optional page context (the member's first name for the membership
- * card, the brand phone for "speak to the team"). Without it every view still
- * renders; those two touches simply do not appear.
+ * card, the brand phone for "speak to the team", the site's brand for the
+ * wallet's "Available to spend"). Without it every view still renders; those
+ * touches simply do not appear, and the wallet counts every gift card.
  */
 export function bodyFor(view: PortalView, answers: unknown[], ctx: RecordsContext = {}): string {
   switch (view) {
     case "wallet":
       return walletHTML(
         buildWalletModel({ giftCards: answers[0], packages: answers[1], credit: answers[2] }),
+        ctx,
       );
     case "payments":
       return statementHTML(buildStatementModel(answers[0]));
@@ -144,6 +154,8 @@ export function bodyFor(view: PortalView, answers: unknown[], ctx: RecordsContex
       return documentsHTML(buildDocumentsModel(answers[0]));
     case "membership":
       return membershipHTML(buildMembershipModel(answers[0]), ctx);
+    case "refer":
+      return referHTML(buildReferModel(answers[0], ctx));
     default:
       return "";
   }

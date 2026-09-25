@@ -15,6 +15,7 @@
  */
 import { escapeHtml } from "./html.js";
 import { eur, plainDate } from "./money.js";
+import { venueDateString } from "./reschedule.js";
 export const MEMBER_RECORDS_QC = "account-records-20260922";
 const M = 'data-clarity-mask="True"';
 /**
@@ -42,7 +43,14 @@ function rows(body) {
         return pick(inner);
     if (inner && typeof inner === "object") {
         const o = inner;
-        return pick(o.data).length ? pick(o.data) : pick(o.items);
+        // `cards`: GET /client/gift-cards answers `{ cards, totalsByBrand }`
+        // (backend ClientGiftCardWalletDTO). Reading only data/items made every
+        // member's wallet show no gift cards at all (referral v2 pack, P11).
+        for (const key of ["data", "items", "cards"]) {
+            const list = pick(o[key]);
+            if (list.length)
+                return list;
+        }
     }
     return [];
 }
@@ -136,6 +144,8 @@ export function buildWalletModel(input) {
             expiresAt: str(firstOf(g, ["expiresAt", "expiryDate", "validUntil"])) || null,
             from: str(firstOf(g, ["purchaserName", "senderName", "from"])) || null,
             brand: str(firstOf(g, ["brandName"])) || str(brandObj.name) || null,
+            brandKey: str(firstOf(g, ["brandKey"])) || str(brandObj.slug) || null,
+            referralReward: str(firstOf(g, ["origin"])) === "REFERRAL_REWARD",
         };
     });
     const packages = rows(input.packages).map((p) => {
@@ -161,13 +171,37 @@ export function buildWalletModel(input) {
     };
 }
 /**
- * "Available to spend": account credit plus what is left on gift cards.
+ * Whether a gift card is spent on THIS site: its brand is this site's family
+ * (referFamily, so a Hair Clinic site counts Aesthetics cards). A card that
+ * names no brand counts; with no site brand known, every card counts.
+ */
+function spendableHere(g, siteFamily) {
+    if (!siteFamily)
+        return true;
+    const label = g.brandKey || g.brand || "";
+    return !label || referFamily(label) === siteFamily;
+}
+function cardsTotal(cards) {
+    return cards.reduce((sum, g) => sum + Math.max(0, g.balance), 0);
+}
+/**
+ * "Available to spend": account credit plus what is left on this site's gift
+ * cards. A Spa card cannot pay for an Aesthetics treatment, so on the
+ * Aesthetics site it is listed but not counted (walletElsewhere names it).
+ * Without `siteBrand` (a test, an unknown host) every card counts, as before.
  * Packages are NOT money — they are sessions — so they never add to it, and a
  * spent card (or a negative figure from a bad row) never subtracts from it.
  */
-export function walletTotal(m) {
-    const cards = m.giftCards.reduce((sum, g) => sum + Math.max(0, g.balance), 0);
+export function walletTotal(m, siteBrand = "") {
+    const family = referFamily(siteBrand);
+    const cards = cardsTotal(m.giftCards.filter((g) => spendableHere(g, family)));
     return Math.round((Math.max(0, m.credit) + cards) * 100) / 100;
+}
+/** What is left on gift cards for OTHER Carisma brands than this site's. 0 without `siteBrand`. */
+export function walletElsewhere(m, siteBrand = "") {
+    const family = referFamily(siteBrand);
+    const cards = cardsTotal(m.giftCards.filter((g) => !spendableHere(g, family)));
+    return Math.round(cards * 100) / 100;
 }
 /** "Credit €85.00 · 2 gift cards · 1 package" — only the parts that exist. */
 export function walletSources(m) {
@@ -196,9 +230,11 @@ function giftCardHTML(g) {
         `<span class="cw-gift__brand">${escapeHtml(g.brand || "Gift card")}</span>` +
         (spent
             ? `<span class="cw-gift__tag">Spent</span>`
-            : g.from
-                ? `<span class="cw-gift__from">From ${escapeHtml(g.from)}</span>`
-                : "") +
+            : g.referralReward
+                ? `<span class="cw-gift__tag">Referral reward</span>`
+                : g.from
+                    ? `<span class="cw-gift__from">From ${escapeHtml(g.from)}</span>`
+                    : "") +
         `</div>` +
         `<div class="cw-gift__foot">` +
         `<div class="cw-gift__money"><span class="cw-gift__balance">${escapeHtml(eur(g.balance))}</span>` +
@@ -240,19 +276,26 @@ function packageHTML(p) {
         (p.amountDue > 0 ? `<p class="cw-pack__due">${escapeHtml(eur(p.amountDue))} still to pay</p>` : "") +
         `</li>`);
 }
-export function walletHTML(m) {
+export function walletHTML(m, ctx = {}) {
     if (m.isEmpty) {
         return recordRoot("wallet", emptyHTML(GIFT_ICON, "No credit or gift cards yet", "Gift cards, treatment packages and account credit will appear here, ready to spend.", `<a class="cw-btn cw-btn--quiet" href="/gifts">Buy a gift card <span aria-hidden="true">→</span></a>`));
     }
-    const total = walletTotal(m);
+    const total = walletTotal(m, ctx.siteBrand);
+    const elsewhere = walletElsewhere(m, ctx.siteBrand);
     const sources = walletSources(m);
     // The hero is money. A member holding only package sessions has no money
     // to show, and "€0.00 available" above four facials reads as a loss.
+    // Other brands' cards stay listed below, each under its brand; the hero only
+    // counts what this site can take, and says how much more there is elsewhere.
     const hero = total > 0 || m.credit > 0 || m.giftCards.length
         ? `<section class="cw-balance cw-rise" aria-label="Available to spend">` +
             `<p class="cw-label">Available to spend</p>` +
             `<p class="cw-balance__value" ${M}>${escapeHtml(eur(total))}</p>` +
             (sources ? `<p class="cw-balance__sources" ${M}>${escapeHtml(sources)}</p>` : "") +
+            (elsewhere > 0
+                ? `<p class="cw-balance__sources cw-balance__elsewhere" ${M}>` +
+                    `${escapeHtml(`${eur(elsewhere)} more on gift cards for other Carisma brands`)}</p>`
+                : "") +
             `</section>`
         : "";
     const gifts = m.giftCards.length
@@ -543,5 +586,273 @@ export function membershipHTML(m, ctx = {}) {
         (tel ? ` on <a class="cw-link" href="tel:${escapeHtml(tel)}">${escapeHtml(phoneLabel(tel))}</a>` : "") +
         `.</p>`;
     return recordRoot("membership", hero + facts + `<section class="cw-mctl cw-rise">${controls}${rest}</section>`);
+}
+/**
+ * Which site family a brand belongs to. Hair Clinic has no programme of its
+ * own: it runs on Aesthetics' (the backend's BRAND_IS_ALIAS), so a Hair Clinic
+ * member is shown the Aesthetics card and shares a Hair Clinic link.
+ */
+export function referFamily(brand) {
+    const k = String(brand || "").toLowerCase();
+    if (k.includes("hair") || k.includes("aesthetic"))
+        return "aesthetics";
+    if (k.includes("slimming"))
+        return "slimming";
+    if (k.includes("pulse"))
+        return "pulse";
+    if (k.includes("medical"))
+        return "medical";
+    if (k.includes("spa"))
+        return "spa";
+    return "";
+}
+function httpsUrl(v) {
+    const s = str(v).trim();
+    return /^https:\/\/[^\s"'<>]+$/i.test(s) ? s : null;
+}
+/** Said when a card cannot refer and the server sent no reason (it always should). */
+const REFER_BLOCKED_FALLBACK = "Your code can't be shared here yet.";
+function referProgramme(o) {
+    const brandName = str(o.brandName).trim();
+    const offerText = str(o.offerText).trim();
+    if (!brandName || !offerText)
+        return null;
+    // Only an explicit false holds sharing back: an older card has no field.
+    const canRefer = o.canRefer !== false;
+    return {
+        brandName,
+        family: referFamily(str(o.brandSlug) || brandName),
+        offerText,
+        rewardText: str(o.rewardText).trim(),
+        releaseText: str(o.releaseText).trim(),
+        voucherValidityDays: Math.max(0, Math.round(num(o.voucherValidityDays))),
+        termsUrl: httpsUrl(o.termsUrl),
+        shareUrl: httpsUrl(o.shareUrl),
+        canRefer,
+        referBlockedText: canRefer ? null : str(o.referBlockedText).trim() || REFER_BLOCKED_FALLBACK,
+    };
+}
+/** Vouchers the member can no longer spend: withdrawn, cancelled or expired. */
+const DEAD_VOUCHER = new Set(["cancelled", "canceled", "void", "voided", "expired"]);
+/** A voucher's `expiresOn` ("2027-03-23", or an instant) as a Malta calendar day. "" when unreadable. */
+function maltaDay(raw) {
+    const s = raw.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s))
+        return s;
+    const ms = Date.parse(s);
+    return s && Number.isFinite(ms) ? venueDateString(new Date(ms), MALTA) : "";
+}
+export function buildReferModel(body, ctx = {}) {
+    const inner = unwrap(body);
+    const o = (inner && typeof inner === "object" && !Array.isArray(inner) ? inner : {});
+    const list = (v) => Array.isArray(v) ? v.filter((r) => Boolean(r) && typeof r === "object") : [];
+    const code = str(o.code).trim().toUpperCase();
+    const programmes = list(o.programmes)
+        .map(referProgramme)
+        .filter((p) => p !== null);
+    const siteFamily = referFamily(ctx.siteBrand || "");
+    const own = siteFamily ? programmes.find((p) => p.family === siteFamily) ?? null : null;
+    const programme = own ?? programmes[0] ?? null;
+    const others = programmes.filter((p) => p !== programme);
+    // This site's own link when it runs the programme (a Hair Clinic member
+    // shares carismahairclinic.com, not the Aesthetics domain). The origin must
+    // be https: a preview host or localhost falls back to the server's link.
+    const origin = /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(ctx.siteOrigin || "") ? String(ctx.siteOrigin) : "";
+    // A programme that cannot refer yet has no link to share at all.
+    const shareUrl = !programme?.canRefer
+        ? null
+        : own && origin && code
+            ? `${origin}/?ref=${encodeURIComponent(code)}`
+            : programme.shareUrl ?? null;
+    // An initial, the brand and the status. Never the day: a date beside an
+    // initial narrows down who the friend is (02 §11), even if a server sends one.
+    const friends = list(o.friends).map((f) => ({
+        id: str(f.id),
+        initial: str(f.friendInitial).trim() || "?",
+        brandName: str(f.brandName).trim() || null,
+        status: str(f.status),
+    }));
+    // A voucher is good through the END of its Malta expiry day (02 §12), so one
+    // expiring today still shows and one that expired yesterday does not,
+    // whatever its status says. An unreadable expiry is shown, not guessed away.
+    const today = venueDateString(ctx.now ?? new Date(), MALTA);
+    const rewards = list(o.rewards)
+        .filter((r) => !DEAD_VOUCHER.has(str(r.status).toLowerCase()))
+        .filter((r) => {
+        const day = maltaDay(str(r.expiresOn));
+        return !day || !today || day >= today;
+    })
+        .map((r) => ({
+        code: str(r.code),
+        balance: num(r.balanceCents) / 100,
+        originalValue: num(r.amountCents) / 100,
+        expiresAt: str(r.expiresOn) || null,
+        from: null,
+        brand: str(r.brandName) || null,
+        referralReward: true,
+    }));
+    return {
+        code,
+        programme,
+        others,
+        shareUrl,
+        friends,
+        rewards,
+        pending: Math.max(0, num(o.pendingRewardsCents)) / 100,
+    };
+}
+/** What a share sends, before the link: "Here's €20 off your first visit (…) at Carisma Aesthetics. Use my code 7K2MX9QA when you book." */
+export function referShareText(p, code) {
+    return `Here's ${p.offerText} at ${p.brandName}. Use my code ${code} when you book.`;
+}
+/** "€20 off your first visit (minimum spend €50)" → ["€20 off your first visit", "Minimum spend €50"]. */
+function splitOffer(text) {
+    const m = /^(.*\S)\s*\(([^()]+)\)$/.exec(text);
+    if (!m)
+        return [text, ""];
+    return [m[1], m[2].charAt(0).toUpperCase() + m[2].slice(1)];
+}
+/** The server's "€20 voucher for you" sits under a "For you" label, so the tail would say it twice. */
+function rewardHeadline(text) {
+    return text.replace(/,?\s*(as a voucher )?for you\.?$/i, (m, asVoucher) => (asVoucher ? ", as a voucher" : "")).trim() || text;
+}
+/** "https://www.carismaaesthetics.com/?ref=7K2MX9QA" → "carismaaesthetics.com/?ref=7K2MX9QA". */
+function linkLabel(url) {
+    return url.replace(/^https:\/\/(www\.)?/i, "");
+}
+const FRIEND_CHIP = {
+    joined: { label: "Booked", tone: "neutral" },
+    on_its_way: { label: "Voucher on its way", tone: "ok" },
+    rewarded: { label: "Voucher sent", tone: "ok" },
+    no_voucher: { label: "No voucher for this one", tone: "neutral" },
+    not_eligible: { label: "Didn't qualify", tone: "neutral" },
+    withdrawn: { label: "Withdrawn", tone: "bad" },
+};
+function friendRowHTML(f) {
+    const chip = FRIEND_CHIP[f.status];
+    const meta = f.brandName || "";
+    const letter = f.initial.replace(/[^\p{L}\p{N}]/gu, "").charAt(0) || "?";
+    return (`<div class="cw-doc cw-refer__friend" role="listitem" ${M}>` +
+        `<span class="cw-refer__initial" aria-hidden="true">${escapeHtml(letter)}</span>` +
+        `<div class="cw-doc__main"><div class="cw-doc__title">${escapeHtml(f.initial)}</div>` +
+        (meta ? `<p class="cw-doc__meta">${escapeHtml(meta)}</p>` : "") +
+        `</div>` +
+        (chip ? `<span class="cw-chip cw-chip--${chip.tone}">${escapeHtml(chip.label)}</span>` : "") +
+        `</div>`);
+}
+function shareButtonsHTML(p, code, url) {
+    const text = referShareText(p, code);
+    const whatsapp = `https://wa.me/?text=${encodeURIComponent(url ? `${text} ${url}` : text)}`;
+    return (`<div class="cw-refer__share">` +
+        `<button type="button" class="cw-btn cw-btn--primary" data-cw-refer-share ` +
+        `data-cw-refer-title="${escapeHtml(p.brandName)}" data-cw-refer-text="${escapeHtml(text)}" ` +
+        `data-cw-refer-url="${escapeHtml(url ?? "")}">Share your ${url ? "link" : "code"}</button>` +
+        `<a class="cw-btn cw-btn--secondary" href="${escapeHtml(whatsapp)}" target="_blank" rel="noopener noreferrer">` +
+        `WhatsApp<span class="cw-vh"> (opens in a new tab)</span></a>` +
+        (url
+            ? `<button type="button" class="cw-btn cw-btn--quiet" data-cw-refer-copy="${escapeHtml(url)}" data-cw-refer-done="Link copied.">Copy link</button>`
+            : "") +
+        `<button type="button" class="cw-btn cw-btn--quiet" data-cw-refer-copy="${escapeHtml(code)}" data-cw-refer-done="Code copied.">Copy code</button>` +
+        `</div>`);
+}
+function termsHTML(p) {
+    const when = p.releaseText ? `Your voucher arrives ${p.releaseText.charAt(0).toLowerCase()}${p.releaseText.slice(1)}` : "";
+    const valid = p.voucherValidityDays > 0 ? `valid for ${p.voucherValidityDays} days` : "";
+    const sentence = when && valid ? `${when} and is ${valid}.` : when ? `${when}.` : valid ? `Your voucher is ${valid}.` : "";
+    const terms = p.termsUrl
+        ? `<a class="cw-link" href="${escapeHtml(p.termsUrl)}" target="_blank" rel="noopener noreferrer">Full terms<span class="cw-vh"> (opens in a new tab)</span></a>`
+        : "";
+    if (!sentence && !terms)
+        return "";
+    return `<p class="cw-refer__terms">${escapeHtml(sentence)}${sentence && terms ? " " : ""}${terms}</p>`;
+}
+function otherProgrammeHTML(p, code) {
+    return (`<div class="cw-doc cw-refer__other" role="listitem">` +
+        `<span class="cw-refer__initial" aria-hidden="true">${escapeHtml(p.brandName.replace(/^Carisma\s+/i, "").charAt(0))}</span>` +
+        `<div class="cw-doc__main"><div class="cw-doc__title">${escapeHtml(p.brandName)}</div>` +
+        `<p class="cw-doc__meta">${escapeHtml(`Your friend gets ${p.offerText}`)}</p>` +
+        // Nothing to copy for a brand that cannot refer yet: the reason instead.
+        (p.canRefer ? "" : `<p class="cw-doc__meta cw-refer__blocked">${escapeHtml(p.referBlockedText ?? "")}</p>`) +
+        `</div>` +
+        (p.canRefer
+            ? `<button type="button" class="cw-btn cw-btn--quiet" data-cw-refer-copy="${escapeHtml(p.shareUrl ?? code)}" ` +
+                `data-cw-refer-done="${escapeHtml(p.shareUrl ? `${p.brandName} link copied.` : "Code copied.")}">` +
+                `Copy ${p.shareUrl ? "link" : "code"}<span class="cw-vh"> for ${escapeHtml(p.brandName)}</span></button>`
+            : "") +
+        `</div>`);
+}
+export function referHTML(m) {
+    const p = m.programme;
+    const live = Boolean(p && m.code);
+    const hasHistory = m.friends.length > 0 || m.rewards.length > 0 || m.pending > 0;
+    if (!live && !hasHistory) {
+        return recordRoot("refer", emptyHTML(GIFT_ICON, "Refer a friend isn't open yet", "When it opens, your personal code will appear here, ready to share."));
+    }
+    let hero = "";
+    if (live && p) {
+        const [offer, offerSmall] = splitOffer(p.offerText);
+        hero =
+            `<section class="cw-refer cw-rise" aria-label="Refer a friend to ${escapeHtml(p.brandName)}">` +
+                `<p class="cw-label cw-refer__brand">${escapeHtml(p.brandName)}</p>` +
+                `<div class="cw-refer__deal">` +
+                `<div class="cw-refer__side"><p class="cw-label">For your friend</p>` +
+                `<p class="cw-refer__big">${escapeHtml(offer)}</p>` +
+                (offerSmall ? `<p class="cw-refer__small">${escapeHtml(offerSmall)}</p>` : "") +
+                `</div>` +
+                `<div class="cw-refer__side"><p class="cw-label">For you</p>` +
+                `<p class="cw-refer__big">${escapeHtml(rewardHeadline(p.rewardText) || "A voucher")}</p>` +
+                (p.releaseText ? `<p class="cw-refer__small">${escapeHtml(p.releaseText)}</p>` : "") +
+                `</div></div>` +
+                `<div class="cw-refer__codebox">` +
+                `<p class="cw-label" id="cw-refer-code-label">Your code</p>` +
+                `<p class="cw-refer__code" aria-labelledby="cw-refer-code-label" ${M}>${escapeHtml(m.code)}</p>` +
+                // The code is shown either way. Share, WhatsApp, Copy and the link are
+                // offered only while a friend could use it here; otherwise, the reason.
+                (p.canRefer
+                    ? shareButtonsHTML(p, m.code, m.shareUrl) +
+                        (m.shareUrl ? `<p class="cw-refer__link" ${M}>${escapeHtml(linkLabel(m.shareUrl))}</p>` : "")
+                    : `<p class="cw-refer__blocked">${escapeHtml(p.referBlockedText ?? "")}</p>`) +
+                `</div>` +
+                termsHTML(p) +
+                `</section>`;
+    }
+    else {
+        hero =
+            `<section class="cw-settled cw-rise">` +
+                `<span class="cw-settled__icon">${GIFT_ICON}</span>` +
+                `<div><p class="cw-settled__title">Refer a friend is paused.</p>` +
+                `<p class="cw-settled__sub">Vouchers you've already earned are still yours to spend.</p></div>` +
+                `</section>`;
+    }
+    const others = live && m.others.length
+        ? `<section class="cw-section cw-rise">` +
+            sectionHead("Your code works here too") +
+            `<div class="cw-docs" role="list">${m.others.map((o) => otherProgrammeHTML(o, m.code)).join("")}</div>` +
+            `</section>`
+        : "";
+    const vouchers = m.rewards.length || m.pending > 0
+        ? `<section class="cw-section cw-rise">` +
+            sectionHead("Your vouchers", m.rewards.length || undefined) +
+            (m.pending > 0
+                ? `<p class="cw-refer__pending" ${M}>${escapeHtml(eur(m.pending))} on its way</p>`
+                : "") +
+            (m.rewards.length
+                ? `<ul class="cw-gifts" tabindex="0" role="list" aria-label="Referral vouchers">${m.rewards.map(giftCardHTML).join("")}</ul>`
+                : "") +
+            `</section>`
+        : "";
+    const friends = m.friends.length
+        ? `<section class="cw-section cw-rise">` +
+            sectionHead("Friends", m.friends.length) +
+            `<div class="cw-docs" role="list">${m.friends.map(friendRowHTML).join("")}</div>` +
+            `<p class="cw-mnote">You'll only ever see a friend's initial.</p>` +
+            `</section>`
+        : live
+            ? `<section class="cw-section cw-rise">` +
+                sectionHead("Friends") +
+                `<p class="cw-mnote">When a friend books with your code, they'll appear here.</p>` +
+                `</section>`
+            : "";
+    return recordRoot("refer", hero + vouchers + friends + others);
 }
 //# sourceMappingURL=records.js.map

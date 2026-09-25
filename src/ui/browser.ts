@@ -423,6 +423,12 @@ export interface PortalMountOptions extends HydrateOptions {
   bookHref?: string;
   /** The brand's phone, offered in the error block. */
   contactPhone?: string;
+  /**
+   * List Refer a friend in the rail (default false). Off, the row is hidden on
+   * every page, /account/refer included, and that page still renders when
+   * visited. On, the rail's own site gating (the voucher brands) still applies.
+   */
+  referRail?: boolean;
 }
 
 /** One read's outcome. `failed` carries the status so 401 and 404 can be told apart. */
@@ -566,6 +572,44 @@ function revealCurrentTab(mount: MinimalElement): void {
   navEl.scrollLeft = Math.max(0, (navEl.scrollLeft ?? 0) + delta);
 }
 
+/** Put text on the clipboard. False when the browser has none or refuses (an http page, a denied permission). */
+function clipboardWrite(text: string): Promise<boolean> {
+  const nav = (globalThis as unknown as { navigator?: { clipboard?: { writeText?: (t: string) => Promise<void> } } })
+    .navigator;
+  const clip = nav?.clipboard;
+  if (!text || !clip || typeof clip.writeText !== "function") return Promise.resolve(false);
+  try {
+    return clip.writeText(text).then(
+      () => true,
+      () => false,
+    );
+  } catch {
+    return Promise.resolve(false);
+  }
+}
+
+type ShareData = { title?: string; text?: string; url?: string };
+
+/** The phone's share sheet. "unavailable" when there is none, so the caller can copy instead. */
+function nativeShare(data: ShareData): Promise<"shared" | "cancelled" | "unavailable"> {
+  const nav = (
+    globalThis as unknown as {
+      navigator?: { share?: (d: ShareData) => Promise<void>; canShare?: (d: ShareData) => boolean };
+    }
+  ).navigator;
+  if (!nav || typeof nav.share !== "function") return Promise.resolve("unavailable");
+  try {
+    if (typeof nav.canShare === "function" && !nav.canShare(data)) return Promise.resolve("unavailable");
+    return nav.share(data).then(
+      () => "shared" as const,
+      // Closing the sheet is the member's choice, not a failure to report.
+      (e: unknown) => ((e as { name?: string } | null)?.name === "AbortError" ? ("cancelled" as const) : ("unavailable" as const)),
+    );
+  } catch {
+    return Promise.resolve("unavailable");
+  }
+}
+
 /** Hand a file to the member: a Blob URL and a download link, clicked once. */
 function downloadFile(doc: MinimalDocument, name: string, text: string, type: string): boolean {
   const g = globalThis as unknown as {
@@ -652,7 +696,11 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
   const next = view === "home" ? "/account" : bookingId ? path : `/account/${view}`;
   const loc = (doc as unknown as { location?: { host?: string; origin?: string; search?: string } }).location;
   const siteBrand = opts.siteBrand ?? siteBrandFromHost(loc?.host ?? "");
-  const extras = { siteBrand, bookHref: opts.bookHref, contactPhone: opts.contactPhone };
+  const referRail = opts.referRail === true;
+  const extras = { siteBrand, bookHref: opts.bookHref, contactPhone: opts.contactPhone, referRail };
+  /** Every shell this mount paints knows the site, so the rail shows only this site's sections. */
+  const shellHTML = (o: Parameters<typeof portalShellHTML>[0]): string =>
+    portalShellHTML({ siteBrand, referRail, ...o });
 
   if (!readSignedInHint(doc.cookie || "")) {
     navigate(`/member?next=${encodeURIComponent(next)}`);
@@ -702,7 +750,7 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
 
   const skeleton = () => {
     paint(
-      portalShellHTML({
+      shellHTML({
         view,
         title: view === "home" ? greetingFor() : view === "booking" ? "Your booking" : titleFor(view, "Your account"),
         emailMasked: identity.emailMasked,
@@ -760,7 +808,7 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
               if (read.state === "failed" && read.status !== 404) {
                 detail = null;
                 paint(
-                  portalShellHTML({
+                  shellHTML({
                     view,
                     title: "Your booking",
                     emailMasked,
@@ -779,7 +827,7 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
                 preview: needPreview ? preview : null,
                 bookHref: opts.bookHref,
               });
-              paint(portalShellHTML({ view, title: parts.title, lede: parts.lede, body: parts.body, emailMasked, memberName }));
+              paint(shellHTML({ view, title: parts.title, lede: parts.lede, body: parts.body, emailMasked, memberName }));
             },
           );
         }
@@ -816,7 +864,7 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
           if (reads.some((r) => r.status === 401)) return signIn();
           const allFailed = reads.length > 0 && reads.every((r) => r.state === "failed");
           paint(
-            portalShellHTML({
+            shellHTML({
               view,
               title: titleFor(view, "Your account"),
               lede: allFailed ? "" : ledeFor(view),
@@ -834,7 +882,7 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
                   `<div class="cw-rise">${bodyFor(
                     view,
                     reads.map((r) => (r.state === "failed" ? null : r.body)),
-                    { memberName, contactPhone: opts.contactPhone },
+                    { memberName, contactPhone: opts.contactPhone, siteBrand, siteOrigin: loc?.origin },
                   )}</div>`,
             }),
           );
@@ -852,7 +900,7 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
         () => {
           if (view === "booking") {
             paint(
-              portalShellHTML({
+              shellHTML({
                 view,
                 title: "Your booking",
                 emailMasked: identity.emailMasked,
@@ -1225,6 +1273,40 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
       if (closestOf(t, '[data-cw-toast-action="calendar-update"]')) {
         ev.preventDefault?.();
         if (movedEntry && !downloadCalendar(doc, movedEntry)) announce(mount, GENERIC_FAILURE, "bad");
+        return;
+      }
+      // Refer a friend: Copy puts the link or code on the clipboard; Share opens
+      // the phone's share sheet, and where there is none (most desktops) copies
+      // the link instead, so the button never does nothing.
+      const copyBtn = closestOf(t, "[data-cw-refer-copy]");
+      if (copyBtn) {
+        ev.preventDefault?.();
+        const value = copyBtn.getAttribute("data-cw-refer-copy") || "";
+        const done = copyBtn.getAttribute("data-cw-refer-done") || "Copied.";
+        void clipboardWrite(value).then((ok) =>
+          announce(mount, ok ? done : `Couldn't copy it. Select it here instead: ${value}`, ok ? "ok" : "bad"),
+        );
+        return;
+      }
+      const shareBtn = closestOf(t, "[data-cw-refer-share]");
+      if (shareBtn) {
+        ev.preventDefault?.();
+        const url = shareBtn.getAttribute("data-cw-refer-url") || "";
+        const text = shareBtn.getAttribute("data-cw-refer-text") || "";
+        const title = shareBtn.getAttribute("data-cw-refer-title") || "";
+        void nativeShare(url ? { title, text, url } : { title, text }).then((outcome) => {
+          if (outcome !== "unavailable") return;
+          const fallback = url || text;
+          void clipboardWrite(fallback).then((ok) =>
+            announce(
+              mount,
+              ok
+                ? `${url ? "Link" : "Message"} copied. Paste it anywhere to share.`
+                : `Couldn't open sharing. Select it here instead: ${fallback}`,
+              ok ? "ok" : "bad",
+            ),
+          );
+        });
         return;
       }
       const btn = closestOf(t, "[data-cw-action]");

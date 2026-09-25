@@ -236,6 +236,7 @@ export function buildPortalModel(session, view, extra = {}) {
         pastState: extra.pastState ?? (pastCards.length ? "ok" : "empty"),
         wallet: extra.wallet ?? null,
         now: extra.now ?? new Date(),
+        referRail: extra.referRail === true,
     };
 }
 /* ── Navigation ────────────────────────────────────────────────────────── */
@@ -249,19 +250,36 @@ export const PORTAL_SECTIONS = [
     { id: "wallet", href: "/account/wallet", label: "Wallet", group: "Money" },
     { id: "payments", href: "/account/payments", label: "Payments", group: "Money" },
     { id: "membership", href: "/account/membership", label: "Membership", group: "Money" },
+    {
+        id: "refer",
+        href: "/account/refer",
+        label: "Refer a friend",
+        group: "Money",
+        sites: ["Carisma Aesthetics", "Carisma Hair Clinic", "Carisma Slimming", "Carisma Spa"],
+        optIn: true,
+    },
     { id: "documents", href: "/account/documents", label: "Documents", group: "You" },
     { id: "details", href: ACCOUNT_DETAILS_HREF, label: "Details", group: "You" },
 ];
-function nav(view) {
+/**
+ * The sections this site's rail shows. An opt-in section is off everywhere
+ * (its own page included) unless `referRail` is true. A section limited to
+ * some sites still shows on its own page.
+ */
+export function sectionsFor(view, siteBrand = "", referRail = false) {
+    return PORTAL_SECTIONS.filter((s) => (!s.optIn || referRail) && (!s.sites || s.id === view || s.sites.includes(siteBrand)));
+}
+function nav(view, siteBrand = "", referRail = false) {
     const current = view === "booking" ? "bookings" : view;
+    const sections = sectionsFor(current, siteBrand, referRail);
     const groups = [];
-    for (const s of PORTAL_SECTIONS)
+    for (const s of sections)
         if (!groups.includes(s.group))
             groups.push(s.group);
     return (`<nav class="cw-nav" aria-label="Account">` +
         groups
             .map((g) => `<div class="cw-nav__group"><p class="cw-label cw-nav__label" aria-hidden="true">${g}</p>` +
-            PORTAL_SECTIONS.filter((s) => s.group === g)
+            sections.filter((s) => s.group === g)
                 .map((s) => `<a class="cw-nav__link" href="${s.href}"${current === s.id ? ' aria-current="page"' : ""}>${s.label}</a>`)
                 .join("") +
             `</div>`)
@@ -293,7 +311,7 @@ export function portalShellHTML(opts) {
     const lede = opts.lede ? `<p class="cw-lede" ${M}>${opts.lede}</p>` : "";
     return (`<main class="carisma-portal" data-cw-qc="${PORTAL_QC}" data-cw-portal="${escapeHtml(opts.view)}">` +
         `<div class="cw-shell">` +
-        `<aside class="cw-rail">${member}${nav(opts.view)}<div class="cw-rail__foot">${signOutLinks()}</div></aside>` +
+        `<aside class="cw-rail">${member}${nav(opts.view, opts.siteBrand, opts.referRail === true)}<div class="cw-rail__foot">${signOutLinks()}</div></aside>` +
         `<div class="cw-main">` +
         `<header class="cw-head"><h1 class="cw-title" tabindex="-1" ${M}>${escapeHtml(opts.title)}</h1>${lede}</header>` +
         `<div class="cw-body"${opts.busy ? ' aria-busy="true"' : ""}>${opts.body}</div>` +
@@ -319,7 +337,9 @@ export function skeletonHTML(view) {
         ? "your bookings"
         : view === "details"
             ? "your details"
-            : `your ${view}`;
+            : view === "refer"
+                ? "your referrals"
+                : `your ${view}`;
     const card = (h) => `<span class="cw-skel cw-skel--card" style="height:${h}px"></span>`;
     const rows = view === "home"
         ? card(340) + `<div class="cw-list">${card(104)}${card(104)}</div>`
@@ -586,6 +606,8 @@ export function accountPortalHTML(model) {
         body,
         lede,
         memberName: model.firstName || model.name || "Your account",
+        siteBrand: model.siteBrand,
+        referRail: model.referRail,
     });
 }
 //# sourceMappingURL=portal.js.map

@@ -1,4 +1,4 @@
-import { buildWalletModel, walletHTML, buildStatementModel, statementHTML, buildDocumentsModel, documentsHTML, buildMembershipModel, membershipHTML, } from "./records.js";
+import { buildWalletModel, walletHTML, buildStatementModel, statementHTML, buildDocumentsModel, documentsHTML, buildMembershipModel, membershipHTML, buildReferModel, referHTML, } from "./records.js";
 const PROXY = "/api/auth/proxy";
 /** The proxy reads a section needs, in a fixed order `bodyFor` relies on. */
 export function requestsFor(view) {
@@ -11,6 +11,8 @@ export function requestsFor(view) {
             return [`${PROXY}/client/account/documents`];
         case "membership":
             return [`${PROXY}/client/membership`];
+        case "refer":
+            return [`${PROXY}/client/referrals/me`];
         case "bookings":
             return [
                 `${PROXY}/client/booking/appointments?filter=upcoming&limit=50`,
@@ -48,6 +50,8 @@ export function subjectFor(view) {
             return "documents";
         case "membership":
             return "membership";
+        case "refer":
+            return "referrals";
         default:
             return "details";
     }
@@ -86,6 +90,8 @@ export function titleFor(view, greeting) {
             return "Your membership";
         case "details":
             return "Your details";
+        case "refer":
+            return "Refer a friend";
         default:
             return greeting;
     }
@@ -99,19 +105,22 @@ export function titleFor(view, greeting) {
  * their credit.
  *
  * `ctx` is optional page context (the member's first name for the membership
- * card, the brand phone for "speak to the team"). Without it every view still
- * renders; those two touches simply do not appear.
+ * card, the brand phone for "speak to the team", the site's brand for the
+ * wallet's "Available to spend"). Without it every view still renders; those
+ * touches simply do not appear, and the wallet counts every gift card.
  */
 export function bodyFor(view, answers, ctx = {}) {
     switch (view) {
         case "wallet":
-            return walletHTML(buildWalletModel({ giftCards: answers[0], packages: answers[1], credit: answers[2] }));
+            return walletHTML(buildWalletModel({ giftCards: answers[0], packages: answers[1], credit: answers[2] }), ctx);
         case "payments":
             return statementHTML(buildStatementModel(answers[0]));
         case "documents":
             return documentsHTML(buildDocumentsModel(answers[0]));
         case "membership":
             return membershipHTML(buildMembershipModel(answers[0]), ctx);
+        case "refer":
+            return referHTML(buildReferModel(answers[0], ctx));
         default:
             return "";
     }

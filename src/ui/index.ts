@@ -41,10 +41,11 @@ export {
   bookingDetailHref,
   PORTAL_QC,
   PORTAL_SECTIONS,
+  sectionsFor,
 } from "./portal.js";
 export type { PortalModel, PortalView } from "./portal.js";
 
-export { requestsFor, titleFor, ledeFor, bodyFor, bookingIdFromPath } from "./portalData.js";
+export { requestsFor, subjectFor, titleFor, ledeFor, bodyFor, bookingIdFromPath } from "./portalData.js";
 
 export {
   buildBookingDetailModel,
@@ -106,10 +107,15 @@ export {
   buildMembershipModel,
   membershipHTML,
   walletTotal,
+  walletElsewhere,
   walletSources,
   documentTitle,
   monthOf,
   MEMBER_RECORDS_QC,
+  buildReferModel,
+  referHTML,
+  referShareText,
+  referFamily,
 } from "./records.js";
 export type {
   WalletModel,
@@ -120,6 +126,10 @@ export type {
   PackageView,
   StatementLineView,
   RecordsContext,
+  ReferModel,
+  ReferProgrammeView,
+  ReferFriendView,
+  ReferFriendStatus,
 } from "./records.js";
 
 export { eur, longDate, timeOfDay, shortWhen, plainDate, whenRange, untilPhrase } from "./money.js";
