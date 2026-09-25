@@ -76,6 +76,82 @@ export const payBalanceCall = (id: string, returnOrigin?: string | null): ProxyC
   body: returnOrigin ? { returnOrigin } : {},
 });
 
+/**
+ * Pay what is still owed on a package. The server mints the amount from the
+ * package itself; the body names only where Stripe should send the member back
+ * (checked against the server's registered-origin map, like `payBalanceCall`).
+ */
+export const packagePayCall = (id: string, origin?: string | null): ProxyCall => ({
+  path: `${PROXY}/client/packages/${encodeURIComponent(id)}/pay-balance`,
+  method: "POST",
+  body: origin ? { origin } : {},
+});
+
+/** The return page's settle-now read of the package Checkout Stripe sent the member back from. */
+export const packagePayConfirmCall = (id: string, sessionId: string): ProxyCall => ({
+  path: `${PROXY}/client/packages/${encodeURIComponent(id)}/pay-balance/confirm`,
+  method: "POST",
+  body: { sessionId },
+});
+
+/**
+ * `?paid=package&pkg=<id>&session_id=cs_…` → what to confirm, or null. Both
+ * are shape-checked: they came in on a URL anyone can type.
+ */
+export function packageReturnFrom(search: string): { packageId: string; sessionId: string } | null {
+  let q: URLSearchParams;
+  try {
+    q = new URLSearchParams(search || "");
+  } catch {
+    return null;
+  }
+  if (q.get("paid") !== "package") return null;
+  const packageId = q.get("pkg") || "";
+  const sessionId = q.get("session_id") || "";
+  if (!/^[0-9a-fA-F-]{36}$/.test(packageId) || !/^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) return null;
+  return { packageId, sessionId };
+}
+
+/**
+ * Book one session against a package the member owns.
+ *
+ * `paymentType: "PACKAGE"` + `clientPackageId`: the server turns the line into
+ * a reservation on the package and takes no card. It refuses (409) a session
+ * that is not paid for yet, a time someone else just took, or a treatment the
+ * package does not cover — the member is never charged here.
+ */
+export const packageBookCall = (opts: {
+  brandId: string;
+  clientPackageId: string;
+  serviceId: string;
+  serviceOptionId: string | null;
+  brandLocationId: string;
+  startTime: string;
+  origin?: string | null;
+}): ProxyCall => ({
+  path: `${PROXY}/client/booking/checkout`,
+  method: "POST",
+  body: {
+    brandId: opts.brandId,
+    paymentType: "PACKAGE",
+    clientPackageId: opts.clientPackageId,
+    participants: [
+      {
+        isPrimary: true,
+        services: [
+          {
+            serviceId: opts.serviceId,
+            ...(opts.serviceOptionId ? { serviceOptionId: opts.serviceOptionId } : {}),
+            brandLocationId: opts.brandLocationId,
+            startTime: opts.startTime,
+          },
+        ],
+      },
+    ],
+    ...(opts.origin ? { origin: opts.origin } : {}),
+  },
+});
+
 export const slotsCall = (opts: {
   brandLocationId: string;
   date: string;
@@ -295,4 +371,66 @@ export function readWalletAvailability(body: unknown): { apple: boolean; google:
     "data" in envelope && envelope.data !== null && typeof envelope.data === "object" ? envelope.data : envelope
   ) as Record<string, unknown>;
   return { apple: inner?.apple === true, google: inner?.google === true };
+}
+
+/* ── Package: pay now / book now ───────────────────────────────────────── */
+
+/** The Stripe Checkout URL out of a pay-balance answer, or "" (https only). */
+export function readCheckoutUrl(body: unknown): string {
+  const data = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  const inner = (data.data && typeof data.data === "object" ? data.data : data) as Record<string, unknown>;
+  const url = typeof inner.checkoutUrl === "string" ? inner.checkoutUrl : "";
+  return /^https:\/\//.test(url) ? url : "";
+}
+
+/**
+ * The appointment a package booking made, from the checkout answer. The
+ * member checkout has answered in more than one shape over time, so every one
+ * it has used is read; "" when none carries an id (the booking still stands —
+ * the page re-reads and the bookings list shows it).
+ */
+export function readBookedAppointmentId(body: unknown): string {
+  const data = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  const inner = (data.data && typeof data.data === "object" ? data.data : data) as Record<string, unknown>;
+  const direct = inner.appointmentId ?? (inner.appointment as Record<string, unknown> | undefined)?.id;
+  if (typeof direct === "string" && direct) return direct;
+  const list = Array.isArray(inner.appointments)
+    ? inner.appointments
+    : Array.isArray(inner.appointmentIds)
+      ? inner.appointmentIds
+      : [];
+  const first = list[0];
+  if (typeof first === "string") return first;
+  if (first && typeof first === "object" && typeof (first as Record<string, unknown>).id === "string") {
+    return (first as Record<string, unknown>).id as string;
+  }
+  return "";
+}
+
+/** The error code on a refusal ("PACKAGE_SESSION_LOCKED"), or "". */
+export function errorCodeOf(body: unknown): string {
+  const envelope = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const code = envelope.code ?? (envelope.error as Record<string, unknown> | undefined)?.code;
+  return typeof code === "string" ? code : "";
+}
+
+/** What to say when a package booking is refused. */
+export function packageBookFailureMessage(body: unknown, status: number, fallback: string): string {
+  const code = errorCodeOf(body);
+  if (code === "PACKAGE_SESSION_LOCKED") return "Your next session unlocks once it's paid. Pay now, then book.";
+  if (code === "PACKAGE_EXHAUSTED" || code === "PACKAGE_NO_SESSIONS") return "There are no sessions left on this package.";
+  if (code === "PACKAGE_EXPIRED" || code === "PACKAGE_NOT_ACTIVE") return "This package can't be used any more. Please call us.";
+  return messageFromError(body, status, fallback);
+}
+
+/**
+ * A 409 that is about the TIME (someone took it), not about the package or the
+ * member. Only a refusal that names no code, or a slot/availability code, reads
+ * as "someone just took it"; anything else (the member's own overlapping
+ * booking, a package refusal) is said in the server's own words.
+ */
+export function isTakenTimeRefusal(body: unknown, status: number): boolean {
+  if (status !== 409) return false;
+  const code = errorCodeOf(body);
+  return !code || /SLOT|TAKEN|UNAVAILABLE|NOT_AVAILABLE|STAFF_BUSY|NO_STAFF/.test(code);
 }

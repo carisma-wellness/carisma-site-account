@@ -157,6 +157,11 @@ export const PORTAL_RECORDS_CSS = `
 .carisma-portal .cw-pack__meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; line-height: 20px; color: var(--cw-account-muted); }
 .carisma-portal .cw-pack__count { color: var(--cw-account-ink); font-weight: 500; }
 .carisma-portal .cw-pack__due { font-size: 14px; line-height: 20px; font-weight: 500; color: var(--cw-account-warn-text); }
+.carisma-portal .cw-pack__hint { font-size: 14px; line-height: 20px; color: var(--cw-account-muted); }
+.carisma-portal .cw-pack__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.carisma-portal .cw-pack__actions:empty { display: none; }
+.carisma-portal .cw-pack__actions .cw-btn { flex: 0 1 auto; }
+.carisma-portal .cw-pack-venues { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
 
 /* ── Payments: owed / settled ────────────────────────────────────────── */
 .carisma-portal :is(.cw-owed, .cw-settled) {
@@ -489,6 +494,7 @@ export const PORTAL_RECORDS_CSS = `
   .carisma-portal .cw-balance__value { font-size: 36px; }
   .carisma-portal .cw-gift { flex-basis: 272px; width: 272px; }
   .carisma-portal .cw-pack { padding: 18px 16px; }
+  .carisma-portal .cw-pack__actions .cw-btn { flex: 1 1 140px; }
   .carisma-portal :is(.cw-owed, .cw-settled) { grid-template-columns: 40px minmax(0, 1fr); gap: 16px; padding: 20px; }
   .carisma-portal :is(.cw-owed__icon, .cw-settled__icon) { width: 40px; height: 40px; }
   .carisma-portal .cw-owed__value { font-size: 26px; }

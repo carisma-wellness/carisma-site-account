@@ -229,8 +229,13 @@ export const PORTAL_BOOKING_CSS = `
 /* A fixed height on a desk: choosing a time reveals the review bar INSIDE
    the sheet instead of growing it — a centred dialog that grows jumps up. */
 @media (min-width: 600px) {
-  .carisma-portal .cw-dialog--reschedule { height: min(680px, calc(100vh - 48px)); }
+  .carisma-portal :is(.cw-dialog--reschedule, .cw-dialog--package-book) { height: min(680px, calc(100vh - 48px)); }
 }
+/* Rows are their content's height. The body scrolls; without this a row that
+   is itself a scroller (the day strip: overflow-x) has a min-height of 0 and
+   the grid squeezes it — and the rows after it — once the sheet is taller
+   than the screen, which a package's treatment + venue choices make it. */
+.carisma-portal :is(.cw-dialog--reschedule, .cw-dialog--package-book) .cw-dialog__body { grid-auto-rows: max-content; }
 .carisma-portal .cw-dialog__grab { display: none; }
 .carisma-portal .cw-dialog__head { display: flex; align-items: flex-start; gap: 12px; padding: 24px 24px 18px; }
 .carisma-portal .cw-dialog__heading { display: grid; gap: 6px; flex: 1 1 auto; min-width: 0; }

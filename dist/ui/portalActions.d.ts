@@ -39,6 +39,39 @@ export declare const rescheduleCall: (id: string, startTimeIso: string) => Proxy
  * is not registered simply lands on the old default.
  */
 export declare const payBalanceCall: (id: string, returnOrigin?: string | null) => ProxyCall;
+/**
+ * Pay what is still owed on a package. The server mints the amount from the
+ * package itself; the body names only where Stripe should send the member back
+ * (checked against the server's registered-origin map, like `payBalanceCall`).
+ */
+export declare const packagePayCall: (id: string, origin?: string | null) => ProxyCall;
+/** The return page's settle-now read of the package Checkout Stripe sent the member back from. */
+export declare const packagePayConfirmCall: (id: string, sessionId: string) => ProxyCall;
+/**
+ * `?paid=package&pkg=<id>&session_id=cs_…` → what to confirm, or null. Both
+ * are shape-checked: they came in on a URL anyone can type.
+ */
+export declare function packageReturnFrom(search: string): {
+    packageId: string;
+    sessionId: string;
+} | null;
+/**
+ * Book one session against a package the member owns.
+ *
+ * `paymentType: "PACKAGE"` + `clientPackageId`: the server turns the line into
+ * a reservation on the package and takes no card. It refuses (409) a session
+ * that is not paid for yet, a time someone else just took, or a treatment the
+ * package does not cover — the member is never charged here.
+ */
+export declare const packageBookCall: (opts: {
+    brandId: string;
+    clientPackageId: string;
+    serviceId: string;
+    serviceOptionId: string | null;
+    brandLocationId: string;
+    startTime: string;
+    origin?: string | null;
+}) => ProxyCall;
 export declare const slotsCall: (opts: {
     brandLocationId: string;
     date: string;
@@ -117,4 +150,24 @@ export declare function readWalletAvailability(body: unknown): {
     apple: boolean;
     google: boolean;
 };
+/** The Stripe Checkout URL out of a pay-balance answer, or "" (https only). */
+export declare function readCheckoutUrl(body: unknown): string;
+/**
+ * The appointment a package booking made, from the checkout answer. The
+ * member checkout has answered in more than one shape over time, so every one
+ * it has used is read; "" when none carries an id (the booking still stands —
+ * the page re-reads and the bookings list shows it).
+ */
+export declare function readBookedAppointmentId(body: unknown): string;
+/** The error code on a refusal ("PACKAGE_SESSION_LOCKED"), or "". */
+export declare function errorCodeOf(body: unknown): string;
+/** What to say when a package booking is refused. */
+export declare function packageBookFailureMessage(body: unknown, status: number, fallback: string): string;
+/**
+ * A 409 that is about the TIME (someone took it), not about the package or the
+ * member. Only a refusal that names no code, or a slot/availability code, reads
+ * as "someone just took it"; anything else (the member's own overlapping
+ * booking, a package refusal) is said in the server's own words.
+ */
+export declare function isTakenTimeRefusal(body: unknown, status: number): boolean;
 //# sourceMappingURL=portalActions.d.ts.map

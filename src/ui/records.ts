@@ -189,12 +189,93 @@ export interface GiftCardView {
   referralReward: boolean;
 }
 
-export interface PackageView {
+export interface PackageVenueView {
+  brandLocationId: string;
   name: string;
+  /**
+   * Which of the package's treatments this venue sells. Empty from a server
+   * that did not say — read as "every treatment", and the slots read answers
+   * "not offered here" if that is wrong.
+   */
+  serviceIds: string[];
+}
+
+/** The venues that sell this treatment (all of them when the server named no services). */
+export function venuesFor(p: PackageView, serviceId: string): PackageVenueView[] {
+  return p.venues.filter((v) => v.serviceIds.length === 0 || v.serviceIds.includes(serviceId));
+}
+
+/** The treatments that still have sessions AND a venue that sells them. */
+export function bookableTreatments(p: PackageView): PackageTreatmentView[] {
+  return p.treatments.filter((t) => t.remaining > 0 && venuesFor(p, t.serviceId).length > 0);
+}
+
+/** One treatment a package can be booked for. */
+export interface PackageTreatmentView {
+  serviceId: string;
+  serviceOptionId: string | null;
+  name: string;
+  /** Sessions of THIS treatment still on the package. */
+  remaining: number;
+}
+
+export interface PackageView {
+  /** The ClientPackage id. "" from a server that sends none — then no buttons. */
+  id: string;
+  name: string;
+  /** ACTIVE / EXPIRED / CANCELLED / … — "" when the server sent none (treated as active). */
+  status: string;
   sessionsLeft: number | null;
   sessionsTotal: number | null;
   expiresAt: string | null;
   amountDue: number;
+  /**
+   * Sessions the member may book right now (`availableSessions`). A package
+   * sold per session unlocks a session as it is paid for, so this can be 0
+   * while sessions are left. null from a server that does not send it.
+   */
+  bookableNow: number | null;
+  /** The plan's brand, for the member checkout. "" when not sent. */
+  brandId: string;
+  /** Where the package can be used. Empty from an older server. */
+  venues: PackageVenueView[];
+  /** What the package can be booked for, with sessions still on it. */
+  treatments: PackageTreatmentView[];
+  /**
+   * The server can take this balance online: it sent the wallet's `venues`
+   * field (only a server with the pay-balance door does) AND the package is
+   * sold per session (`sessionUnitPrice` set) — a package sold whole settles
+   * at the desk. Without this an older API would show a Pay now that 404s.
+   */
+  payOnline: boolean;
+}
+
+/**
+ * What a package card offers.
+ *
+ * The rule the desk asked for (2026-09-25): a package with money still owed
+ * offers Pay now AND Book now; a package paid in full offers Book now only.
+ * Both are withheld from a package that is not live (expired, cancelled, used
+ * up), and Book now is withheld when the server has not told us enough to
+ * book it without charging again (no brand, no venue, no treatment) — the
+ * site's ordinary booking pop-up is NOT a fallback, because it would take the
+ * member's card for a session they have already bought.
+ */
+export interface PackageActions {
+  pay: boolean;
+  book: boolean;
+  /** Sessions are left but none is unlocked until the next one is paid. */
+  lockedUntilPaid: boolean;
+}
+
+export function packageActions(p: PackageView): PackageActions {
+  const live = !p.status || p.status.toUpperCase() === "ACTIVE";
+  const left = p.sessionsLeft === null ? p.treatments.some((t) => t.remaining > 0) : p.sessionsLeft > 0;
+  const pay = live && Boolean(p.id) && p.amountDue > 0 && p.payOnline;
+  const canBookData = Boolean(p.id && p.brandId) && bookableTreatments(p).length > 0;
+  const lockedUntilPaid = live && left && p.bookableNow === 0 && p.amountDue > 0;
+  const book = live && left && canBookData && !lockedUntilPaid && p.bookableNow !== 0;
+  return { pay, book, lockedUntilPaid };
 }
 
 export interface WalletModel {
@@ -224,14 +305,53 @@ export function buildWalletModel(input: {
   });
 
   const packages: PackageView[] = rows(input.packages).map((p) => {
-    const left = firstOf(p, ["sessionsRemaining", "remainingSessions", "sessionsLeft"]);
-    const total = firstOf(p, ["sessionsTotal", "totalSessions", "sessions"]);
+    // GET /client/packages sends the counts per ITEM (`items[].remaining /
+    // total`), not as top-level fields; older shapes sent them flat. Reading
+    // only the flat names left every live package without its meter.
+    const items = Array.isArray(p.items)
+      ? (p.items as unknown[]).filter((i): i is Record<string, unknown> => Boolean(i) && typeof i === "object")
+      : [];
+    const flatLeft = firstOf(p, ["sessionsRemaining", "remainingSessions", "sessionsLeft"]);
+    const flatTotal = firstOf(p, ["sessionsTotal", "totalSessions", "sessions"]);
+    const itemLeft = items.length ? items.reduce((sum, i) => sum + Math.max(0, num(i.remaining)), 0) : null;
+    const itemTotal = items.length ? items.reduce((sum, i) => sum + Math.max(0, num(i.total)), 0) : null;
+    const available = firstOf(p, ["availableSessions"]);
+    const venues: PackageVenueView[] = (Array.isArray(p.venues) ? (p.venues as unknown[]) : [])
+      .filter((v): v is Record<string, unknown> => Boolean(v) && typeof v === "object")
+      .map((v) => ({
+        brandLocationId: str(v.brandLocationId),
+        name: str(v.name),
+        serviceIds: Array.isArray(v.serviceIds) ? (v.serviceIds as unknown[]).map(str).filter(Boolean) : [],
+      }))
+      .filter((v) => /^[0-9a-f-]{36}$/i.test(v.brandLocationId));
+    // One entry per treatment (+ option): two items for the same service are
+    // one choice with their sessions added, never two identical chips.
+    const treatments: PackageTreatmentView[] = [];
+    for (const i of items) {
+      const t = {
+        serviceId: str(i.serviceId),
+        serviceOptionId: str(i.serviceOptionId) || null,
+        name: str(i.serviceName),
+        remaining: Math.max(0, num(i.remaining)),
+      };
+      if (!/^[0-9a-f-]{36}$/i.test(t.serviceId)) continue;
+      const same = treatments.find((x) => x.serviceId === t.serviceId && x.serviceOptionId === t.serviceOptionId);
+      if (same) same.remaining += t.remaining;
+      else treatments.push(t);
+    }
     return {
+      id: str(p.id),
       name: str(firstOf(p, ["planNameSnapshot", "name", "planName"])) || "Package",
-      sessionsLeft: left === undefined ? null : num(left),
-      sessionsTotal: total === undefined ? null : num(total),
+      status: str(p.status),
+      sessionsLeft: flatLeft !== undefined ? num(flatLeft) : itemLeft,
+      sessionsTotal: flatTotal !== undefined ? num(flatTotal) : itemTotal,
       expiresAt: str(firstOf(p, ["expiresAt", "expiryDate", "validUntil"])) || null,
       amountDue: num(firstOf(p, ["amountDue", "balanceDue"])),
+      bookableNow: available === undefined ? null : num(available),
+      brandId: str(p.brandId),
+      venues,
+      treatments,
+      payOnline: Array.isArray(p.venues) && p.sessionUnitPrice !== null && p.sessionUnitPrice !== undefined,
     };
   });
 
@@ -345,6 +465,30 @@ function meterHTML(left: number, total: number): string {
   );
 }
 
+/**
+ * Pay now / Book now. The buttons carry only the package id; browser.ts reads
+ * everything else from the model it painted, so nothing a member could edit in
+ * the page decides what is charged or booked.
+ */
+function packageActionsHTML(p: PackageView): string {
+  const a = packageActions(p);
+  if (!a.pay && !a.book && !a.lockedUntilPaid) return "";
+  const id = escapeHtml(p.id);
+  const name = escapeHtml(p.name);
+  const pay = a.pay
+    ? `<button type="button" class="cw-btn ${a.book ? "cw-btn--secondary" : "cw-btn--primary"} cw-btn--sm" ` +
+      `data-cw-action="package-pay" data-cw-package="${id}" aria-label="Pay ${escapeHtml(eur(p.amountDue))} for ${name}">Pay now</button>`
+    : "";
+  const book = a.book
+    ? `<button type="button" class="cw-btn cw-btn--primary cw-btn--sm" ` +
+      `data-cw-action="package-book" data-cw-package="${id}" aria-label="Book a session of ${name}">Book now</button>`
+    : "";
+  const hint = a.lockedUntilPaid
+    ? `<p class="cw-pack__hint">Your next session unlocks once it's paid.</p>`
+    : "";
+  return hint + `<div class="cw-pack__actions">${book}${pay}</div>`;
+}
+
 function packageHTML(p: PackageView): string {
   const known = p.sessionsLeft !== null && p.sessionsTotal !== null && p.sessionsTotal > 0;
   const count = known
@@ -364,6 +508,7 @@ function packageHTML(p: PackageView): string {
     (p.expiresAt ? `<span>Valid until ${escapeHtml(plainDate(p.expiresAt))}</span>` : "") +
     `</div>` +
     (p.amountDue > 0 ? `<p class="cw-pack__due">${escapeHtml(eur(p.amountDue))} still to pay</p>` : "") +
+    packageActionsHTML(p) +
     `</li>`
   );
 }
