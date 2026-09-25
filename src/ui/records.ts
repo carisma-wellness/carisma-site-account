@@ -241,6 +241,13 @@ export interface PackageView {
   venues: PackageVenueView[];
   /** What the package can be booked for, with sessions still on it. */
   treatments: PackageTreatmentView[];
+  /**
+   * The server can take this balance online: it sent the wallet's `venues`
+   * field (only a server with the pay-balance door does) AND the package is
+   * sold per session (`sessionUnitPrice` set) — a package sold whole settles
+   * at the desk. Without this an older API would show a Pay now that 404s.
+   */
+  payOnline: boolean;
 }
 
 /**
@@ -264,7 +271,7 @@ export interface PackageActions {
 export function packageActions(p: PackageView): PackageActions {
   const live = !p.status || p.status.toUpperCase() === "ACTIVE";
   const left = p.sessionsLeft === null ? p.treatments.some((t) => t.remaining > 0) : p.sessionsLeft > 0;
-  const pay = live && Boolean(p.id) && p.amountDue > 0;
+  const pay = live && Boolean(p.id) && p.amountDue > 0 && p.payOnline;
   const canBookData = Boolean(p.id && p.brandId) && bookableTreatments(p).length > 0;
   const lockedUntilPaid = live && left && p.bookableNow === 0 && p.amountDue > 0;
   const book = live && left && canBookData && !lockedUntilPaid && p.bookableNow !== 0;
@@ -317,14 +324,21 @@ export function buildWalletModel(input: {
         serviceIds: Array.isArray(v.serviceIds) ? (v.serviceIds as unknown[]).map(str).filter(Boolean) : [],
       }))
       .filter((v) => /^[0-9a-f-]{36}$/i.test(v.brandLocationId));
-    const treatments: PackageTreatmentView[] = items
-      .map((i) => ({
+    // One entry per treatment (+ option): two items for the same service are
+    // one choice with their sessions added, never two identical chips.
+    const treatments: PackageTreatmentView[] = [];
+    for (const i of items) {
+      const t = {
         serviceId: str(i.serviceId),
         serviceOptionId: str(i.serviceOptionId) || null,
         name: str(i.serviceName),
         remaining: Math.max(0, num(i.remaining)),
-      }))
-      .filter((t) => /^[0-9a-f-]{36}$/i.test(t.serviceId));
+      };
+      if (!/^[0-9a-f-]{36}$/i.test(t.serviceId)) continue;
+      const same = treatments.find((x) => x.serviceId === t.serviceId && x.serviceOptionId === t.serviceOptionId);
+      if (same) same.remaining += t.remaining;
+      else treatments.push(t);
+    }
     return {
       id: str(p.id),
       name: str(firstOf(p, ["planNameSnapshot", "name", "planName"])) || "Package",
@@ -337,6 +351,7 @@ export function buildWalletModel(input: {
       brandId: str(p.brandId),
       venues,
       treatments,
+      payOnline: Array.isArray(p.venues) && p.sessionUnitPrice !== null && p.sessionUnitPrice !== undefined,
     };
   });
 

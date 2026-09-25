@@ -41,6 +41,7 @@ function wire(over = {}) {
     amountPaid: 150.76,
     amountDue: 449.24,
     availableSessions: 3,
+    sessionUnitPrice: 49.92,
     brandId: BRAND,
     venues: [{ brandLocationId: VENUE, name: "Carisma Slimming" }],
     items: [{ serviceName: "Lipocavitation", remaining: 12, total: 12, serviceId: SVC, serviceOptionId: null }],
@@ -148,6 +149,9 @@ test("checkout URL: https only; appointment id read from every shape the checkou
 test("refusals: a locked session says pay first; a taken time is told apart from a package refusal", () => {
   assert.match(packageBookFailureMessage({ code: "PACKAGE_SESSION_LOCKED" }, 409, "x"), /unlocks once it's paid/);
   assert.equal(isTakenTimeRefusal({ code: "SLOT_TAKEN" }, 409), true);
+  assert.equal(isTakenTimeRefusal({ message: "x" }, 409), true);
+  // The member's own overlapping booking is said in the server's words, not "someone took it".
+  assert.equal(isTakenTimeRefusal({ code: "CLIENT_OVERLAP" }, 409), false);
   assert.equal(isTakenTimeRefusal({ code: "PACKAGE_SESSION_LOCKED" }, 409), false);
   assert.equal(isTakenTimeRefusal({}, 400), false);
 });
@@ -209,4 +213,22 @@ test("the return from Stripe is confirmed only for a well-formed package + sessi
   assert.deepEqual(c.body, { sessionId: "cs_live_a1B2" });
   assert.equal(isAllowed("POST", `/client/packages/${ID}/pay-balance/confirm`), true);
   assert.equal(isAllowed("GET", `/client/packages/${ID}/pay-balance/confirm`), false);
+});
+
+test("NEGATIVE: Pay now needs the NEW server (it sends venues) and a per-session package", () => {
+  // An older production API: no venues field → a Pay now there would 404.
+  assert.doesNotMatch(html({ venues: undefined }), /package-pay/);
+  // A package sold whole settles at the desk.
+  assert.doesNotMatch(html({ sessionUnitPrice: null }), /package-pay/);
+  // Both present → Pay now.
+  assert.match(html({ venues: [] }), /package-pay/);
+});
+
+test("two items for the same treatment are one chip with their sessions added", () => {
+  const p = card({ items: [
+    { serviceName: "Lipocavitation", remaining: 2, total: 6, serviceId: SVC },
+    { serviceName: "Lipocavitation", remaining: 3, total: 6, serviceId: SVC },
+  ] });
+  assert.equal(p.treatments.length, 1);
+  assert.equal(p.treatments[0].remaining, 5);
 });

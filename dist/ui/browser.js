@@ -501,6 +501,8 @@ export function mountAccountPortal(doc, opts = {}) {
     const view = bookingId ? "booking" : opts.view || "home";
     const next = view === "home" ? "/account" : bookingId ? path : `/account/${view}`;
     const loc = doc.location;
+    /** The query as the member arrived — read once, before a return from Stripe is tidied off the URL. */
+    const initialSearch = loc?.search ?? "";
     const siteBrand = opts.siteBrand ?? siteBrandFromHost(loc?.host ?? "");
     const referRail = opts.referRail === true;
     const extras = { siteBrand, bookHref: opts.bookHref, contactPhone: opts.contactPhone, referRail };
@@ -564,7 +566,7 @@ export function mountAccountPortal(doc, opts = {}) {
         if (noteShown)
             return;
         noteShown = true;
-        const note = paymentReturnNote(loc?.search ?? "");
+        const note = paymentReturnNote(initialSearch);
         if (note)
             announce(mount, note.text, note.tone);
     };
@@ -1456,8 +1458,19 @@ export function mountAccountPortal(doc, opts = {}) {
     // Back from a package Checkout: record it now (the webhook may be seconds
     // behind), then paint — so the card already reads what was paid. A failed
     // confirm changes nothing: the webhook still settles it.
-    const packageReturn = view === "wallet" ? packageReturnFrom(loc?.search ?? "") : null;
+    const packageReturn = view === "wallet" ? packageReturnFrom(initialSearch) : null;
     if (packageReturn) {
+        // Once. A reload or Back must not re-post the confirm (a Stripe read each
+        // time) or re-announce the payment: the query is replaced by `?paid=package`
+        // alone, which still says "Payment received" on this first paint only.
+        try {
+            const h = doc
+                .defaultView?.history;
+            h?.replaceState?.(null, "", "/account/wallet");
+        }
+        catch {
+            /* no history API: harmless, the confirm is idempotent */
+        }
         void postJson(fetchImpl, packagePayConfirmCall(packageReturn.packageId, packageReturn.sessionId)).then(() => load(), () => load());
     }
     else

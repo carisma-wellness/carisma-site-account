@@ -104,7 +104,7 @@ export const GIFT_CARDS = [
 export const PACKAGES = [
   {
     id: "4b8c2a1e-1111-4222-8333-444455556666", planName: "12 Lipocavitation", status: "ACTIVE",
-    amountPaid: 150.76, amountDue: 449.24, availableSessions: 3, expiresAt: at(24 * 180),
+    amountPaid: 150.76, amountDue: 449.24, availableSessions: 3, sessionUnitPrice: 49.92, expiresAt: at(24 * 180),
     brandId: "9f0e1d2c-aaaa-4bbb-8ccc-ddddeeeeffff",
     venues: [{ brandLocationId: "0f1e2d3c-4b5a-4968-8776-655443322110", name: "Carisma Slimming St Julian's", serviceIds: ["1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"] }],
     items: [{ serviceName: "Lipocavitation", remaining: 12, total: 12, serviceId: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", serviceOptionId: null }],

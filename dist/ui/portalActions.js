@@ -328,8 +328,16 @@ export function packageBookFailureMessage(body, status, fallback) {
         return "This package can't be used any more. Please call us.";
     return messageFromError(body, status, fallback);
 }
-/** A 409 that is about the TIME (someone took it), not about the package. */
+/**
+ * A 409 that is about the TIME (someone took it), not about the package or the
+ * member. Only a refusal that names no code, or a slot/availability code, reads
+ * as "someone just took it"; anything else (the member's own overlapping
+ * booking, a package refusal) is said in the server's own words.
+ */
 export function isTakenTimeRefusal(body, status) {
-    return status === 409 && !/^PACKAGE_/.test(errorCodeOf(body));
+    if (status !== 409)
+        return false;
+    const code = errorCodeOf(body);
+    return !code || /SLOT|TAKEN|UNAVAILABLE|NOT_AVAILABLE|STAFF_BUSY|NO_STAFF/.test(code);
 }
 //# sourceMappingURL=portalActions.js.map

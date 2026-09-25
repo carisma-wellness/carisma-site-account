@@ -81,6 +81,13 @@ export interface PackageView {
     venues: PackageVenueView[];
     /** What the package can be booked for, with sessions still on it. */
     treatments: PackageTreatmentView[];
+    /**
+     * The server can take this balance online: it sent the wallet's `venues`
+     * field (only a server with the pay-balance door does) AND the package is
+     * sold per session (`sessionUnitPrice` set) — a package sold whole settles
+     * at the desk. Without this an older API would show a Pay now that 404s.
+     */
+    payOnline: boolean;
 }
 /**
  * What a package card offers.

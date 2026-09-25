@@ -163,6 +163,11 @@ export declare function readBookedAppointmentId(body: unknown): string;
 export declare function errorCodeOf(body: unknown): string;
 /** What to say when a package booking is refused. */
 export declare function packageBookFailureMessage(body: unknown, status: number, fallback: string): string;
-/** A 409 that is about the TIME (someone took it), not about the package. */
+/**
+ * A 409 that is about the TIME (someone took it), not about the package or the
+ * member. Only a refusal that names no code, or a slot/availability code, reads
+ * as "someone just took it"; anything else (the member's own overlapping
+ * booking, a package refusal) is said in the server's own words.
+ */
 export declare function isTakenTimeRefusal(body: unknown, status: number): boolean;
 //# sourceMappingURL=portalActions.d.ts.map
