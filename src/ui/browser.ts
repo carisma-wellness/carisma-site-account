@@ -27,7 +27,7 @@ import {
   type PortalView,
 } from "./portal.js";
 import { bodyFor, bookingIdFromPath, ledeFor, requestsFor, subjectFor, titleFor } from "./portalData.js";
-import { buildWalletModel } from "./records.js";
+import { buildWalletModel, packageActions, type PackageView } from "./records.js";
 import { unwrapEnvelope } from "./appointments.js";
 import { escapeHtml } from "./html.js";
 import { ACCOUNT_BOOKINGS_HREF } from "./panel.js";
@@ -50,6 +50,12 @@ import {
   messageFromError,
   needsPreview,
   payBalanceCall,
+  isTakenTimeRefusal,
+  packageBookCall,
+  packageBookFailureMessage,
+  packagePayCall,
+  readBookedAppointmentId,
+  readCheckoutUrl,
   readCancellationPreview,
   readWalletAvailability,
   rescheduleCall,
@@ -69,6 +75,9 @@ import {
   dayChipsHTML,
   dialogFrameHTML,
   instantWords,
+  packageBookBarHTML,
+  packageBookDialogHTML,
+  type PackageBookContext,
   rescheduleDialogHTML,
   rescheduleTimesHTML,
   reviewBarHTML,
@@ -733,6 +742,8 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
 
   /** Cards on screen, so a toast can name the day without another read. */
   let onScreen: ApptCard[] = [];
+  /** Packages on the wallet page, so Pay / Book read the model, never the DOM. */
+  let packagesOnScreen: PackageView[] = [];
   /** The booking on screen (booking view), so dialogs never re-read it. */
   let detail: BookingDetailModel | null = null;
   /** The last reschedule, for "Update your calendar". */
@@ -862,6 +873,12 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
         const urls = requestsFor(view);
         return Promise.all(urls.map(readT)).then((reads) => {
           if (reads.some((r) => r.status === 401)) return signIn();
+          if (view === "wallet") {
+            // requestsFor("wallet") is [gift cards, packages, credit].
+            const packs = reads[1];
+            packagesOnScreen =
+              packs && packs.state !== "failed" ? buildWalletModel({ packages: packs.body }).packages : [];
+          }
           const allFailed = reads.length > 0 && reads.every((r) => r.state === "failed");
           paint(
             shellHTML({
@@ -1190,6 +1207,245 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
     });
   };
 
+  /**
+   * Book one session of a package: treatment (when it covers more than one),
+   * venue (when it can be used at more than one), day, time, Book. The same
+   * day strip and time grid as Move your booking, so a member meets one picker
+   * everywhere. Nothing here takes a card — the checkout is `PACKAGE`.
+   */
+  const openPackageBook = (pkg: PackageView, opener: LiveEl | null): void => {
+    const treatments = pkg.treatments.filter((t) => t.remaining > 0);
+    let treatment = treatments[0];
+    let venue = pkg.venues[0];
+    if (!treatment || !venue) return;
+    const dlg = openDialog(packageBookDialogHTML(null, [], ""), opener);
+    if (!dlg) return;
+    let alive = true;
+    dlg.addEventListener?.("close", () => {
+      alive = false;
+    });
+    const tz = "Europe/Malta";
+    const today = venueDateString(new Date(), tz);
+    let stripStart = today;
+    let days = buildDayStrip(stripStart, 14, "");
+    let selectedDate = today;
+    let selectedTime: string | null = null;
+    let alert: string | null = null;
+    const taken = new Map<string, string[]>();
+    const cache = new Map<string, SlotsModel | "failed">();
+    const treatKey = (t: { serviceId: string; serviceOptionId: string | null }) => `${t.serviceId}|${t.serviceOptionId ?? ""}`;
+    const keyOf = (date: string) => `${venue.brandLocationId}|${treatKey(treatment)}|${date}`;
+    const ctx = (): PackageBookContext => ({
+      packageName: pkg.name,
+      venues: pkg.venues.map((v) => ({ key: v.brandLocationId, label: v.name || "Venue" })),
+      venueKey: venue.brandLocationId,
+      treatments: treatments.map((t) => ({ key: treatKey(t), label: t.name || pkg.name })),
+      treatmentKey: treatKey(treatment),
+      stripStart,
+      minDate: today,
+    });
+    const times = () => qs(dlg, "[data-cw-rs-times]");
+    const foot = () => qs(dlg, ".cw-dialog__foot");
+    const paintFrame = () => {
+      const frame = packageBookDialogHTML(ctx(), days, selectedDate);
+      dlg.innerHTML = innerOfDialog(frame);
+      const describedBy = /aria-describedby="([^"]+)"/.exec(frame);
+      if (describedBy) dlg.setAttribute("aria-describedby", describedBy[1]);
+    };
+    const renderTimes = () => {
+      const el = times();
+      if (!el) return;
+      const c = cache.get(keyOf(selectedDate));
+      el.innerHTML = rescheduleTimesHTML({
+        date: selectedDate,
+        phase: c === undefined ? "loading" : c === "failed" ? "failed" : "ready",
+        slots: c && c !== "failed" ? c : null,
+        currentDate: "",
+        currentTime: "",
+        selected: selectedTime,
+        alert,
+        taken: taken.get(keyOf(selectedDate)),
+      });
+    };
+    const renderReview = () => {
+      const f = foot();
+      if (!f) return;
+      if (!selectedTime) {
+        f.innerHTML = "";
+        f.removeAttribute?.("data-open");
+        return;
+      }
+      f.innerHTML = packageBookBarHTML(`${dateWords(selectedDate, "shortMonth")}, ${selectedTime}`);
+      f.setAttribute("data-open", "");
+    };
+    const loadDay = (date: string) => {
+      const key = keyOf(date);
+      if (cache.has(key) && cache.get(key) !== "failed") return renderTimes();
+      cache.delete(key);
+      renderTimes();
+      void readT(slotsCall({ brandLocationId: venue.brandLocationId, date, serviceId: treatment.serviceId }).path).then((r) => {
+        if (!alive) return;
+        cache.set(key, r.state === "failed" ? "failed" : buildSlotsModel(r.body, date));
+        if (key === keyOf(selectedDate)) renderTimes();
+      });
+    };
+    const selectDay = (date: string, focusChip = false) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+      if (date < today) date = today;
+      if (!days.some((d) => d.date === date)) {
+        stripStart = date;
+        days = buildDayStrip(stripStart, 14, "");
+        const strip = qs(dlg, ".cw-rs-days");
+        if (strip) strip.innerHTML = dayChipsHTML(days, date);
+      }
+      selectedDate = date;
+      selectedTime = null;
+      alert = null;
+      qsa(dlg, "[data-cw-rs-day].cw-rs-day").forEach((b) =>
+        b.setAttribute("aria-pressed", b.getAttribute("data-cw-rs-day") === selectedDate ? "true" : "false"),
+      );
+      renderReview();
+      const chip = qs(dlg, `[data-cw-rs-day="${date}"].cw-rs-day`);
+      chip?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+      if (focusChip) chip?.focus?.();
+      loadDay(date);
+    };
+    /** A different treatment or venue: the frame repaints on the same day and the times are re-read. */
+    const rechoose = () => {
+      selectedTime = null;
+      alert = null;
+      paintFrame();
+      renderReview();
+      loadDay(selectedDate);
+    };
+
+    const commit = (btn: LiveEl) => {
+      if (!selectedTime || btn.getAttribute("aria-disabled") === "true") return;
+      const c = cache.get(keyOf(selectedDate));
+      const zone = c && c !== "failed" ? c.timeZone : tz;
+      // The venue's wall clock becomes a UTC instant in the zone the SERVER named.
+      const startTime = venueLocalToUtcIso(selectedDate, selectedTime, zone);
+      if (!startTime) return;
+      const time = selectedTime;
+      const restore = setBusy(btn, "Booking…");
+      void postJson(
+        fetchImpl,
+        packageBookCall({
+          brandId: pkg.brandId,
+          clientPackageId: pkg.id,
+          serviceId: treatment.serviceId,
+          serviceOptionId: treatment.serviceOptionId,
+          brandLocationId: venue.brandLocationId,
+          startTime,
+          origin: loc?.origin ?? null,
+        }),
+      ).then((r) => {
+        if (!alive) return;
+        if (r.ok) {
+          const apptId = readBookedAppointmentId(r.body);
+          const said = `Booked for ${instantWords(startTime, "long")}. We've emailed you a confirmation.`;
+          dlg.close?.();
+          if (apptId) {
+            navigate(`/account/bookings/${encodeURIComponent(apptId)}`);
+            return;
+          }
+          void load(() => {
+            focusTitle();
+            announce(mount, said, "ok");
+          }, true);
+          return;
+        }
+        restore();
+        if (isTakenTimeRefusal(r.body, r.status)) {
+          const key = keyOf(selectedDate);
+          taken.set(key, [...(taken.get(key) ?? []), time]);
+          alert = `Someone just took ${time}. Pick another time.`;
+          selectedTime = null;
+          renderReview();
+        } else {
+          alert = packageBookFailureMessage(r.body, r.status, GENERIC_FAILURE);
+        }
+        renderTimes();
+        qs(dlg, ".cw-rs-alert")?.scrollIntoView?.({ block: "nearest" });
+      });
+    };
+
+    dlg.addEventListener?.("click", (ev: LiveEvent) => {
+      const t = ev.target;
+      if (closestOf(t, "[data-cw-dialog-close]")) {
+        ev.preventDefault();
+        dlg.close?.();
+        return;
+      }
+      const tr = closestOf(t, "[data-cw-pk-treat]");
+      if (tr) {
+        ev.preventDefault();
+        const next = treatments.find((x) => treatKey(x) === tr.getAttribute("data-cw-pk-treat"));
+        if (next && next !== treatment) {
+          treatment = next;
+          rechoose();
+        }
+        return;
+      }
+      const vn = closestOf(t, "[data-cw-pk-venue]");
+      if (vn) {
+        ev.preventDefault();
+        const next = pkg.venues.find((x) => x.brandLocationId === vn.getAttribute("data-cw-pk-venue"));
+        if (next && next !== venue) {
+          venue = next;
+          rechoose();
+        }
+        return;
+      }
+      const day = closestOf(t, "[data-cw-rs-day]");
+      if (day) {
+        ev.preventDefault();
+        selectDay(day.getAttribute("data-cw-rs-day") || "", !day.getAttribute("class")?.includes("cw-rs-day"));
+        return;
+      }
+      const slot = closestOf(t, "[data-cw-rs-time]");
+      if (slot) {
+        ev.preventDefault();
+        selectedTime = slot.getAttribute("data-cw-rs-time");
+        alert = null;
+        qs(dlg, ".cw-rs-alert")?.remove?.();
+        qsa(dlg, "[data-cw-rs-time]").forEach((b) => b.setAttribute("aria-pressed", b === slot ? "true" : "false"));
+        renderReview();
+        return;
+      }
+      const other = closestOf(t, "[data-cw-rs-other]");
+      if (other) {
+        ev.preventDefault();
+        const field = qs(dlg, ".cw-rs-other__field");
+        if (field) {
+          const opening = field.hidden !== false;
+          field.hidden = !opening;
+          other.setAttribute("aria-expanded", opening ? "true" : "false");
+          if (opening) {
+            const input = qs(field, "input");
+            if (input) input.value = selectedDate;
+            input?.focus?.();
+          }
+        }
+        return;
+      }
+      const go = closestOf(t, "[data-cw-pk-commit]");
+      if (go) {
+        ev.preventDefault();
+        commit(go);
+      }
+    });
+    // The date input is repainted with the frame, so the dialog listens, not the input.
+    dlg.addEventListener?.("change", (ev: LiveEvent) => {
+      const v = closestOf(ev.target, "[data-cw-rs-date]")?.value || "";
+      if (v) selectDay(v);
+    });
+
+    paintFrame();
+    qs(dlg, ".cw-rs-day")?.focus?.();
+    loadDay(selectedDate);
+  };
+
   const openCancel = (opener: LiveEl | null): void => {
     const m = detail;
     if (!m) return;
@@ -1312,6 +1568,33 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
       const btn = closestOf(t, "[data-cw-action]");
       if (!btn) return;
       const action = btn.getAttribute("data-cw-action") || "";
+      if (action === "package-pay" || action === "package-book") {
+        ev.preventDefault?.();
+        if (btn.getAttribute("aria-disabled") === "true") return;
+        const pkg = packagesOnScreen.find((p) => p.id === (btn.getAttribute("data-cw-package") || ""));
+        if (!pkg) {
+          announce(mount, GENERIC_FAILURE, "bad");
+          return;
+        }
+        if (action === "package-book") {
+          if (packageActions(pkg).book) openPackageBook(pkg, btn);
+          return;
+        }
+        if (!packageActions(pkg).pay) return;
+        const done = setBusy(btn, "Opening payment…");
+        // This site's origin, so Stripe brings the member back to this wallet on
+        // this brand; the server checks it against its own registered map.
+        void postJson(fetchImpl, packagePayCall(pkg.id, loc?.origin ?? null)).then((r) => {
+          const url = r.ok ? readCheckoutUrl(r.body) : "";
+          if (url) {
+            navigate(url);
+            return;
+          }
+          done();
+          announce(mount, messageFromError(r.body, r.status, GENERIC_FAILURE), "bad");
+        });
+        return;
+      }
       const id = btn.getAttribute("data-cw-appt") || "";
       if (!id || !["pay", "reschedule", "confirm", "cancel", "calendar", "wallet"].includes(action)) return;
       ev.preventDefault?.();
@@ -1416,6 +1699,12 @@ function currentPath(doc: MinimalDocument): string {
 export function paymentReturnNote(search: string): { text: string; tone: "ok" | "bad" } | null {
   const q = String(search || "");
   if (/[?&]paid=1(&|$)/.test(q)) return { text: "Paid. Thank you — nothing more to pay for this visit.", tone: "ok" };
+  // The package pay-balance success_url. The webhook records the money, which
+  // can land a few seconds after the member is back, so this does not claim
+  // the package already reads paid.
+  if (/[?&]paid=package(&|$)/.test(q)) {
+    return { text: "Payment received — thank you. Your package updates in a moment.", tone: "ok" };
+  }
   if (/[?&]paid=cancelled(&|$)/.test(q)) {
     return { text: "Payment cancelled. Nothing has been charged.", tone: "bad" };
   }

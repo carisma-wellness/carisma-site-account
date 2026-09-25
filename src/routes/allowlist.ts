@@ -79,6 +79,13 @@ export const PROXY_ALLOWLIST: readonly AllowRule[] = [
   { method: "GET", label: "documents", match: (p) => p === "/client/account/documents" },
   { method: "GET", label: "gift cards", match: (p) => p === "/client/gift-cards" },
   { method: "GET", label: "packages", match: (p) => p === "/client/packages" },
+  // Pay a package's outstanding balance (hosted Stripe Checkout, amount minted
+  // by the server). A package the member owns, like a booking's balance above.
+  {
+    method: "POST",
+    label: "pay package balance",
+    match: (p) => /^\/client\/packages\/[0-9a-fA-F-]{36}\/pay-balance$/.test(p),
+  },
   { method: "GET", label: "account credit", match: (p) => p === "/client/credit-balance" },
   { method: "GET", label: "referrals", match: (p) => p === "/client/referrals/me" },
   { method: "GET", label: "loyalty", match: (p) => p === "/client/loyalty/me" },

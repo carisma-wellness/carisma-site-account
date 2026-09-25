@@ -134,6 +134,15 @@ function sectionHead(title, count) {
 function recordRoot(view, inner) {
     return `<div class="cw-rec cw-rec--${view}">${inner}</div>`;
 }
+export function packageActions(p) {
+    const live = !p.status || p.status.toUpperCase() === "ACTIVE";
+    const left = p.sessionsLeft === null ? p.treatments.some((t) => t.remaining > 0) : p.sessionsLeft > 0;
+    const pay = live && Boolean(p.id) && p.amountDue > 0;
+    const canBookData = Boolean(p.id && p.brandId) && p.venues.length > 0 && p.treatments.some((t) => t.remaining > 0);
+    const lockedUntilPaid = live && left && p.bookableNow === 0 && p.amountDue > 0;
+    const book = live && left && canBookData && !lockedUntilPaid && p.bookableNow !== 0;
+    return { pay, book, lockedUntilPaid };
+}
 export function buildWalletModel(input) {
     const giftCards = rows(input.giftCards).map((g) => {
         const brandObj = g.brand && typeof g.brand === "object" ? g.brand : {};
@@ -149,14 +158,41 @@ export function buildWalletModel(input) {
         };
     });
     const packages = rows(input.packages).map((p) => {
-        const left = firstOf(p, ["sessionsRemaining", "remainingSessions", "sessionsLeft"]);
-        const total = firstOf(p, ["sessionsTotal", "totalSessions", "sessions"]);
+        // GET /client/packages sends the counts per ITEM (`items[].remaining /
+        // total`), not as top-level fields; older shapes sent them flat. Reading
+        // only the flat names left every live package without its meter.
+        const items = Array.isArray(p.items)
+            ? p.items.filter((i) => Boolean(i) && typeof i === "object")
+            : [];
+        const flatLeft = firstOf(p, ["sessionsRemaining", "remainingSessions", "sessionsLeft"]);
+        const flatTotal = firstOf(p, ["sessionsTotal", "totalSessions", "sessions"]);
+        const itemLeft = items.length ? items.reduce((sum, i) => sum + Math.max(0, num(i.remaining)), 0) : null;
+        const itemTotal = items.length ? items.reduce((sum, i) => sum + Math.max(0, num(i.total)), 0) : null;
+        const available = firstOf(p, ["availableSessions"]);
+        const venues = (Array.isArray(p.venues) ? p.venues : [])
+            .filter((v) => Boolean(v) && typeof v === "object")
+            .map((v) => ({ brandLocationId: str(v.brandLocationId), name: str(v.name) }))
+            .filter((v) => /^[0-9a-f-]{36}$/i.test(v.brandLocationId));
+        const treatments = items
+            .map((i) => ({
+            serviceId: str(i.serviceId),
+            serviceOptionId: str(i.serviceOptionId) || null,
+            name: str(i.serviceName),
+            remaining: Math.max(0, num(i.remaining)),
+        }))
+            .filter((t) => /^[0-9a-f-]{36}$/i.test(t.serviceId));
         return {
+            id: str(p.id),
             name: str(firstOf(p, ["planNameSnapshot", "name", "planName"])) || "Package",
-            sessionsLeft: left === undefined ? null : num(left),
-            sessionsTotal: total === undefined ? null : num(total),
+            status: str(p.status),
+            sessionsLeft: flatLeft !== undefined ? num(flatLeft) : itemLeft,
+            sessionsTotal: flatTotal !== undefined ? num(flatTotal) : itemTotal,
             expiresAt: str(firstOf(p, ["expiresAt", "expiryDate", "validUntil"])) || null,
             amountDue: num(firstOf(p, ["amountDue", "balanceDue"])),
+            bookableNow: available === undefined ? null : num(available),
+            brandId: str(p.brandId),
+            venues,
+            treatments,
         };
     });
     const creditRaw = unwrap(input.credit);
@@ -256,6 +292,30 @@ function meterHTML(left, total) {
     return (`<div class="cw-meter cw-meter--bar" role="img" aria-label="${escapeHtml(label)}">` +
         `<span class="cw-meter__fill" style="width:${pct}%"></span></div>`);
 }
+/**
+ * Pay now / Book now. The buttons carry only the package id; browser.ts reads
+ * everything else from the model it painted, so nothing a member could edit in
+ * the page decides what is charged or booked.
+ */
+function packageActionsHTML(p) {
+    const a = packageActions(p);
+    if (!a.pay && !a.book && !a.lockedUntilPaid)
+        return "";
+    const id = escapeHtml(p.id);
+    const name = escapeHtml(p.name);
+    const pay = a.pay
+        ? `<button type="button" class="cw-btn ${a.book ? "cw-btn--secondary" : "cw-btn--primary"} cw-btn--sm" ` +
+            `data-cw-action="package-pay" data-cw-package="${id}" aria-label="Pay ${escapeHtml(eur(p.amountDue))} for ${name}">Pay now</button>`
+        : "";
+    const book = a.book
+        ? `<button type="button" class="cw-btn cw-btn--primary cw-btn--sm" ` +
+            `data-cw-action="package-book" data-cw-package="${id}" aria-label="Book a session of ${name}">Book now</button>`
+        : "";
+    const hint = a.lockedUntilPaid
+        ? `<p class="cw-pack__hint">Your next session unlocks once it's paid.</p>`
+        : "";
+    return hint + `<div class="cw-pack__actions">${book}${pay}</div>`;
+}
 function packageHTML(p) {
     const known = p.sessionsLeft !== null && p.sessionsTotal !== null && p.sessionsTotal > 0;
     const count = known
@@ -274,6 +334,7 @@ function packageHTML(p) {
         (p.expiresAt ? `<span>Valid until ${escapeHtml(plainDate(p.expiresAt))}</span>` : "") +
         `</div>` +
         (p.amountDue > 0 ? `<p class="cw-pack__due">${escapeHtml(eur(p.amountDue))} still to pay</p>` : "") +
+        packageActionsHTML(p) +
         `</li>`);
 }
 export function walletHTML(m, ctx = {}) {

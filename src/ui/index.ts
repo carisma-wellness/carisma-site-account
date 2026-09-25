@@ -87,18 +87,22 @@ export {
   rescheduleTimesHTML,
   reviewBarHTML,
   rescheduleDialogHTML,
+  packageBookDialogHTML,
+  packageBookBarHTML,
+  packageBookSubline,
   cancelTitle,
   cancelBodyHTML,
   cancelFootHTML,
   cancelDialogHTML,
 } from "./dialogs.js";
-export type { DayChip, TimeOption, DayPart, TimesState, RescheduleContext, DateStyle } from "./dialogs.js";
+export type { DayChip, TimeOption, DayPart, TimesState, RescheduleContext, DateStyle, PackageBookContext, PackageBookChoice } from "./dialogs.js";
 
 export { buildIcs, icsUtc, icsEscape, icsFold, icsFileName, icsLocation, stripVenuePrefix } from "./ics.js";
 export type { IcsEvent } from "./ics.js";
 
 export {
   buildWalletModel,
+  packageActions,
   walletHTML,
   buildStatementModel,
   statementHTML,
@@ -124,6 +128,9 @@ export type {
   DocumentView,
   GiftCardView,
   PackageView,
+  PackageActions,
+  PackageVenueView,
+  PackageTreatmentView,
   StatementLineView,
   RecordsContext,
   ReferModel,
@@ -149,6 +156,12 @@ export {
   cancellationPreviewCall,
   rescheduleCall,
   payBalanceCall,
+  packagePayCall,
+  packageBookCall,
+  readCheckoutUrl,
+  readBookedAppointmentId,
+  packageBookFailureMessage,
+  isTakenTimeRefusal,
   slotsCall,
   membershipCall,
   readCancellationPreview,

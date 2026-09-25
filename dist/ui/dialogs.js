@@ -347,4 +347,52 @@ export function cancelDialogHTML(opts) {
         foot: cancelFootHTML(opts.summary),
     });
 }
+function choiceChipsHTML(attr, label, choices, selected) {
+    if (choices.length < 2)
+        return "";
+    return (`<div class="cw-pack-venues" role="group" aria-label="${escapeHtml(label)}">` +
+        choices
+            .map((c) => `<button type="button" class="cw-btn cw-btn--sm ${c.key === selected ? "cw-btn--primary" : "cw-btn--secondary"}" ` +
+            `${attr}="${escapeHtml(c.key)}" aria-pressed="${c.key === selected ? "true" : "false"}" ${M}>${escapeHtml(c.label)}</button>`)
+            .join("") +
+        `</div>`);
+}
+/** "Lipocavitation · Carisma Slimming St Julian's" (escaped). */
+export function packageBookSubline(ctx) {
+    const t = ctx.treatments.find((c) => c.key === ctx.treatmentKey)?.label || ctx.packageName;
+    const v = ctx.venues.find((c) => c.key === ctx.venueKey)?.label || "";
+    return [t, v].filter(Boolean).map((x) => escapeHtml(x)).join(" · ");
+}
+export function packageBookDialogHTML(ctx, days, selected) {
+    const body = ctx
+        ? choiceChipsHTML("data-cw-pk-treat", "Choose a treatment", ctx.treatments, ctx.treatmentKey) +
+            choiceChipsHTML("data-cw-pk-venue", "Choose a venue", ctx.venues, ctx.venueKey) +
+            `<div class="cw-rs-days" role="group" aria-label="Choose a day">${dayChipsHTML(days, selected)}</div>` +
+            `<div class="cw-rs-other">` +
+            `<button type="button" class="cw-btn cw-btn--quiet cw-rs-other__toggle" data-cw-rs-other aria-expanded="false">Pick another date</button>` +
+            `<label class="cw-rs-other__field" hidden><span class="cw-label">Date</span>` +
+            `<input type="date" class="cw-rs-other__input" data-cw-rs-date min="${escapeHtml(ctx.minDate)}" value="${escapeHtml(selected)}"></label>` +
+            `</div>` +
+            `<div class="cw-rs-times" data-cw-rs-times aria-live="polite">${timesSkeletonHTML()}</div>` +
+            `<p class="cw-fine cw-rs-note">Uses one session of your package — nothing is charged. Malta time.</p>`
+        : `<div class="cw-rs-times" data-cw-rs-times aria-live="polite">${timesSkeletonHTML()}</div>`;
+    return dialogFrameHTML({
+        kind: "package-book",
+        title: "Book a session",
+        sub: ctx ? packageBookSubline(ctx) || undefined : undefined,
+        body,
+        foot: "",
+    });
+}
+/** The review bar for a package session: when, and the one button that books. */
+export function packageBookBarHTML(whenLabel, busy = false) {
+    return (`<div class="cw-rs-review">` +
+        `<p class="cw-rs-change" ${M}><span class="cw-rs-change__new">${escapeHtml(whenLabel)}</span></p>` +
+        `<div class="cw-rs-review__actions">` +
+        `<button type="button" class="cw-btn cw-btn--primary${busy ? " is-busy" : ""}" data-cw-pk-commit` +
+        (busy ? ' aria-disabled="true"' : "") +
+        `>${busy ? "Booking…" : "Book this session"}</button>` +
+        `<button type="button" class="cw-btn cw-btn--quiet" data-cw-dialog-close>Not now</button>` +
+        `</div></div>`);
+}
 //# sourceMappingURL=dialogs.js.map

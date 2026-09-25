@@ -50,7 +50,7 @@ export declare function groupTimes(options: TimeOption[]): Array<{
     options: TimeOption[];
 }>;
 export declare function dialogFrameHTML(opts: {
-    kind: "reschedule" | "cancel";
+    kind: "reschedule" | "cancel" | "package-book";
     title: string;
     sub?: string;
     body: string;
@@ -99,4 +99,24 @@ export declare function cancelDialogHTML(opts: {
     summary: CancelSummary | null;
     canReschedule: boolean;
 }): string;
+export interface PackageBookChoice {
+    key: string;
+    label: string;
+}
+export interface PackageBookContext {
+    packageName: string;
+    /** Where it can be used. More than one → the member picks. */
+    venues: PackageBookChoice[];
+    venueKey: string;
+    /** What it can be booked for. More than one → the member picks. */
+    treatments: PackageBookChoice[];
+    treatmentKey: string;
+    stripStart: string;
+    minDate: string;
+}
+/** "Lipocavitation · Carisma Slimming St Julian's" (escaped). */
+export declare function packageBookSubline(ctx: PackageBookContext): string;
+export declare function packageBookDialogHTML(ctx: PackageBookContext | null, days: DayChip[], selected: string): string;
+/** The review bar for a package session: when, and the one button that books. */
+export declare function packageBookBarHTML(whenLabel: string, busy?: boolean): string;
 //# sourceMappingURL=dialogs.d.ts.map

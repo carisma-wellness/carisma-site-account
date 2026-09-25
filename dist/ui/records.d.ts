@@ -37,13 +37,59 @@ export interface GiftCardView {
     /** A free referral voucher (`origin: "REFERRAL_REWARD"`): treatments only, no cash value. */
     referralReward: boolean;
 }
-export interface PackageView {
+export interface PackageVenueView {
+    brandLocationId: string;
     name: string;
+}
+/** One treatment a package can be booked for. */
+export interface PackageTreatmentView {
+    serviceId: string;
+    serviceOptionId: string | null;
+    name: string;
+    /** Sessions of THIS treatment still on the package. */
+    remaining: number;
+}
+export interface PackageView {
+    /** The ClientPackage id. "" from a server that sends none — then no buttons. */
+    id: string;
+    name: string;
+    /** ACTIVE / EXPIRED / CANCELLED / … — "" when the server sent none (treated as active). */
+    status: string;
     sessionsLeft: number | null;
     sessionsTotal: number | null;
     expiresAt: string | null;
     amountDue: number;
+    /**
+     * Sessions the member may book right now (`availableSessions`). A package
+     * sold per session unlocks a session as it is paid for, so this can be 0
+     * while sessions are left. null from a server that does not send it.
+     */
+    bookableNow: number | null;
+    /** The plan's brand, for the member checkout. "" when not sent. */
+    brandId: string;
+    /** Where the package can be used. Empty from an older server. */
+    venues: PackageVenueView[];
+    /** What the package can be booked for, with sessions still on it. */
+    treatments: PackageTreatmentView[];
 }
+/**
+ * What a package card offers.
+ *
+ * The rule the desk asked for (2026-09-25): a package with money still owed
+ * offers Pay now AND Book now; a package paid in full offers Book now only.
+ * Both are withheld from a package that is not live (expired, cancelled, used
+ * up), and Book now is withheld when the server has not told us enough to
+ * book it without charging again (no brand, no venue, no treatment) — the
+ * site's ordinary booking pop-up is NOT a fallback, because it would take the
+ * member's card for a session they have already bought.
+ */
+export interface PackageActions {
+    pay: boolean;
+    book: boolean;
+    /** Sessions are left but none is unlocked until the next one is paid. */
+    lockedUntilPaid: boolean;
+}
+export declare function packageActions(p: PackageView): PackageActions;
 export interface WalletModel {
     giftCards: GiftCardView[];
     packages: PackageView[];
