@@ -19,6 +19,12 @@ export interface RecordsContext {
     siteOrigin?: string;
     /** The clock, for a voucher's expiry (tests pass one). Defaults to now. */
     now?: Date;
+    /**
+     * Offer Pay now on open membership invoices (default false). Off until the
+     * invoice pay door is live on the API the site calls, so no member meets a
+     * Pay now that 404s; those lines read "Pay at the desk" meanwhile.
+     */
+    invoicePay?: boolean;
 }
 /** "September 2026" + a sortable "2026-09" key, on the Malta clock. */
 export declare function monthOf(raw: string): {
@@ -161,11 +167,13 @@ export declare function buildStatementModel(body: unknown): StatementModel;
  * Pay now too. The server stays the judge: a package sold whole, or an invoice
  * parked on a card challenge, is refused there with a sentence the page shows.
  */
-export declare function statementPayTarget(l: StatementLineView): {
+export declare function statementPayTarget(l: StatementLineView, opts?: {
+    invoicePay?: boolean;
+}): {
     kind: "appointment" | "package" | "invoice";
     id: string;
 } | null;
-export declare function statementHTML(m: StatementModel): string;
+export declare function statementHTML(m: StatementModel, ctx?: RecordsContext): string;
 export interface DocumentView {
     id: string;
     name: string;

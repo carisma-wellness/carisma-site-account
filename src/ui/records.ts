@@ -93,6 +93,12 @@ export interface RecordsContext {
   siteOrigin?: string;
   /** The clock, for a voucher's expiry (tests pass one). Defaults to now. */
   now?: Date;
+  /**
+   * Offer Pay now on open membership invoices (default false). Off until the
+   * invoice pay door is live on the API the site calls, so no member meets a
+   * Pay now that 404s; those lines read "Pay at the desk" meanwhile.
+   */
+  invoicePay?: boolean;
 }
 
 const MALTA = "Europe/Malta";
@@ -659,16 +665,19 @@ const INVOICE_UNPAYABLE = new Set(["PAID", "VOID", "VOIDED", "DRAFT", "UNCOLLECT
  */
 export function statementPayTarget(
   l: StatementLineView,
+  opts: { invoicePay?: boolean } = {},
 ): { kind: "appointment" | "package" | "invoice"; id: string } | null {
   if (l.amountDue <= 0) return null;
   if (l.appointmentId) return { kind: "appointment", id: l.appointmentId };
   if (!UUID_RE.test(l.id)) return null;
   if (l.kind === "package_balance" || l.kind === "package") return { kind: "package", id: l.id };
-  if (l.kind === "membership_invoice" && !INVOICE_UNPAYABLE.has(l.status)) return { kind: "invoice", id: l.id };
+  if (l.kind === "membership_invoice" && opts.invoicePay === true && !INVOICE_UNPAYABLE.has(l.status)) {
+    return { kind: "invoice", id: l.id };
+  }
   return null;
 }
 
-function dueRowHTML(l: StatementLineView, single: boolean): string {
+function dueRowHTML(l: StatementLineView, single: boolean, ctx: RecordsContext = {}): string {
   const meta = [
     kindLabel(l.kind),
     l.amountPaid > 0 ? `${eur(l.amountPaid)} paid so far` : "",
@@ -680,7 +689,7 @@ function dueRowHTML(l: StatementLineView, single: boolean): string {
   // Each line settles through its own door (see statementPayTarget). A line
   // with none (a fee with no booking, an invoice not issued) is settled at
   // the desk, and says so.
-  const target = statementPayTarget(l);
+  const target = statementPayTarget(l, ctx);
   const btnClass = `cw-btn ${single ? "cw-btn--primary" : "cw-btn--secondary"} cw-btn--sm cw-ledger__pay`;
   const label = escapeHtml(`Pay ${amount} for ${l.description}`);
   const action = !target
@@ -717,9 +726,9 @@ function historyRowHTML(l: StatementLineView): string {
   );
 }
 
-export function statementHTML(m: StatementModel): string {
+export function statementHTML(m: StatementModel, ctx: RecordsContext = {}): string {
   const owed = m.due.length > 0 && m.totalDue > 0;
-  const payable = m.due.filter((l) => statementPayTarget(l) !== null).length;
+  const payable = m.due.filter((l) => statementPayTarget(l, ctx) !== null).length;
 
   const summary = owed
     ? `<section class="cw-owed cw-rise" aria-label="To pay">` +
@@ -739,7 +748,7 @@ export function statementHTML(m: StatementModel): string {
   const dueList = owed
     ? `<section class="cw-section cw-rise">` +
       sectionHead("To pay", m.due.length) +
-      `<div class="cw-ledger" role="list">${m.due.map((l) => dueRowHTML(l, payable === 1)).join("")}</div>` +
+      `<div class="cw-ledger" role="list">${m.due.map((l) => dueRowHTML(l, payable === 1, ctx)).join("")}</div>` +
       `</section>`
     : "";
 

@@ -463,7 +463,7 @@ const INVOICE_UNPAYABLE = new Set(["PAID", "VOID", "VOIDED", "DRAFT", "UNCOLLECT
  * Pay now too. The server stays the judge: a package sold whole, or an invoice
  * parked on a card challenge, is refused there with a sentence the page shows.
  */
-export function statementPayTarget(l) {
+export function statementPayTarget(l, opts = {}) {
     if (l.amountDue <= 0)
         return null;
     if (l.appointmentId)
@@ -472,11 +472,12 @@ export function statementPayTarget(l) {
         return null;
     if (l.kind === "package_balance" || l.kind === "package")
         return { kind: "package", id: l.id };
-    if (l.kind === "membership_invoice" && !INVOICE_UNPAYABLE.has(l.status))
+    if (l.kind === "membership_invoice" && opts.invoicePay === true && !INVOICE_UNPAYABLE.has(l.status)) {
         return { kind: "invoice", id: l.id };
+    }
     return null;
 }
-function dueRowHTML(l, single) {
+function dueRowHTML(l, single, ctx = {}) {
     const meta = [
         kindLabel(l.kind),
         l.amountPaid > 0 ? `${eur(l.amountPaid)} paid so far` : "",
@@ -488,7 +489,7 @@ function dueRowHTML(l, single) {
     // Each line settles through its own door (see statementPayTarget). A line
     // with none (a fee with no booking, an invoice not issued) is settled at
     // the desk, and says so.
-    const target = statementPayTarget(l);
+    const target = statementPayTarget(l, ctx);
     const btnClass = `cw-btn ${single ? "cw-btn--primary" : "cw-btn--secondary"} cw-btn--sm cw-ledger__pay`;
     const label = escapeHtml(`Pay ${amount} for ${l.description}`);
     const action = !target
@@ -519,9 +520,9 @@ function historyRowHTML(l) {
         `<div class="cw-ledger__end"><span class="cw-ledger__amount">${escapeHtml(eur(l.amountPaid || l.total))}</span>${receipt}</div>` +
         `</div>`);
 }
-export function statementHTML(m) {
+export function statementHTML(m, ctx = {}) {
     const owed = m.due.length > 0 && m.totalDue > 0;
-    const payable = m.due.filter((l) => statementPayTarget(l) !== null).length;
+    const payable = m.due.filter((l) => statementPayTarget(l, ctx) !== null).length;
     const summary = owed
         ? `<section class="cw-owed cw-rise" aria-label="To pay">` +
             `<span class="cw-owed__icon">${CARD_ICON}</span>` +
@@ -539,7 +540,7 @@ export function statementHTML(m) {
     const dueList = owed
         ? `<section class="cw-section cw-rise">` +
             sectionHead("To pay", m.due.length) +
-            `<div class="cw-ledger" role="list">${m.due.map((l) => dueRowHTML(l, payable === 1)).join("")}</div>` +
+            `<div class="cw-ledger" role="list">${m.due.map((l) => dueRowHTML(l, payable === 1, ctx)).join("")}</div>` +
             `</section>`
         : "";
     const groups = [];

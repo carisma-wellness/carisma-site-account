@@ -149,7 +149,7 @@ export function bodyFor(view: PortalView, answers: unknown[], ctx: RecordsContex
         ctx,
       );
     case "payments":
-      return statementHTML(buildStatementModel(answers[0]));
+      return statementHTML(buildStatementModel(answers[0]), ctx);
     case "documents":
       return documentsHTML(buildDocumentsModel(answers[0]));
     case "membership":

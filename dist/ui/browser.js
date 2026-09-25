@@ -670,7 +670,7 @@ export function mountAccountPortal(doc, opts = {}) {
                             // legacy wrapper only existed to hold their old markup. They
                             // also need the member's first name (the membership card) and
                             // the brand phone (a tel link beside "speak to the team").
-                            `<div class="cw-rise">${bodyFor(view, reads.map((r) => (r.state === "failed" ? null : r.body)), { memberName, contactPhone: opts.contactPhone, siteBrand, siteOrigin: loc?.origin })}</div>`,
+                            `<div class="cw-rise">${bodyFor(view, reads.map((r) => (r.state === "failed" ? null : r.body)), { memberName, contactPhone: opts.contactPhone, siteBrand, siteOrigin: loc?.origin, invoicePay: opts.invoicePay === true })}</div>`,
                 }));
                 if (!portalMembershipBound.has(mount)) {
                     portalMembershipBound.add(mount);
