@@ -573,8 +573,11 @@ export interface StatementLineView {
   when: string;
   appointmentId: string | null;
   receiptUrl: string | null;
+  /** The line's own id: the ClientPackage id on a package, the invoice id on a membership invoice. */
+  id: string;
+  /** The server's status for the line (OPEN, DUE, PAID, ...), upper-cased; "" when not sent. */
+  status: string;
 }
-
 export interface StatementModel {
   totalDue: number;
   due: StatementLineView[];
@@ -591,6 +594,8 @@ function statementLine(l: Record<string, unknown>): StatementLineView {
     when: str(firstOf(l, ["dueAt", "occurredAt"])),
     appointmentId: str(l.appointmentId) || null,
     receiptUrl: str(firstOf(l, ["receiptUrl", "invoiceUrl"])) || null,
+    id: str(l.id),
+    status: str(l.status).toUpperCase(),
   };
 }
 
@@ -622,6 +627,7 @@ function kindLabel(kind: string): string {
     case "membership_invoice":
       return "Membership";
     case "package":
+    case "package_balance":
     case "package_invoice":
       return "Package";
     case "gift_card":
@@ -638,6 +644,30 @@ function lineTitle(l: StatementLineView): string {
     : text;
 }
 
+const UUID_RE = /^[0-9a-fA-F-]{36}$/;
+/** Invoice statuses that can never take money: nothing left to settle, or not issued yet. */
+const INVOICE_UNPAYABLE = new Set(["PAID", "VOID", "VOIDED", "DRAFT", "UNCOLLECTIBLE", "WRITTEN_OFF", "CANCELLED"]);
+
+/**
+ * What online payment a due line can take, or null for "Pay at the desk".
+ *
+ * A booking settles through its own pay-balance door. A package balance and a
+ * membership invoice each have a member door of their own (hosted Stripe
+ * Checkout, amount minted by the server from the record), so they offer
+ * Pay now too. The server stays the judge: a package sold whole, or an invoice
+ * parked on a card challenge, is refused there with a sentence the page shows.
+ */
+export function statementPayTarget(
+  l: StatementLineView,
+): { kind: "appointment" | "package" | "invoice"; id: string } | null {
+  if (l.amountDue <= 0) return null;
+  if (l.appointmentId) return { kind: "appointment", id: l.appointmentId };
+  if (!UUID_RE.test(l.id)) return null;
+  if (l.kind === "package_balance" || l.kind === "package") return { kind: "package", id: l.id };
+  if (l.kind === "membership_invoice" && !INVOICE_UNPAYABLE.has(l.status)) return { kind: "invoice", id: l.id };
+  return null;
+}
+
 function dueRowHTML(l: StatementLineView, single: boolean): string {
   const meta = [
     kindLabel(l.kind),
@@ -647,13 +677,19 @@ function dueRowHTML(l: StatementLineView, single: boolean): string {
     .filter(Boolean)
     .join(" · ");
   const amount = eur(l.amountDue);
-  // Pay-balance is per booking. A line with no booking behind it (an
-  // invoice, a package instalment) is settled at the desk, and says so.
-  const action = l.appointmentId
-    ? `<button type="button" class="cw-btn ${single ? "cw-btn--primary" : "cw-btn--secondary"} cw-btn--sm cw-ledger__pay" ` +
-      `data-cw-action="pay" data-cw-appt="${escapeHtml(l.appointmentId)}" ` +
-      `aria-label="${escapeHtml(`Pay ${amount} for ${l.description}`)}">Pay ${escapeHtml(amount)}</button>`
-    : `<span class="cw-ledger__desk">Pay at the desk</span>`;
+  // Each line settles through its own door (see statementPayTarget). A line
+  // with none (a fee with no booking, an invoice not issued) is settled at
+  // the desk, and says so.
+  const target = statementPayTarget(l);
+  const btnClass = `cw-btn ${single ? "cw-btn--primary" : "cw-btn--secondary"} cw-btn--sm cw-ledger__pay`;
+  const label = escapeHtml(`Pay ${amount} for ${l.description}`);
+  const action = !target
+    ? `<span class="cw-ledger__desk">Pay at the desk</span>`
+    : target.kind === "appointment"
+      ? `<button type="button" class="${btnClass}" data-cw-action="pay" data-cw-appt="${escapeHtml(target.id)}" ` +
+        `aria-label="${label}">Pay ${escapeHtml(amount)}</button>`
+      : `<button type="button" class="${btnClass}" data-cw-action="statement-pay" data-cw-pay-kind="${target.kind}" ` +
+        `data-cw-pay-id="${escapeHtml(target.id)}" aria-label="${label}">Pay now</button>`;
   return (
     `<div class="cw-ledger__row cw-ledger__row--due" role="listitem" ${M}>` +
     dateCol(l.when) +
@@ -683,7 +719,7 @@ function historyRowHTML(l: StatementLineView): string {
 
 export function statementHTML(m: StatementModel): string {
   const owed = m.due.length > 0 && m.totalDue > 0;
-  const payable = m.due.filter((l) => l.appointmentId).length;
+  const payable = m.due.filter((l) => statementPayTarget(l) !== null).length;
 
   const summary = owed
     ? `<section class="cw-owed cw-rise" aria-label="To pay">` +

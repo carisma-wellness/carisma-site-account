@@ -141,6 +141,10 @@ export interface StatementLineView {
     when: string;
     appointmentId: string | null;
     receiptUrl: string | null;
+    /** The line's own id: the ClientPackage id on a package, the invoice id on a membership invoice. */
+    id: string;
+    /** The server's status for the line (OPEN, DUE, PAID, ...), upper-cased; "" when not sent. */
+    status: string;
 }
 export interface StatementModel {
     totalDue: number;
@@ -148,6 +152,19 @@ export interface StatementModel {
     history: StatementLineView[];
 }
 export declare function buildStatementModel(body: unknown): StatementModel;
+/**
+ * What online payment a due line can take, or null for "Pay at the desk".
+ *
+ * A booking settles through its own pay-balance door. A package balance and a
+ * membership invoice each have a member door of their own (hosted Stripe
+ * Checkout, amount minted by the server from the record), so they offer
+ * Pay now too. The server stays the judge: a package sold whole, or an invoice
+ * parked on a card challenge, is refused there with a sentence the page shows.
+ */
+export declare function statementPayTarget(l: StatementLineView): {
+    kind: "appointment" | "package" | "invoice";
+    id: string;
+} | null;
 export declare function statementHTML(m: StatementModel): string;
 export interface DocumentView {
     id: string;

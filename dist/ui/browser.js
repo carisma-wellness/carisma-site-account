@@ -24,7 +24,7 @@ import { ACCOUNT_BOOKINGS_HREF } from "./panel.js";
 import { linkifyPhones } from "./portal.js";
 import { bookingSkeletonHTML, bookingTreatment, bookingViewParts, buildBookingDetailModel, isActiveBooking, } from "./bookingDetail.js";
 import { buildSlotsModel, venueDateString, venueLocalToUtcIso } from "./reschedule.js";
-import { cancelCall, cancelSummary, cancellationPreviewCall, confirmCall, membershipCall, messageFromError, needsPreview, payBalanceCall, isTakenTimeRefusal, packageBookCall, packageBookFailureMessage, packagePayCall, packagePayConfirmCall, packageReturnFrom, readBookedAppointmentId, readCheckoutUrl, readCancellationPreview, readWalletAvailability, rescheduleCall, slotsCall, walletAvailabilityCall, walletPassCall, } from "./portalActions.js";
+import { cancelCall, cancelSummary, cancellationPreviewCall, confirmCall, membershipCall, messageFromError, needsPreview, payBalanceCall, isTakenTimeRefusal, packageBookCall, packageBookFailureMessage, packagePayCall, packagePayConfirmCall, packageReturnFrom, invoicePayCall, invoicePayConfirmCall, invoiceReturnFrom, statementPayFailureMessage, readBookedAppointmentId, readCheckoutUrl, readCancellationPreview, readWalletAvailability, rescheduleCall, slotsCall, walletAvailabilityCall, walletPassCall, } from "./portalActions.js";
 import { buildDayStrip, cancelBodyHTML, cancelDialogHTML, cancelFootHTML, clockOf, dateWords, dayChipsHTML, dialogFrameHTML, instantWords, packageBookBarHTML, packageBookDialogHTML, rescheduleDialogHTML, rescheduleTimesHTML, reviewBarHTML, } from "./dialogs.js";
 import { buildIcs, icsFileName, icsLocation } from "./ics.js";
 import { installBrandLinkInterceptor } from "./linkInterceptor.js";
@@ -1387,6 +1387,30 @@ export function mountAccountPortal(doc, opts = {}) {
                 });
                 return;
             }
+            if (action === "statement-pay") {
+                ev.preventDefault?.();
+                if (btn.getAttribute("aria-disabled") === "true")
+                    return;
+                const kind = btn.getAttribute("data-cw-pay-kind") || "";
+                const payId = btn.getAttribute("data-cw-pay-id") || "";
+                if (!payId || (kind !== "package" && kind !== "invoice"))
+                    return;
+                const done = setBusy(btn, "Opening payment…");
+                // This site's origin, so Stripe brings the member back here on this
+                // brand; the server checks it against its own registered map.
+                const origin = loc?.origin ?? null;
+                const call = kind === "package" ? packagePayCall(payId, origin) : invoicePayCall(payId, origin);
+                void postJson(fetchImpl, call).then((r) => {
+                    const url = r.ok ? readCheckoutUrl(r.body) : "";
+                    if (url) {
+                        navigate(url);
+                        return;
+                    }
+                    done();
+                    announce(mount, statementPayFailureMessage(r.body, r.status), "bad");
+                });
+                return;
+            }
             const id = btn.getAttribute("data-cw-appt") || "";
             if (!id || !["pay", "reschedule", "confirm", "cancel", "calendar", "wallet"].includes(action))
                 return;
@@ -1459,7 +1483,20 @@ export function mountAccountPortal(doc, opts = {}) {
     // behind), then paint — so the card already reads what was paid. A failed
     // confirm changes nothing: the webhook still settles it.
     const packageReturn = view === "wallet" ? packageReturnFrom(initialSearch) : null;
-    if (packageReturn) {
+    const invoiceReturn = view === "payments" ? invoiceReturnFrom(initialSearch) : null;
+    if (invoiceReturn) {
+        // Same once-only rule as the package return below.
+        try {
+            const h = doc
+                .defaultView?.history;
+            h?.replaceState?.(null, "", "/account/payments");
+        }
+        catch {
+            /* no history API: harmless, the confirm is idempotent */
+        }
+        void postJson(fetchImpl, invoicePayConfirmCall(invoiceReturn.invoiceId, invoiceReturn.sessionId)).then(() => load(), () => load());
+    }
+    else if (packageReturn) {
         // Once. A reload or Back must not re-post the confirm (a Stripe read each
         // time) or re-announce the payment: the query is replaced by `?paid=package`
         // alone, which still says "Payment received" on this first paint only.
@@ -1514,6 +1551,9 @@ export function paymentReturnNote(search) {
     // The package pay-balance success_url. The webhook records the money, which
     // can land a few seconds after the member is back, so this does not claim
     // the package already reads paid.
+    if (/[?&]invoice_paid=[0-9a-fA-F-]{36}(&|$)/.test(q)) {
+        return { text: "Payment received — thank you. Your statement updates in a moment.", tone: "ok" };
+    }
     if (/[?&]paid=package(&|$)/.test(q)) {
         return { text: "Payment received — thank you. Your package updates in a moment.", tone: "ok" };
     }
