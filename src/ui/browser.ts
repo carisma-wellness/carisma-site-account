@@ -444,6 +444,11 @@ export interface PortalMountOptions extends HydrateOptions {
    * visited. On, the rail's own site gating (the voucher brands) still applies.
    */
   referRail?: boolean;
+  /**
+   * Pay now on open membership invoices in Payments (default false). Turn on
+   * once the API the site calls serves POST /client/membership/invoices/:id/pay.
+   */
+  invoicePay?: boolean;
 }
 
 /** One read's outcome. `failed` carries the status so 401 and 404 can be told apart. */
@@ -907,7 +912,7 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
                   `<div class="cw-rise">${bodyFor(
                     view,
                     reads.map((r) => (r.state === "failed" ? null : r.body)),
-                    { memberName, contactPhone: opts.contactPhone, siteBrand, siteOrigin: loc?.origin },
+                    { memberName, contactPhone: opts.contactPhone, siteBrand, siteOrigin: loc?.origin, invoicePay: opts.invoicePay === true },
                   )}</div>`,
             }),
           );

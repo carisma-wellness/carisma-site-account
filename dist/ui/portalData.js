@@ -114,7 +114,7 @@ export function bodyFor(view, answers, ctx = {}) {
         case "wallet":
             return walletHTML(buildWalletModel({ giftCards: answers[0], packages: answers[1], credit: answers[2] }), ctx);
         case "payments":
-            return statementHTML(buildStatementModel(answers[0]));
+            return statementHTML(buildStatementModel(answers[0]), ctx);
         case "documents":
             return documentsHTML(buildDocumentsModel(answers[0]));
         case "membership":

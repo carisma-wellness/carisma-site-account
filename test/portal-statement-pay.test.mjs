@@ -18,6 +18,7 @@ import {
 } from "../dist/ui/index.js";
 import { isAllowed } from "../dist/index.js";
 
+const ON = { invoicePay: true };
 const PKG = "4b8c2a1e-1111-4222-8333-444455556666";
 const INV = "7c1d2e3f-2222-4333-8444-555566667777";
 
@@ -59,14 +60,20 @@ test("a package balance offers Pay now, not Pay at the desk", () => {
   assert.doesNotMatch(html, /Pay at the desk/);
 });
 
-test("an open membership invoice offers Pay now", () => {
+test("negative: invoices stay at the desk until the site switches invoicePay on", () => {
   const html = statementHTML(buildStatementModel(statement([invLine()])));
+  assert.match(html, /Pay at the desk/);
+  assert.doesNotMatch(html, /data-cw-pay-kind="invoice"/);
+});
+
+test("an open membership invoice offers Pay now once invoicePay is on", () => {
+  const html = statementHTML(buildStatementModel(statement([invLine()])), ON);
   assert.match(html, /data-cw-pay-kind="invoice" data-cw-pay-id="7c1d2e3f-/);
   assert.doesNotMatch(html, /Pay at the desk/);
 });
 
 test("both rows at once: each carries its own Pay now, neither is the page's primary", () => {
-  const html = statementHTML(buildStatementModel(statement([pkgLine(), invLine()])));
+  const html = statementHTML(buildStatementModel(statement([pkgLine(), invLine()])), ON);
   assert.equal((html.match(/data-cw-action="statement-pay"/g) || []).length, 2);
   assert.doesNotMatch(html, /cw-btn--primary cw-btn--sm cw-ledger__pay/);
 });
@@ -74,7 +81,7 @@ test("both rows at once: each carries its own Pay now, neither is the page's pri
 test("negative: a paid, void or draft invoice is never offered online", () => {
   for (const status of ["PAID", "VOID", "DRAFT", "paid"]) {
     const m = buildStatementModel(statement([invLine({ status, amountDue: 99 })]));
-    assert.equal(statementPayTarget(m.due[0]), null, status);
+    assert.equal(statementPayTarget(m.due[0], ON), null, status);
   }
 });
 
