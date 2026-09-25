@@ -48,6 +48,25 @@ export declare const packagePayCall: (id: string, origin?: string | null) => Pro
 /** The return page's settle-now read of the package Checkout Stripe sent the member back from. */
 export declare const packagePayConfirmCall: (id: string, sessionId: string) => ProxyCall;
 /**
+ * Pay an open membership invoice (hosted Stripe Checkout). Like a package, the
+ * server mints the amount from the invoice; the body only names where Stripe
+ * should send the member back, checked against the registered-origin map.
+ */
+export declare const invoicePayCall: (id: string, origin?: string | null) => ProxyCall;
+/** The Payments page's settle-now read of the invoice Checkout Stripe sent the member back from. */
+export declare const invoicePayConfirmCall: (id: string, sessionId: string) => ProxyCall;
+/** `?invoice_paid=<id>&session_id=cs_...` -> what to confirm, or null. Shape-checked: anyone can type a URL. */
+export declare function invoiceReturnFrom(search: string): {
+    invoiceId: string;
+    sessionId: string;
+} | null;
+/**
+ * Why a statement Pay now could not open Stripe, in the member's words. The
+ * server's own sentence wins; a bare code never reaches the page, and a 409
+ * here is never "that time was taken" (nothing is being booked).
+ */
+export declare function statementPayFailureMessage(body: unknown, status: number): string;
+/**
  * `?paid=package&pkg=<id>&session_id=cs_…` → what to confirm, or null. Both
  * are shape-checked: they came in on a URL anyone can type.
  */

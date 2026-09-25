@@ -94,6 +94,18 @@ export const PROXY_ALLOWLIST = [
     /* ── Membership ────────────────────────────────────────────────────── */
     { method: "GET", label: "membership", match: (p) => p === "/client/membership" },
     { method: "GET", label: "membership invoices", match: (p) => p === "/client/membership/invoices" },
+    // Pay an open membership invoice from the Payments page (hosted Stripe
+    // Checkout, amount minted by the server), and settle it on the way back.
+    {
+        method: "POST",
+        label: "pay membership invoice",
+        match: (p) => /^\/client\/membership\/invoices\/[0-9a-fA-F-]{36}\/pay$/.test(p),
+    },
+    {
+        method: "POST",
+        label: "confirm membership invoice payment",
+        match: (p) => /^\/client\/membership\/invoices\/[0-9a-fA-F-]{36}\/pay\/confirm$/.test(p),
+    },
     { method: "GET", label: "membership ledger", match: (p) => /^\/client\/membership\/[^/]+\/ledger$/.test(p) },
     { method: "GET", label: "membership stored value", match: (p) => /^\/client\/membership\/[^/]+\/stored-value$/.test(p) },
     // Pause / resume / cancel are commercial acts on a subscription the member
