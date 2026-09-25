@@ -87,6 +87,31 @@ export const packagePayCall = (id: string, origin?: string | null): ProxyCall =>
   body: origin ? { origin } : {},
 });
 
+/** The return page's settle-now read of the package Checkout Stripe sent the member back from. */
+export const packagePayConfirmCall = (id: string, sessionId: string): ProxyCall => ({
+  path: `${PROXY}/client/packages/${encodeURIComponent(id)}/pay-balance/confirm`,
+  method: "POST",
+  body: { sessionId },
+});
+
+/**
+ * `?paid=package&pkg=<id>&session_id=cs_…` → what to confirm, or null. Both
+ * are shape-checked: they came in on a URL anyone can type.
+ */
+export function packageReturnFrom(search: string): { packageId: string; sessionId: string } | null {
+  let q: URLSearchParams;
+  try {
+    q = new URLSearchParams(search || "");
+  } catch {
+    return null;
+  }
+  if (q.get("paid") !== "package") return null;
+  const packageId = q.get("pkg") || "";
+  const sessionId = q.get("session_id") || "";
+  if (!/^[0-9a-fA-F-]{36}$/.test(packageId) || !/^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) return null;
+  return { packageId, sessionId };
+}
+
 /**
  * Book one session against a package the member owns.
  *

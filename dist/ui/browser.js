@@ -17,14 +17,14 @@ import { readInitialsHint, readSignedInHint } from "./hint.js";
 import { buildPanelModel, accountPanelHTML } from "./panel.js";
 import { accountPortalHTML, buildPortalModel, errorBlockHTML, greetingFor, portalShellHTML, skeletonHTML, } from "./portal.js";
 import { bodyFor, bookingIdFromPath, ledeFor, requestsFor, subjectFor, titleFor } from "./portalData.js";
-import { buildWalletModel, packageActions } from "./records.js";
+import { bookableTreatments, buildWalletModel, packageActions, venuesFor } from "./records.js";
 import { unwrapEnvelope } from "./appointments.js";
 import { escapeHtml } from "./html.js";
 import { ACCOUNT_BOOKINGS_HREF } from "./panel.js";
 import { linkifyPhones } from "./portal.js";
 import { bookingSkeletonHTML, bookingTreatment, bookingViewParts, buildBookingDetailModel, isActiveBooking, } from "./bookingDetail.js";
 import { buildSlotsModel, venueDateString, venueLocalToUtcIso } from "./reschedule.js";
-import { cancelCall, cancelSummary, cancellationPreviewCall, confirmCall, membershipCall, messageFromError, needsPreview, payBalanceCall, isTakenTimeRefusal, packageBookCall, packageBookFailureMessage, packagePayCall, readBookedAppointmentId, readCheckoutUrl, readCancellationPreview, readWalletAvailability, rescheduleCall, slotsCall, walletAvailabilityCall, walletPassCall, } from "./portalActions.js";
+import { cancelCall, cancelSummary, cancellationPreviewCall, confirmCall, membershipCall, messageFromError, needsPreview, payBalanceCall, isTakenTimeRefusal, packageBookCall, packageBookFailureMessage, packagePayCall, packagePayConfirmCall, packageReturnFrom, readBookedAppointmentId, readCheckoutUrl, readCancellationPreview, readWalletAvailability, rescheduleCall, slotsCall, walletAvailabilityCall, walletPassCall, } from "./portalActions.js";
 import { buildDayStrip, cancelBodyHTML, cancelDialogHTML, cancelFootHTML, clockOf, dateWords, dayChipsHTML, dialogFrameHTML, instantWords, packageBookBarHTML, packageBookDialogHTML, rescheduleDialogHTML, rescheduleTimesHTML, reviewBarHTML, } from "./dialogs.js";
 import { buildIcs, icsFileName, icsLocation } from "./ics.js";
 import { installBrandLinkInterceptor } from "./linkInterceptor.js";
@@ -992,11 +992,12 @@ export function mountAccountPortal(doc, opts = {}) {
      * everywhere. Nothing here takes a card — the checkout is `PACKAGE`.
      */
     const openPackageBook = (pkg, opener) => {
-        const treatments = pkg.treatments.filter((t) => t.remaining > 0);
+        const treatments = bookableTreatments(pkg);
         let treatment = treatments[0];
-        let venue = pkg.venues[0];
-        if (!treatment || !venue)
+        const firstVenue = treatment ? venuesFor(pkg, treatment.serviceId)[0] : undefined;
+        if (!treatment || !firstVenue)
             return;
+        let venue = firstVenue;
         const dlg = openDialog(packageBookDialogHTML(null, [], ""), opener);
         if (!dlg)
             return;
@@ -1017,7 +1018,7 @@ export function mountAccountPortal(doc, opts = {}) {
         const keyOf = (date) => `${venue.brandLocationId}|${treatKey(treatment)}|${date}`;
         const ctx = () => ({
             packageName: pkg.name,
-            venues: pkg.venues.map((v) => ({ key: v.brandLocationId, label: v.name || "Venue" })),
+            venues: venuesFor(pkg, treatment.serviceId).map((v) => ({ key: v.brandLocationId, label: v.name || "Venue" })),
             venueKey: venue.brandLocationId,
             treatments: treatments.map((t) => ({ key: treatKey(t), label: t.name || pkg.name })),
             treatmentKey: treatKey(treatment),
@@ -1170,6 +1171,9 @@ export function mountAccountPortal(doc, opts = {}) {
                 const next = treatments.find((x) => treatKey(x) === tr.getAttribute("data-cw-pk-treat"));
                 if (next && next !== treatment) {
                     treatment = next;
+                    // Keep the venue when it sells the new treatment too; otherwise the first that does.
+                    const here = venuesFor(pkg, next.serviceId);
+                    venue = here.find((v) => v.brandLocationId === venue.brandLocationId) ?? here[0] ?? venue;
                     rechoose();
                 }
                 return;
@@ -1177,7 +1181,7 @@ export function mountAccountPortal(doc, opts = {}) {
             const vn = closestOf(t, "[data-cw-pk-venue]");
             if (vn) {
                 ev.preventDefault();
-                const next = pkg.venues.find((x) => x.brandLocationId === vn.getAttribute("data-cw-pk-venue"));
+                const next = venuesFor(pkg, treatment.serviceId).find((x) => x.brandLocationId === vn.getAttribute("data-cw-pk-venue"));
                 if (next && next !== venue) {
                     venue = next;
                     rechoose();
@@ -1449,7 +1453,15 @@ export function mountAccountPortal(doc, opts = {}) {
             });
         });
     }
-    void load();
+    // Back from a package Checkout: record it now (the webhook may be seconds
+    // behind), then paint — so the card already reads what was paid. A failed
+    // confirm changes nothing: the webhook still settles it.
+    const packageReturn = view === "wallet" ? packageReturnFrom(loc?.search ?? "") : null;
+    if (packageReturn) {
+        void postJson(fetchImpl, packagePayConfirmCall(packageReturn.packageId, packageReturn.sessionId)).then(() => load(), () => load());
+    }
+    else
+        void load();
     // Sign-out on this page is handled by mountAccountPanel's document listener
     // (layout calls hydrateAll). Binding it here as well would double-POST.
 }

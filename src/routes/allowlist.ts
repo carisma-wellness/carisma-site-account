@@ -86,6 +86,13 @@ export const PROXY_ALLOWLIST: readonly AllowRule[] = [
     label: "pay package balance",
     match: (p) => /^\/client\/packages\/[0-9a-fA-F-]{36}\/pay-balance$/.test(p),
   },
+  // Back from that Checkout: settle it now rather than wait for the webhook.
+  // The server re-reads the session on the package's own brand account.
+  {
+    method: "POST",
+    label: "confirm package balance payment",
+    match: (p) => /^\/client\/packages\/[0-9a-fA-F-]{36}\/pay-balance\/confirm$/.test(p),
+  },
   { method: "GET", label: "account credit", match: (p) => p === "/client/credit-balance" },
   { method: "GET", label: "referrals", match: (p) => p === "/client/referrals/me" },
   { method: "GET", label: "loyalty", match: (p) => p === "/client/loyalty/me" },

@@ -45,6 +45,16 @@ export declare const payBalanceCall: (id: string, returnOrigin?: string | null) 
  * (checked against the server's registered-origin map, like `payBalanceCall`).
  */
 export declare const packagePayCall: (id: string, origin?: string | null) => ProxyCall;
+/** The return page's settle-now read of the package Checkout Stripe sent the member back from. */
+export declare const packagePayConfirmCall: (id: string, sessionId: string) => ProxyCall;
+/**
+ * `?paid=package&pkg=<id>&session_id=cs_…` → what to confirm, or null. Both
+ * are shape-checked: they came in on a URL anyone can type.
+ */
+export declare function packageReturnFrom(search: string): {
+    packageId: string;
+    sessionId: string;
+} | null;
 /**
  * Book one session against a package the member owns.
  *

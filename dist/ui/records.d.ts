@@ -40,7 +40,17 @@ export interface GiftCardView {
 export interface PackageVenueView {
     brandLocationId: string;
     name: string;
+    /**
+     * Which of the package's treatments this venue sells. Empty from a server
+     * that did not say — read as "every treatment", and the slots read answers
+     * "not offered here" if that is wrong.
+     */
+    serviceIds: string[];
 }
+/** The venues that sell this treatment (all of them when the server named no services). */
+export declare function venuesFor(p: PackageView, serviceId: string): PackageVenueView[];
+/** The treatments that still have sessions AND a venue that sells them. */
+export declare function bookableTreatments(p: PackageView): PackageTreatmentView[];
 /** One treatment a package can be booked for. */
 export interface PackageTreatmentView {
     serviceId: string;

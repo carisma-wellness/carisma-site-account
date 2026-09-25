@@ -20,6 +20,10 @@ import {
   packageBookFailureMessage,
   isTakenTimeRefusal,
   paymentReturnNote,
+  venuesFor,
+  bookableTreatments,
+  packageReturnFrom,
+  packagePayConfirmCall,
 } from "../dist/ui/index.js";
 import { isAllowed } from "../dist/index.js";
 
@@ -168,4 +172,41 @@ test("coming back from a package payment says so without claiming it already rea
   assert.equal(n.tone, "ok");
   assert.match(n.text, /updates in a moment/);
   assert.equal(paymentReturnNote("?paid=packages"), null);
+});
+
+test("venues follow the treatment: a venue that does not sell it is not offered", () => {
+  const OTHER = "9a8b7c6d-5e6f-4a7b-8c9d-0e1f2a3b4c5d";
+  const V2 = "1f1e2d3c-4b5a-4968-8776-655443322111";
+  const p = card({
+    venues: [
+      { brandLocationId: VENUE, name: "St Julian's", serviceIds: [SVC] },
+      { brandLocationId: V2, name: "Floriana", serviceIds: [OTHER] },
+    ],
+    items: [
+      { serviceName: "Lipocavitation", remaining: 4, total: 12, serviceId: SVC },
+      { serviceName: "Consultation", remaining: 1, total: 1, serviceId: OTHER },
+    ],
+  });
+  assert.deepEqual(venuesFor(p, SVC).map((v) => v.name), ["St Julian's"]);
+  assert.deepEqual(venuesFor(p, OTHER).map((v) => v.name), ["Floriana"]);
+  // A server that named no services: every venue, for every treatment.
+  assert.equal(venuesFor(card(), SVC).length, 1);
+});
+
+test("NEGATIVE: sessions left but no venue sells that treatment → no Book now", () => {
+  const p = card({ venues: [{ brandLocationId: VENUE, name: "X", serviceIds: ["1a2b3c4d-0000-4a7b-8c9d-0e1f2a3b4c5d"] }] });
+  assert.equal(bookableTreatments(p).length, 0);
+  assert.equal(packageActions(p).book, false);
+});
+
+test("the return from Stripe is confirmed only for a well-formed package + session", () => {
+  assert.deepEqual(packageReturnFrom(`?paid=package&pkg=${ID}&session_id=cs_live_a1B2`), { packageId: ID, sessionId: "cs_live_a1B2" });
+  assert.equal(packageReturnFrom(`?paid=package&pkg=${ID}`), null);
+  assert.equal(packageReturnFrom(`?paid=package&pkg=../x&session_id=cs_live_a1`), null);
+  assert.equal(packageReturnFrom(`?paid=1&pkg=${ID}&session_id=cs_live_a1`), null);
+  const c = packagePayConfirmCall(ID, "cs_live_a1B2");
+  assert.equal(c.path, `/api/auth/proxy/client/packages/${ID}/pay-balance/confirm`);
+  assert.deepEqual(c.body, { sessionId: "cs_live_a1B2" });
+  assert.equal(isAllowed("POST", `/client/packages/${ID}/pay-balance/confirm`), true);
+  assert.equal(isAllowed("GET", `/client/packages/${ID}/pay-balance/confirm`), false);
 });

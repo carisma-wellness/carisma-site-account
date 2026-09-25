@@ -99,7 +99,30 @@ export const GIFT_CARDS = [
   { code: "GC-4K7Q-19", balance: 50, originalValue: 100, expiresAt: at(24 * 120), purchaserName: "Sarah" },
   { code: "GC-9P2M-44", balance: 150, originalValue: 150, expiresAt: at(24 * 300), purchaserName: null },
 ];
-export const PACKAGES = [{ planNameSnapshot: "Six Signature Facials", sessionsRemaining: 4, sessionsTotal: 6, expiresAt: at(24 * 90), amountDue: 0 }];
+// The live GET /client/packages wire (ClientPackageWalletDTO): counts per item,
+// venues + brandId for Book now. One part-paid, one paid in full.
+export const PACKAGES = [
+  {
+    id: "4b8c2a1e-1111-4222-8333-444455556666", planName: "12 Lipocavitation", status: "ACTIVE",
+    amountPaid: 150.76, amountDue: 449.24, availableSessions: 3, expiresAt: at(24 * 180),
+    brandId: "9f0e1d2c-aaaa-4bbb-8ccc-ddddeeeeffff",
+    venues: [{ brandLocationId: "0f1e2d3c-4b5a-4968-8776-655443322110", name: "Carisma Slimming St Julian's", serviceIds: ["1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"] }],
+    items: [{ serviceName: "Lipocavitation", remaining: 12, total: 12, serviceId: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", serviceOptionId: null }],
+  },
+  {
+    id: "5c9d3b2f-2222-4333-8444-555566667777", planName: "Coolsculpting - Fat Freezing x3", status: "ACTIVE",
+    amountPaid: 900, amountDue: 0, availableSessions: 3, expiresAt: null,
+    brandId: "9f0e1d2c-aaaa-4bbb-8ccc-ddddeeeeffff",
+    venues: [
+      { brandLocationId: "0f1e2d3c-4b5a-4968-8776-655443322110", name: "Carisma Slimming St Julian's", serviceIds: ["2b3c4d5e-5e6f-4a7b-8c9d-0e1f2a3b4c5e", "3c4d5e6f-5e6f-4a7b-8c9d-0e1f2a3b4c5f"] },
+      { brandLocationId: "1a2b3c4d-4b5a-4968-8776-655443322111", name: "Carisma Slimming Mosta", serviceIds: ["2b3c4d5e-5e6f-4a7b-8c9d-0e1f2a3b4c5e"] },
+    ],
+    items: [
+      { serviceName: "Coolsculpting", remaining: 3, total: 3, serviceId: "2b3c4d5e-5e6f-4a7b-8c9d-0e1f2a3b4c5e", serviceOptionId: null },
+      { serviceName: "Body consultation", remaining: 1, total: 1, serviceId: "3c4d5e6f-5e6f-4a7b-8c9d-0e1f2a3b4c5f", serviceOptionId: null },
+    ],
+  },
+];
 export const STATEMENT = {
   totalDue: 75,
   due: [
@@ -162,7 +185,12 @@ export function fixtureFetch(state = "full") {
       }
       return ok({ id: rs[1], startTime: body.startTime });
     }
-    if (method !== "GET") return ok({ ok: true, checkoutUrl: "#stripe" });
+    const reqBody = (() => { try { return JSON.parse(init.body || "{}"); } catch { return {}; } })();
+    if (p === "/client/booking/checkout" && reqBody.paymentType === "PACKAGE") {
+      globalThis.__labLastCheckout = reqBody;
+      return Promise.resolve(new Response(JSON.stringify({ success: true, data: { appointmentIds: ["u1"], isFreeBooking: true } }), { status: 201, headers: { "content-type": "application/json" } }));
+    }
+    if (method !== "GET") return ok({ ok: true, checkoutUrl: "https://checkout.stripe.com/c/lab" });
     // "error": every member read fails (503) while the session is fine — the
     // state a member must never read as "you have no bookings".
     if (failing && p.startsWith("/client/")) return fail();

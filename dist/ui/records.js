@@ -134,11 +134,19 @@ function sectionHead(title, count) {
 function recordRoot(view, inner) {
     return `<div class="cw-rec cw-rec--${view}">${inner}</div>`;
 }
+/** The venues that sell this treatment (all of them when the server named no services). */
+export function venuesFor(p, serviceId) {
+    return p.venues.filter((v) => v.serviceIds.length === 0 || v.serviceIds.includes(serviceId));
+}
+/** The treatments that still have sessions AND a venue that sells them. */
+export function bookableTreatments(p) {
+    return p.treatments.filter((t) => t.remaining > 0 && venuesFor(p, t.serviceId).length > 0);
+}
 export function packageActions(p) {
     const live = !p.status || p.status.toUpperCase() === "ACTIVE";
     const left = p.sessionsLeft === null ? p.treatments.some((t) => t.remaining > 0) : p.sessionsLeft > 0;
     const pay = live && Boolean(p.id) && p.amountDue > 0;
-    const canBookData = Boolean(p.id && p.brandId) && p.venues.length > 0 && p.treatments.some((t) => t.remaining > 0);
+    const canBookData = Boolean(p.id && p.brandId) && bookableTreatments(p).length > 0;
     const lockedUntilPaid = live && left && p.bookableNow === 0 && p.amountDue > 0;
     const book = live && left && canBookData && !lockedUntilPaid && p.bookableNow !== 0;
     return { pay, book, lockedUntilPaid };
@@ -171,7 +179,11 @@ export function buildWalletModel(input) {
         const available = firstOf(p, ["availableSessions"]);
         const venues = (Array.isArray(p.venues) ? p.venues : [])
             .filter((v) => Boolean(v) && typeof v === "object")
-            .map((v) => ({ brandLocationId: str(v.brandLocationId), name: str(v.name) }))
+            .map((v) => ({
+            brandLocationId: str(v.brandLocationId),
+            name: str(v.name),
+            serviceIds: Array.isArray(v.serviceIds) ? v.serviceIds.map(str).filter(Boolean) : [],
+        }))
             .filter((v) => /^[0-9a-f-]{36}$/i.test(v.brandLocationId));
         const treatments = items
             .map((i) => ({

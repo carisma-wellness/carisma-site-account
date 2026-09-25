@@ -103,6 +103,8 @@ export type { IcsEvent } from "./ics.js";
 export {
   buildWalletModel,
   packageActions,
+  venuesFor,
+  bookableTreatments,
   walletHTML,
   buildStatementModel,
   statementHTML,
@@ -158,6 +160,8 @@ export {
   payBalanceCall,
   packagePayCall,
   packageBookCall,
+  packagePayConfirmCall,
+  packageReturnFrom,
   readCheckoutUrl,
   readBookedAppointmentId,
   packageBookFailureMessage,

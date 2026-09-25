@@ -27,7 +27,7 @@ import {
   type PortalView,
 } from "./portal.js";
 import { bodyFor, bookingIdFromPath, ledeFor, requestsFor, subjectFor, titleFor } from "./portalData.js";
-import { buildWalletModel, packageActions, type PackageView } from "./records.js";
+import { bookableTreatments, buildWalletModel, packageActions, venuesFor, type PackageView } from "./records.js";
 import { unwrapEnvelope } from "./appointments.js";
 import { escapeHtml } from "./html.js";
 import { ACCOUNT_BOOKINGS_HREF } from "./panel.js";
@@ -54,6 +54,8 @@ import {
   packageBookCall,
   packageBookFailureMessage,
   packagePayCall,
+  packagePayConfirmCall,
+  packageReturnFrom,
   readBookedAppointmentId,
   readCheckoutUrl,
   readCancellationPreview,
@@ -1214,10 +1216,11 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
    * everywhere. Nothing here takes a card — the checkout is `PACKAGE`.
    */
   const openPackageBook = (pkg: PackageView, opener: LiveEl | null): void => {
-    const treatments = pkg.treatments.filter((t) => t.remaining > 0);
+    const treatments = bookableTreatments(pkg);
     let treatment = treatments[0];
-    let venue = pkg.venues[0];
-    if (!treatment || !venue) return;
+    const firstVenue = treatment ? venuesFor(pkg, treatment.serviceId)[0] : undefined;
+    if (!treatment || !firstVenue) return;
+    let venue = firstVenue;
     const dlg = openDialog(packageBookDialogHTML(null, [], ""), opener);
     if (!dlg) return;
     let alive = true;
@@ -1237,7 +1240,7 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
     const keyOf = (date: string) => `${venue.brandLocationId}|${treatKey(treatment)}|${date}`;
     const ctx = (): PackageBookContext => ({
       packageName: pkg.name,
-      venues: pkg.venues.map((v) => ({ key: v.brandLocationId, label: v.name || "Venue" })),
+      venues: venuesFor(pkg, treatment.serviceId).map((v) => ({ key: v.brandLocationId, label: v.name || "Venue" })),
       venueKey: venue.brandLocationId,
       treatments: treatments.map((t) => ({ key: treatKey(t), label: t.name || pkg.name })),
       treatmentKey: treatKey(treatment),
@@ -1383,6 +1386,9 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
         const next = treatments.find((x) => treatKey(x) === tr.getAttribute("data-cw-pk-treat"));
         if (next && next !== treatment) {
           treatment = next;
+          // Keep the venue when it sells the new treatment too; otherwise the first that does.
+          const here = venuesFor(pkg, next.serviceId);
+          venue = here.find((v) => v.brandLocationId === venue.brandLocationId) ?? here[0] ?? venue;
           rechoose();
         }
         return;
@@ -1390,7 +1396,7 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
       const vn = closestOf(t, "[data-cw-pk-venue]");
       if (vn) {
         ev.preventDefault();
-        const next = pkg.venues.find((x) => x.brandLocationId === vn.getAttribute("data-cw-pk-venue"));
+        const next = venuesFor(pkg, treatment.serviceId).find((x) => x.brandLocationId === vn.getAttribute("data-cw-pk-venue"));
         if (next && next !== venue) {
           venue = next;
           rechoose();
@@ -1660,7 +1666,16 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
     });
   }
 
-  void load();
+  // Back from a package Checkout: record it now (the webhook may be seconds
+  // behind), then paint — so the card already reads what was paid. A failed
+  // confirm changes nothing: the webhook still settles it.
+  const packageReturn = view === "wallet" ? packageReturnFrom(loc?.search ?? "") : null;
+  if (packageReturn) {
+    void postJson(fetchImpl, packagePayConfirmCall(packageReturn.packageId, packageReturn.sessionId)).then(
+      () => load(),
+      () => load(),
+    );
+  } else void load();
 
   // Sign-out on this page is handled by mountAccountPanel's document listener
   // (layout calls hydrateAll). Binding it here as well would double-POST.

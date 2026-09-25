@@ -192,6 +192,22 @@ export interface GiftCardView {
 export interface PackageVenueView {
   brandLocationId: string;
   name: string;
+  /**
+   * Which of the package's treatments this venue sells. Empty from a server
+   * that did not say — read as "every treatment", and the slots read answers
+   * "not offered here" if that is wrong.
+   */
+  serviceIds: string[];
+}
+
+/** The venues that sell this treatment (all of them when the server named no services). */
+export function venuesFor(p: PackageView, serviceId: string): PackageVenueView[] {
+  return p.venues.filter((v) => v.serviceIds.length === 0 || v.serviceIds.includes(serviceId));
+}
+
+/** The treatments that still have sessions AND a venue that sells them. */
+export function bookableTreatments(p: PackageView): PackageTreatmentView[] {
+  return p.treatments.filter((t) => t.remaining > 0 && venuesFor(p, t.serviceId).length > 0);
 }
 
 /** One treatment a package can be booked for. */
@@ -249,7 +265,7 @@ export function packageActions(p: PackageView): PackageActions {
   const live = !p.status || p.status.toUpperCase() === "ACTIVE";
   const left = p.sessionsLeft === null ? p.treatments.some((t) => t.remaining > 0) : p.sessionsLeft > 0;
   const pay = live && Boolean(p.id) && p.amountDue > 0;
-  const canBookData = Boolean(p.id && p.brandId) && p.venues.length > 0 && p.treatments.some((t) => t.remaining > 0);
+  const canBookData = Boolean(p.id && p.brandId) && bookableTreatments(p).length > 0;
   const lockedUntilPaid = live && left && p.bookableNow === 0 && p.amountDue > 0;
   const book = live && left && canBookData && !lockedUntilPaid && p.bookableNow !== 0;
   return { pay, book, lockedUntilPaid };
@@ -295,7 +311,11 @@ export function buildWalletModel(input: {
     const available = firstOf(p, ["availableSessions"]);
     const venues: PackageVenueView[] = (Array.isArray(p.venues) ? (p.venues as unknown[]) : [])
       .filter((v): v is Record<string, unknown> => Boolean(v) && typeof v === "object")
-      .map((v) => ({ brandLocationId: str(v.brandLocationId), name: str(v.name) }))
+      .map((v) => ({
+        brandLocationId: str(v.brandLocationId),
+        name: str(v.name),
+        serviceIds: Array.isArray(v.serviceIds) ? (v.serviceIds as unknown[]).map(str).filter(Boolean) : [],
+      }))
       .filter((v) => /^[0-9a-f-]{36}$/i.test(v.brandLocationId));
     const treatments: PackageTreatmentView[] = items
       .map((i) => ({

@@ -24,12 +24,12 @@ export { addDays, daysBetween, dateWords, instantWords, clockOf, buildDayStrip, 
 export type { DayChip, TimeOption, DayPart, TimesState, RescheduleContext, DateStyle, PackageBookContext, PackageBookChoice } from "./dialogs.js";
 export { buildIcs, icsUtc, icsEscape, icsFold, icsFileName, icsLocation, stripVenuePrefix } from "./ics.js";
 export type { IcsEvent } from "./ics.js";
-export { buildWalletModel, packageActions, walletHTML, buildStatementModel, statementHTML, buildDocumentsModel, documentsHTML, buildMembershipModel, membershipHTML, walletTotal, walletElsewhere, walletSources, documentTitle, monthOf, MEMBER_RECORDS_QC, buildReferModel, referHTML, referShareText, referFamily, } from "./records.js";
+export { buildWalletModel, packageActions, venuesFor, bookableTreatments, walletHTML, buildStatementModel, statementHTML, buildDocumentsModel, documentsHTML, buildMembershipModel, membershipHTML, walletTotal, walletElsewhere, walletSources, documentTitle, monthOf, MEMBER_RECORDS_QC, buildReferModel, referHTML, referShareText, referFamily, } from "./records.js";
 export type { WalletModel, StatementModel, MembershipModel, DocumentView, GiftCardView, PackageView, PackageActions, PackageVenueView, PackageTreatmentView, StatementLineView, RecordsContext, ReferModel, ReferProgrammeView, ReferFriendView, ReferFriendStatus, } from "./records.js";
 export { eur, longDate, timeOfDay, shortWhen, plainDate, whenRange, untilPhrase } from "./money.js";
 export { venueLocalToUtcIso, venueDateString, buildSlotsModel, reschedulePickerHTML, RESCHEDULE_QC, } from "./reschedule.js";
 export type { SlotsModel, SlotView } from "./reschedule.js";
-export { confirmCall, cancelCall, cancellationPreviewCall, rescheduleCall, payBalanceCall, packagePayCall, packageBookCall, readCheckoutUrl, readBookedAppointmentId, packageBookFailureMessage, isTakenTimeRefusal, slotsCall, membershipCall, readCancellationPreview, cancelQuestion, cancelSummary, needsPreview, messageFromError, walletAvailabilityCall, walletPassCall, readWalletAvailability, } from "./portalActions.js";
+export { confirmCall, cancelCall, cancellationPreviewCall, rescheduleCall, payBalanceCall, packagePayCall, packageBookCall, packagePayConfirmCall, packageReturnFrom, readCheckoutUrl, readBookedAppointmentId, packageBookFailureMessage, isTakenTimeRefusal, slotsCall, membershipCall, readCancellationPreview, cancelQuestion, cancelSummary, needsPreview, messageFromError, walletAvailabilityCall, walletPassCall, readWalletAvailability, } from "./portalActions.js";
 export type { ProxyCall, CancellationPreview, PortalActionName, CancelSummary } from "./portalActions.js";
 export { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
 export { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";
