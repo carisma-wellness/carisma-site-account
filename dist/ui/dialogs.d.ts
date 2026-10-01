@@ -87,7 +87,7 @@ export interface TimesState {
 }
 export declare function rescheduleTimesHTML(s: TimesState): string;
 /** The review bar: the change in words, and the only button that moves anything. */
-export declare function reviewBarHTML(oldLabel: string, newLabel: string, busy?: boolean): string;
+export declare function reviewBarHTML(oldLabel: string, newLabel: string, busy?: boolean, note?: string): string;
 export declare function rescheduleDialogHTML(ctx: RescheduleContext | null, days: DayChip[], selected: string): string;
 /** "Cancel Thursday's Lipocavitation?" */
 export declare function cancelTitle(startIso: string, treatment: string): string;

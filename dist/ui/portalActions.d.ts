@@ -28,7 +28,10 @@ export declare const cancellationPreviewCall: (id: string) => ProxyCall;
  * card would be charged on a single tap.
  */
 export declare const cancelCall: (id: string, acceptFee: boolean) => ProxyCall;
-export declare const rescheduleCall: (id: string, startTimeIso: string) => ProxyCall;
+export declare const rescheduleCall: (id: string, startTimeIso: string, opts?: {
+    staffId?: string | null;
+    acceptLateFee?: boolean;
+}) => ProxyCall;
 /**
  * Settle an outstanding balance.
  *
@@ -96,6 +99,19 @@ export declare const slotsCall: (opts: {
     date: string;
     serviceId?: string | null;
     durationMins?: number | null;
+    /** The therapist already on the visit. Absent asks the whole qualified pool. */
+    staffId?: string | null;
+    /** This visit, so its own hour is not treated as taken. */
+    excludeAppointmentId?: string | null;
+}) => ProxyCall;
+export declare function readStaffList(body: unknown): Array<{
+    id: string;
+    name: string;
+}>;
+/** People who can perform this treatment at this hotel. The member picks. */
+export declare const staffCall: (opts: {
+    brandLocationId: string;
+    serviceId: string;
 }) => ProxyCall;
 export declare const membershipCall: (id: string, verb: "pause" | "resume") => ProxyCall;
 export interface CancellationPreview {
@@ -105,8 +121,14 @@ export interface CancellationPreview {
     chargeAmount: number;
     cardLast4: string | null;
     policyText: string;
+    refundAmount: number;
 }
 export declare function readCancellationPreview(body: unknown): CancellationPreview;
+/**
+ * What the guest reads before they confirm a change inside 24 hours.
+ * Written for the club's voice: half the deposit already taken, not a warning label.
+ */
+export declare const LATE_WINDOW_SENTENCE = "If you move or cancel your visit inside 24 hours, we keep half the deposit already taken.";
 /**
  * The question put to the member before a cancellation.
  *

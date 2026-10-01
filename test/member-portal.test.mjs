@@ -207,7 +207,7 @@ test("the cancellation question carries the SERVER's figures and the real card",
   const q = cancelQuestion(p);
   assert.match(q, /€60\.00/);
   assert.match(q, /4242/);
-  assert.match(q, /€80\.00 of what you've already paid is kept/);
+  assert.match(q, /€80\.00 of the deposit stays/);
   assert.match(q, /charged 50%/);
 });
 
@@ -303,18 +303,22 @@ test("a document with no link still appears, with somewhere to go", () => {
   assert.match(html, /Ask at the desk/);
 });
 
-test("membership shows the plan and offers pause only while it is active", () => {
+test("membership shows the plan and never a pause or resume button", () => {
   const active = buildMembershipModel({ success: true, data: [{ id: "m1", status: "ACTIVE", price: 49, membership: { name: "Gold" }, nextBillingAt: "2026-10-01T00:00:00.000Z" }] });
-  assert.equal(active.canPause, true);
+  assert.equal(active.canPause, false);
   assert.equal(active.canResume, false);
-  const html = membershipHTML(active);
+  const html = membershipHTML(active, { contactPhone: "+35627802062" });
   assert.match(html, /Gold/);
   assert.match(html, /€49\.00/);
-  assert.match(html, /Pause membership/);
+  assert.doesNotMatch(html, /Pause membership/);
+  assert.doesNotMatch(html, /membership-pause/);
+  assert.match(html, /speak to the team/);
+  assert.match(html, /tel:\+35627802062/);
 
   const paused = buildMembershipModel({ data: [{ id: "m1", status: "PAUSED", membership: { name: "Gold" } }] });
-  assert.equal(paused.canResume, true);
-  assert.match(membershipHTML(paused), /Resume membership/);
+  assert.equal(paused.canResume, false);
+  assert.doesNotMatch(membershipHTML(paused), /Resume membership/);
+  assert.doesNotMatch(membershipHTML(paused), /membership-resume/);
 });
 
 test("the card that pays is never changeable from a brand site", () => {

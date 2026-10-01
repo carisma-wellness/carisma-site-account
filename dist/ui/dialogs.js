@@ -257,8 +257,9 @@ function timeGridHTML(options, s) {
         .join("");
 }
 /** The review bar: the change in words, and the only button that moves anything. */
-export function reviewBarHTML(oldLabel, newLabel, busy = false) {
+export function reviewBarHTML(oldLabel, newLabel, busy = false, note = "") {
     return (`<div class="cw-rs-review">` +
+        (note ? `<p class="cw-rs-note">${escapeHtml(note)}</p>` : "") +
         `<p class="cw-rs-change" ${M}><span class="cw-rs-change__old">${escapeHtml(oldLabel)}</span>` +
         `<span class="cw-rs-change__arrow" aria-hidden="true">→</span><span class="cw-vh"> to </span>` +
         `<span class="cw-rs-change__new">${escapeHtml(newLabel)}</span></p>` +

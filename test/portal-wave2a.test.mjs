@@ -76,7 +76,7 @@ function appt(over = {}) {
       lat: 35.89,
       lng: 14.5,
     },
-    services: [{ serviceId: "svc-1", name: "Couples Full Body Massage", durationMins: 60, price: 160, staffName: "Maria Borg" }],
+    services: [{ serviceId: "svc-1", name: "Couples Full Body Massage", durationMins: 60, price: 160, staffName: "Maria Borg", staffId: "tm-1" }],
     policyText: "Cancel free of charge up to 24 hours before your appointment.",
     actions: OPEN,
     ...over,
@@ -194,11 +194,16 @@ test("a booking that cannot move says why, with the phone as a link", () => {
   assert.doesNotMatch(page({ status: "COMPLETED", actions: { ...OPEN, canReschedule: false, reason: "closed" } }), /cw-reason/);
 });
 
-test("the online deadline is mentioned only when it is close", () => {
-  const near = page({ actions: { ...OPEN, rescheduleClosesAt: iso(20) } });
-  assert.match(near, /You can move this online until /);
-  const far = page({ actions: { ...OPEN, rescheduleClosesAt: iso(200) } });
-  assert.doesNotMatch(far, /You can move this online until/);
+test("inside a day the half-deposit sentence sits with both buttons", () => {
+  const near = page({ actions: { ...OPEN, lateWindow: true, contact: "call Carisma Spa on +35627802062" } });
+  assert.match(near, /half the deposit already taken/);
+  assert.match(near, /data-cw-action="reschedule"/);
+  assert.match(near, /data-cw-action="cancel"/);
+  assert.match(near, /href="tel:\+35627802062"/);
+  const far = page({ actions: { ...OPEN, lateWindow: false } });
+  assert.doesNotMatch(far, /half the deposit/);
+  assert.match(far, /data-cw-action="reschedule"/);
+  assert.match(far, /data-cw-action="cancel"/);
 });
 
 test("the policy leads with the server's figure, and only while the visit is ahead", () => {

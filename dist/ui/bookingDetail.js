@@ -19,6 +19,7 @@ import { escapeHtml } from "./html.js";
 import { eur, whenRange, untilPhrase, longDate, timeOfDay } from "./money.js";
 import { unwrapEnvelope } from "./appointments.js";
 import { linkifyPhones, portalShellHTML } from "./portal.js";
+import { LATE_WINDOW_SENTENCE } from "./portalActions.js";
 import { stripVenuePrefix } from "./ics.js";
 import { instantWords } from "./dialogs.js";
 export const BOOKING_DETAIL_QC = "account-booking-detail-20260922";
@@ -32,6 +33,8 @@ const NO_ACTIONS = {
     canPayBalance: false,
     balanceDue: 0,
     canRebook: false,
+    lateWindow: false,
+    contact: null,
     reason: null,
 };
 function str(v) {
@@ -93,6 +96,8 @@ export function readActions(raw) {
         canPayBalance: a.canPayBalance === true,
         balanceDue: num(a.balanceDue),
         canRebook: a.canRebook === true,
+        lateWindow: a.lateWindow === true,
+        contact: typeof a.contact === "string" && a.contact ? a.contact : null,
         reason: typeof a.reason === "string" && a.reason ? a.reason : null,
     };
 }
@@ -116,6 +121,7 @@ export function buildBookingDetailModel(body, id) {
             when: "",
             services: [],
             staffName: null,
+            staffId: null,
             total: 0,
             paid: 0,
             due: 0,
@@ -151,6 +157,7 @@ export function buildBookingDetailModel(body, id) {
         price: num(s.price),
         durationMins: Number.isFinite(Number(s.durationMins)) ? Number(s.durationMins) : null,
         staffName: str(s.staffName) || null,
+        staffId: str(s.staffId) || null,
     }));
     const total = num(a.totalAmount);
     const paid = num(a.amountPaid);
@@ -172,6 +179,7 @@ export function buildBookingDetailModel(body, id) {
         when: whenRange(str(a.startTime), str(a.endTime)),
         services,
         staffName: services.find((s) => s.staffName)?.staffName ?? null,
+        staffId: services.find((s) => s.staffId)?.staffId ?? null,
         total,
         paid,
         due,
@@ -194,7 +202,6 @@ export function buildBookingDetailModel(body, id) {
 }
 /* ── Render ─────────────────────────────────────────────────────────────── */
 const M = 'data-clarity-mask="True"';
-const HOUR = 3_600_000;
 /** Statuses that describe a visit still ahead. The server's status, not the clock. */
 const ACTIVE = new Set(["BOOKED", "CONFIRMED", "PENDING"]);
 export function isActiveBooking(m) {
@@ -380,12 +387,9 @@ function actionsHTML(m, primary, o) {
     const reason = isActiveBooking(m) && !a.canReschedule && a.reason
         ? `<p class="cw-reason">${CLOCK_ICON}<span>${linkifyPhones(a.reason)}</span></p>`
         : "";
-    // The deadline, only when it is close enough to matter. The server's
-    // instant; the 48 hours only decides whether to mention it.
-    const closes = a.rescheduleClosesAt ? Date.parse(a.rescheduleClosesAt) : NaN;
-    const nowMs = (o.now ?? new Date()).getTime();
-    const deadline = canMove(m) && Number.isFinite(closes) && closes > nowMs && closes - nowMs < 48 * HOUR
-        ? `<p class="cw-reason cw-bk-deadline">${CLOCK_ICON}<span>You can move this online until ${escapeHtml(instantWords(a.rescheduleClosesAt))}.</span></p>`
+    const deadline = a.lateWindow
+        ? `<p class="cw-reason cw-bk-deadline">${CLOCK_ICON}<span>${escapeHtml(LATE_WINDOW_SENTENCE)}</span></p>` +
+            (a.contact ? `<p class="cw-reason"><span>${linkifyPhones(a.contact)}</span></p>` : "")
         : "";
     const quiet = [];
     if (isActiveBooking(m) && m.startIso) {

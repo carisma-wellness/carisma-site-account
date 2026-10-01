@@ -641,10 +641,9 @@ export function buildMembershipModel(body) {
         nextChargeAt: str(firstOf(o, ["nextBillingAt", "nextChargeAt", "currentPeriodEnd"])) || null,
         storedValue: num(firstOf(o, ["storedValue", "balance", "creditBalance"])),
         id: str(o.id) || null,
-        // Pause and resume are mutually exclusive, and both are refused outright
-        // on a cancelled membership.
-        canPause: hasMembership && status === "ACTIVE",
-        canResume: hasMembership && (status === "PAUSED" || status === "SUSPENDED"),
+        // The member cannot pause or resume. The club does that from the desk.
+        canPause: false,
+        canResume: false,
     };
 }
 function membershipChip(status) {
@@ -670,7 +669,7 @@ export function membershipHTML(m, ctx = {}) {
         return recordRoot("membership", emptyHTML(CARD_ICON, "You're not a member yet", "See what membership includes, and what it costs each month.", `<a class="cw-btn cw-btn--secondary" href="/membership">See membership</a>`));
     }
     const chip = membershipChip(m.status);
-    const paused = m.canResume;
+    const paused = m.status === "PAUSED" || m.status === "SUSPENDED";
     const name = (ctx.memberName || "").trim();
     const hero = `<section class="cw-mcard cw-rise" aria-label="${escapeHtml(`${m.planName}${chip.label ? `, ${chip.label}` : ""}`)}" ${M}>` +
         `<div class="cw-mcard__top">` +
@@ -686,25 +685,13 @@ export function membershipHTML(m, ctx = {}) {
         fact("Next payment", paused ? "Paused" : m.nextChargeAt ? plainDate(m.nextChargeAt) : "—") +
         fact("Balance", eur(m.storedValue)) +
         `</dl>`;
-    const btn = (action, label) => `<button type="button" class="cw-btn cw-btn--secondary" data-cw-action="${action}" ` +
-        `data-cw-membership="${escapeHtml(m.id ?? "")}">${escapeHtml(label)}</button>`;
-    const controls = m.id && (m.canPause || m.canResume)
-        ? `<div class="cw-mctl__do">` +
-            (m.canPause
-                ? btn("membership-pause", "Pause membership") +
-                    `<p class="cw-mctl__note">Pausing stops your monthly payments until you resume. Your balance stays on your account.</p>`
-                : btn("membership-resume", "Resume membership") +
-                    `<p class="cw-mctl__note">Your membership is paused. Resuming restarts your monthly payments.</p>`) +
-            `</div>`
-        : "";
-    // Cancelling and changing the card are deliberately NOT buttons here. The
-    // card is an identity-origin act (the brand proxy forbids it); cancelling a
-    // membership is a conversation we would rather have than lose silently.
+    // Pause, resume, cancelling and changing the card are not buttons. The
+    // pause call is closed on the API as well. The member speaks to the club.
     const tel = (ctx.contactPhone || "").replace(/\s+/g, "");
-    const rest = `<p class="cw-mnote">To change the card that pays for this, or to cancel, speak to the team` +
+    const rest = `<p class="cw-mnote">To pause, to change the card that pays for this, or to cancel, speak to the team` +
         (tel ? ` on <a class="cw-link" href="tel:${escapeHtml(tel)}">${escapeHtml(phoneLabel(tel))}</a>` : "") +
         `.</p>`;
-    return recordRoot("membership", hero + facts + `<section class="cw-mctl cw-rise">${controls}${rest}</section>`);
+    return recordRoot("membership", hero + facts + `<section class="cw-mctl cw-rise">${rest}</section>`);
 }
 /**
  * Which site family a brand belongs to. Hair Clinic has no programme of its

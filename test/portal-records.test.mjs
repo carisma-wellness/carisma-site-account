@@ -273,13 +273,14 @@ test("the membership card carries the plan, the member's first name and the stat
   assert.match(membershipHTML(buildMembershipModel(ACTIVE)), /cw-mcard__label">Member</);
 });
 
-test("pause is a secondary with its explanation; paused offers resume instead", () => {
-  const html = membershipHTML(buildMembershipModel(ACTIVE));
-  assert.match(html, /class="cw-btn cw-btn--secondary" data-cw-action="membership-pause" data-cw-membership="m1"/);
-  assert.match(html, /Pausing stops your monthly payments/);
-  assert.doesNotMatch(html, /membership-resume/);
+test("pause and resume are not on the membership page", () => {
+  const html = membershipHTML(buildMembershipModel(ACTIVE), { contactPhone: "+35627802062" });
+  assert.doesNotMatch(html, /membership-pause/);
+  assert.doesNotMatch(html, /Pause membership/);
+  assert.match(html, /speak to the team/);
+  assert.match(html, /tel:\+35627802062/);
   const paused = membershipHTML(buildMembershipModel({ data: [{ id: "m1", status: "PAUSED", membership: { name: "Gold" } }] }));
-  assert.match(paused, /data-cw-action="membership-resume"/);
+  assert.doesNotMatch(paused, /membership-resume/);
   assert.doesNotMatch(paused, /membership-pause/);
   assert.match(text(paused), /Next payment Paused/);
 });

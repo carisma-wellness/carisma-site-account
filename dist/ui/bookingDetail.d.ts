@@ -1,4 +1,4 @@
-import type { CancellationPreview } from "./portalActions.js";
+import { type CancellationPreview } from "./portalActions.js";
 export declare const BOOKING_DETAIL_QC = "account-booking-detail-20260922";
 /** Mirrors the backend's AppointmentActions. Every field optional on the wire. */
 export interface BookingActions {
@@ -11,6 +11,10 @@ export interface BookingActions {
     canPayBalance: boolean;
     balanceDue: number;
     canRebook: boolean;
+    /** Inside 24 hours, and a deposit was taken. Both buttons stay. */
+    lateWindow: boolean;
+    /** "call Carisma Spa on …" — beside the buttons, never instead of them. */
+    contact: string | null;
     reason: string | null;
 }
 export interface BookingServiceLine {
@@ -21,6 +25,7 @@ export interface BookingServiceLine {
     price: number;
     durationMins: number | null;
     staffName: string | null;
+    staffId: string | null;
 }
 export interface BookingDetailModel {
     id: string;
@@ -35,6 +40,8 @@ export interface BookingDetailModel {
     when: string;
     services: BookingServiceLine[];
     staffName: string | null;
+    /** The therapist already on the visit. Null means the member must choose. */
+    staffId: string | null;
     total: number;
     paid: number;
     due: number;
