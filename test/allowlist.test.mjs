@@ -120,6 +120,7 @@ test("the new member reads and writes are all reachable, and their siblings are 
     ["POST", "/client/booking/appointments/abc123/pay-balance"],
     ["GET", "/client/wallet/appointments/abc123/apple"],
     ["POST", "/client/membership/abc123/pause"],
+    ["GET", "/client/booking/staff"],
   ];
   for (const [m, p] of allowed) assert.equal(isAllowed(m, p), true, `${m} ${p} should be allowed`);
 

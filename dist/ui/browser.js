@@ -24,7 +24,7 @@ import { ACCOUNT_BOOKINGS_HREF } from "./panel.js";
 import { linkifyPhones } from "./portal.js";
 import { bookingSkeletonHTML, bookingTreatment, bookingViewParts, buildBookingDetailModel, isActiveBooking, } from "./bookingDetail.js";
 import { buildSlotsModel, venueDateString, venueLocalToUtcIso } from "./reschedule.js";
-import { cancelCall, cancelSummary, cancellationPreviewCall, confirmCall, membershipCall, messageFromError, needsPreview, payBalanceCall, isTakenTimeRefusal, packageBookCall, packageBookFailureMessage, packagePayCall, packagePayConfirmCall, packageReturnFrom, invoicePayCall, invoicePayConfirmCall, invoiceReturnFrom, statementPayFailureMessage, readBookedAppointmentId, readCheckoutUrl, readCancellationPreview, readWalletAvailability, rescheduleCall, slotsCall, walletAvailabilityCall, walletPassCall, } from "./portalActions.js";
+import { cancelCall, cancelSummary, cancellationPreviewCall, confirmCall, membershipCall, messageFromError, needsPreview, payBalanceCall, isTakenTimeRefusal, packageBookCall, packageBookFailureMessage, packagePayCall, packagePayConfirmCall, packageReturnFrom, invoicePayCall, invoicePayConfirmCall, invoiceReturnFrom, statementPayFailureMessage, readBookedAppointmentId, readCheckoutUrl, readCancellationPreview, readWalletAvailability, LATE_WINDOW_SENTENCE, rescheduleCall, slotsCall, readStaffList, staffCall, walletAvailabilityCall, walletPassCall, } from "./portalActions.js";
 import { buildDayStrip, cancelBodyHTML, cancelDialogHTML, cancelFootHTML, clockOf, dateWords, dayChipsHTML, dialogFrameHTML, instantWords, packageBookBarHTML, packageBookDialogHTML, rescheduleDialogHTML, rescheduleTimesHTML, reviewBarHTML, } from "./dialogs.js";
 import { buildIcs, icsFileName, icsLocation } from "./ics.js";
 import { installBrandLinkInterceptor } from "./linkInterceptor.js";
@@ -486,6 +486,12 @@ function downloadCalendar(doc, e) {
 function innerOfDialog(html) {
     return html.replace(/^<dialog[^>]*>/, "").replace(/<\/dialog>$/, "");
 }
+/** The club number already in the site header, when the host did not pass one. */
+function phoneAlreadyOnPage(doc) {
+    const links = doc.querySelectorAll?.('a[href^="tel:"]');
+    const href = links && links.length ? links[0].getAttribute?.("href") || "" : "";
+    return href.replace(/^tel:/i, "").trim();
+}
 export function mountAccountPortal(doc, opts = {}) {
     try {
         injectChrome(doc);
@@ -670,7 +676,13 @@ export function mountAccountPortal(doc, opts = {}) {
                             // legacy wrapper only existed to hold their old markup. They
                             // also need the member's first name (the membership card) and
                             // the brand phone (a tel link beside "speak to the team").
-                            `<div class="cw-rise">${bodyFor(view, reads.map((r) => (r.state === "failed" ? null : r.body)), { memberName, contactPhone: opts.contactPhone, siteBrand, siteOrigin: loc?.origin, invoicePay: opts.invoicePay === true })}</div>`,
+                            `<div class="cw-rise">${bodyFor(view, reads.map((r) => (r.state === "failed" ? null : r.body)), {
+                                memberName,
+                                contactPhone: opts.contactPhone || phoneAlreadyOnPage(doc),
+                                siteBrand,
+                                siteOrigin: loc?.origin,
+                                invoicePay: opts.invoicePay === true,
+                            })}</div>`,
                 }));
                 if (!portalMembershipBound.has(mount)) {
                     portalMembershipBound.add(mount);
@@ -797,6 +809,24 @@ export function mountAccountPortal(doc, opts = {}) {
             let selectedDate = currentDate >= today ? currentDate : today;
             let selectedTime = null;
             let alert = null;
+            let chosenStaff = m.staffId;
+            let lateNote = "";
+            if (m.actions.lateWindow) {
+                void postJson(fetchImpl, cancellationPreviewCall(m.id)).then((r) => {
+                    if (!alive || !r.ok)
+                        return;
+                    const preview = readCancellationPreview(r.body);
+                    if (preview.forfeitAmount > 0) {
+                        const kept = preview.forfeitAmount.toFixed(2);
+                        const back = preview.refundAmount > 0 ? ` €${preview.refundAmount.toFixed(2)} comes back.` : "";
+                        lateNote = `${LATE_WINDOW_SENTENCE} We'll keep €${kept}.${back}`;
+                    }
+                    else {
+                        lateNote = " ";
+                    }
+                    renderReview();
+                });
+            }
             const taken = new Map();
             const cache = new Map();
             const ctx = {
@@ -839,7 +869,7 @@ export function mountAccountPortal(doc, opts = {}) {
                     return;
                 }
                 const newLabel = `${dateWords(selectedDate, "shortMonth")}, ${selectedTime}`;
-                f.innerHTML = reviewBarHTML(oldLabel, newLabel);
+                f.innerHTML = reviewBarHTML(oldLabel, newLabel, false, lateNote);
                 f.setAttribute("data-open", "");
             };
             const pressDays = () => {
@@ -850,7 +880,35 @@ export function mountAccountPortal(doc, opts = {}) {
                     return renderTimes();
                 cache.delete(date);
                 renderTimes();
-                void readT(slotsCall({ brandLocationId: m.brandLocationId, date, serviceId: m.serviceId, durationMins: m.durationMins }).path).then((r) => {
+                if (!chosenStaff) {
+                    const el = times();
+                    if (!el || !m.serviceId || !m.brandLocationId)
+                        return;
+                    el.innerHTML = `<p class="cw-rs-none__text">Who would you like to see?</p>`;
+                    void readT(staffCall({ brandLocationId: m.brandLocationId, serviceId: m.serviceId }).path).then((r) => {
+                        if (!alive || chosenStaff)
+                            return;
+                        const people = r.state === "failed" ? [] : readStaffList(r.body);
+                        const box = times();
+                        if (!box)
+                            return;
+                        box.innerHTML = people.length
+                            ? `<p class="cw-rs-note">Who would you like to see?</p>` +
+                                people
+                                    .map((p) => `<button type="button" class="cw-btn cw-btn--secondary cw-btn--sm" data-cw-rs-staff="${escapeHtml(p.id)}">${escapeHtml(p.name)}</button>`)
+                                    .join("")
+                            : `<p class="cw-rs-none__text">No one is listed for this treatment at this hotel. Please call us and we'll place it.</p>`;
+                    });
+                    return;
+                }
+                void readT(slotsCall({
+                    brandLocationId: m.brandLocationId,
+                    date,
+                    serviceId: m.serviceId,
+                    durationMins: m.durationMins,
+                    staffId: chosenStaff,
+                    excludeAppointmentId: m.id,
+                }).path).then((r) => {
                     if (!alive)
                         return;
                     cache.set(date, r.state === "failed" ? "failed" : buildSlotsModel(r.body, date));
@@ -894,8 +952,13 @@ export function mountAccountPortal(doc, opts = {}) {
                 if (!startTime)
                     return;
                 const time = selectedTime;
+                if (m.actions.lateWindow && !lateNote)
+                    return;
                 const restore = setBusy(btn, "Moving…");
-                void postJson(fetchImpl, rescheduleCall(m.id, startTime)).then((r) => {
+                void postJson(fetchImpl, rescheduleCall(m.id, startTime, {
+                    staffId: chosenStaff,
+                    acceptLateFee: m.actions.lateWindow && lateNote.length > 0,
+                })).then((r) => {
                     if (!alive)
                         return;
                     if (r.ok) {
@@ -943,6 +1006,14 @@ export function mountAccountPortal(doc, opts = {}) {
                     const date = day.getAttribute("data-cw-rs-day") || "";
                     // "Show Sat 26" and Try again land focus on the new day's chip.
                     selectDay(date, !day.getAttribute("class")?.includes("cw-rs-day"));
+                    return;
+                }
+                const person = closestOf(t, "[data-cw-rs-staff]");
+                if (person) {
+                    ev.preventDefault();
+                    chosenStaff = person.getAttribute("data-cw-rs-staff");
+                    cache.clear();
+                    loadDay(selectedDate);
                     return;
                 }
                 const slot = closestOf(t, "[data-cw-rs-time]");
@@ -1423,7 +1494,18 @@ export function mountAccountPortal(doc, opts = {}) {
                 return;
             }
             if (action === "cancel") {
-                openCancel(btn);
+                if (detail && detail.id === id) {
+                    openCancel(btn);
+                    return;
+                }
+                void bookingFor(id).then((loaded) => {
+                    if (!loaded) {
+                        announce(mount, "We couldn't open this booking just now.", "bad");
+                        return;
+                    }
+                    detail = loaded;
+                    openCancel(btn);
+                });
                 return;
             }
             if (action === "calendar") {

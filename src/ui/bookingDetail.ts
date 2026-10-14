@@ -19,7 +19,7 @@ import { escapeHtml } from "./html.js";
 import { eur, whenRange, untilPhrase, longDate, timeOfDay } from "./money.js";
 import { unwrapEnvelope } from "./appointments.js";
 import { linkifyPhones, portalShellHTML } from "./portal.js";
-import type { CancellationPreview } from "./portalActions.js";
+import { LATE_WINDOW_SENTENCE, type CancellationPreview } from "./portalActions.js";
 import { stripVenuePrefix } from "./ics.js";
 import { instantWords } from "./dialogs.js";
 
@@ -36,6 +36,10 @@ export interface BookingActions {
   canPayBalance: boolean;
   balanceDue: number;
   canRebook: boolean;
+  /** Inside 24 hours, and a deposit was taken. Both buttons stay. */
+  lateWindow: boolean;
+  /** "call Carisma Spa on …" — beside the buttons, never instead of them. */
+  contact: string | null;
   reason: string | null;
 }
 
@@ -47,6 +51,7 @@ export interface BookingServiceLine {
   price: number;
   durationMins: number | null;
   staffName: string | null;
+  staffId: string | null;
 }
 
 export interface BookingDetailModel {
@@ -62,6 +67,8 @@ export interface BookingDetailModel {
   when: string;
   services: BookingServiceLine[];
   staffName: string | null;
+  /** The therapist already on the visit. Null means the member must choose. */
+  staffId: string | null;
   total: number;
   paid: number;
   due: number;
@@ -98,6 +105,8 @@ const NO_ACTIONS: BookingActions = {
   canPayBalance: false,
   balanceDue: 0,
   canRebook: false,
+  lateWindow: false,
+  contact: null,
   reason: null,
 };
 
@@ -161,6 +170,8 @@ export function readActions(raw: unknown): BookingActions {
     canPayBalance: a.canPayBalance === true,
     balanceDue: num(a.balanceDue),
     canRebook: a.canRebook === true,
+    lateWindow: a.lateWindow === true,
+    contact: typeof a.contact === "string" && a.contact ? a.contact : null,
     reason: typeof a.reason === "string" && a.reason ? a.reason : null,
   };
 }
@@ -186,6 +197,7 @@ export function buildBookingDetailModel(body: unknown, id: string): BookingDetai
       when: "",
       services: [],
       staffName: null,
+      staffId: null,
       total: 0,
       paid: 0,
       due: 0,
@@ -224,6 +236,7 @@ export function buildBookingDetailModel(body: unknown, id: string): BookingDetai
     price: num(s.price),
     durationMins: Number.isFinite(Number(s.durationMins)) ? Number(s.durationMins) : null,
     staffName: str(s.staffName) || null,
+    staffId: str(s.staffId) || null,
   }));
 
   const total = num(a.totalAmount);
@@ -247,6 +260,7 @@ export function buildBookingDetailModel(body: unknown, id: string): BookingDetai
     when: whenRange(str(a.startTime), str(a.endTime)),
     services,
     staffName: services.find((s) => s.staffName)?.staffName ?? null,
+    staffId: services.find((s) => s.staffId)?.staffId ?? null,
     total,
     paid,
     due,
@@ -271,7 +285,6 @@ export function buildBookingDetailModel(body: unknown, id: string): BookingDetai
 /* ── Render ─────────────────────────────────────────────────────────────── */
 
 const M = 'data-clarity-mask="True"';
-const HOUR = 3_600_000;
 
 /** Statuses that describe a visit still ahead. The server's status, not the clock. */
 const ACTIVE = new Set(["BOOKED", "CONFIRMED", "PENDING"]);
@@ -489,14 +502,10 @@ function actionsHTML(m: BookingDetailModel, primary: BookingPrimary, o: BookingR
     isActiveBooking(m) && !a.canReschedule && a.reason
       ? `<p class="cw-reason">${CLOCK_ICON}<span>${linkifyPhones(a.reason)}</span></p>`
       : "";
-  // The deadline, only when it is close enough to matter. The server's
-  // instant; the 48 hours only decides whether to mention it.
-  const closes = a.rescheduleClosesAt ? Date.parse(a.rescheduleClosesAt) : NaN;
-  const nowMs = (o.now ?? new Date()).getTime();
-  const deadline =
-    canMove(m) && Number.isFinite(closes) && closes > nowMs && closes - nowMs < 48 * HOUR
-      ? `<p class="cw-reason cw-bk-deadline">${CLOCK_ICON}<span>You can move this online until ${escapeHtml(instantWords(a.rescheduleClosesAt as string))}.</span></p>`
-      : "";
+  const deadline = a.lateWindow
+    ? `<p class="cw-reason cw-bk-deadline">${CLOCK_ICON}<span>${escapeHtml(LATE_WINDOW_SENTENCE)}</span></p>` +
+      (a.contact ? `<p class="cw-reason"><span>${linkifyPhones(a.contact)}</span></p>` : "")
+    : "";
 
   const quiet: string[] = [];
   if (isActiveBooking(m) && m.startIso) {

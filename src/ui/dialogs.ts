@@ -348,9 +348,10 @@ function timeGridHTML(options: TimeOption[], s: TimesState): string {
 }
 
 /** The review bar: the change in words, and the only button that moves anything. */
-export function reviewBarHTML(oldLabel: string, newLabel: string, busy = false): string {
+export function reviewBarHTML(oldLabel: string, newLabel: string, busy = false, note = ""): string {
   return (
     `<div class="cw-rs-review">` +
+    (note ? `<p class="cw-rs-note">${escapeHtml(note)}</p>` : "") +
     `<p class="cw-rs-change" ${M}><span class="cw-rs-change__old">${escapeHtml(oldLabel)}</span>` +
     `<span class="cw-rs-change__arrow" aria-hidden="true">→</span><span class="cw-vh"> to </span>` +
     `<span class="cw-rs-change__new">${escapeHtml(newLabel)}</span></p>` +

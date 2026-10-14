@@ -207,7 +207,7 @@ test("the cancellation question carries the SERVER's figures and the real card",
   const q = cancelQuestion(p);
   assert.match(q, /€60\.00/);
   assert.match(q, /4242/);
-  assert.match(q, /€80\.00 of what you've already paid is kept/);
+  assert.match(q, /€80\.00 of the deposit stays/);
   assert.match(q, /charged 50%/);
 });
 

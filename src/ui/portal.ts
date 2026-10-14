@@ -25,6 +25,7 @@ import {
   type PanelVisit,
 } from "./panel.js";
 import { readActions, statusLabel, type BookingActions } from "./bookingDetail.js";
+import { LATE_WINDOW_SENTENCE } from "./portalActions.js";
 import { eur, untilPhrase } from "./money.js";
 import type { WalletModel } from "./records.js";
 
@@ -240,14 +241,27 @@ function cardButtons(c: ApptCard, size: "sm" | "md" = "sm", primaryFirst = false
         `aria-label="${escapeHtml(`Reschedule ${spoken(c)}`)}">Reschedule</button>`,
     );
   }
+  if (c.upcoming && a.canCancel) {
+    out.push(
+      `<button type="button" class="${cls(false)}" data-cw-action="cancel" data-cw-appt="${id}" ` +
+        `aria-label="${escapeHtml(`Cancel ${spoken(c)}`)}">Cancel</button>`,
+    );
+  }
   return out;
 }
 
 function reasonHTML(c: ApptCard): string {
-  // Only for a visit still ahead: a past booking needs no explanation of why
-  // it cannot be moved.
-  if (!c.upcoming || c.actions.canReschedule || !c.actions.reason) return "";
-  return `<p class="cw-reason">${CLOCK_ICON}<span>${linkifyPhones(c.actions.reason)}</span></p>`;
+  if (!c.upcoming) return "";
+  const parts: string[] = [];
+  if (c.actions.lateWindow) {
+    parts.push(`<p class="cw-reason">${CLOCK_ICON}<span>${escapeHtml(LATE_WINDOW_SENTENCE)}</span></p>`);
+    if (c.actions.contact) {
+      parts.push(`<p class="cw-reason"><span>${linkifyPhones(c.actions.contact)}</span></p>`);
+    }
+  } else if (!c.actions.canReschedule && c.actions.reason) {
+    parts.push(`<p class="cw-reason">${CLOCK_ICON}<span>${linkifyPhones(c.actions.reason)}</span></p>`);
+  }
+  return parts.join("");
 }
 
 /** The booking card used on Bookings and in Overview's "Also coming up". */
@@ -577,9 +591,12 @@ function nextVisitHTML(c: ApptCard, now: Date): string {
   const buttons: Array<{ action: string; label: string; aria: string }> = [];
   if (a.canPayBalance && c.due > 0) buttons.push({ action: "pay", label: `Pay ${eur(c.due)}`, aria: `Pay ${eur(c.due)} for ${spoken(c)}` });
   if (a.canReschedule) buttons.push({ action: "reschedule", label: "Reschedule", aria: `Reschedule ${spoken(c)}` });
+  if (a.canCancel) buttons.push({ action: "cancel", label: "Cancel", aria: `Cancel ${spoken(c)}` });
   if (a.canConfirm && c.status !== "CONFIRMED") buttons.push({ action: "confirm", label: "Confirm I'm coming", aria: `Confirm you're coming to ${spoken(c)}` });
-  const btns = buttons
-    .slice(0, 2)
+  const rest = buttons.filter((b) => b.action !== "cancel").slice(0, 2);
+  const cancelBtn = buttons.find((b) => b.action === "cancel");
+  const shown = cancelBtn ? [...rest, cancelBtn] : rest;
+  const btns = shown
     .map(
       (b, i) =>
         `<button type="button" class="cw-btn ${i === 0 ? "cw-btn--primary" : "cw-btn--secondary"}" data-cw-action="${b.action}" ` +
@@ -640,18 +657,6 @@ export function needsYou(m: PortalModel, excludeId = ""): NeedRow[] {
       continue;
     }
     if (!c.upcoming) continue;
-    const closes = a.rescheduleClosesAt ? Date.parse(a.rescheduleClosesAt) : NaN;
-    if (a.canReschedule && Number.isFinite(closes) && closes - now > 0 && closes - now < 48 * HOUR) {
-      out.push({
-        card: c,
-        title: `Online changes close ${untilPhrase(a.rescheduleClosesAt as string, m.now)}`,
-        sub: [c.service, when].filter(Boolean).join(" · "),
-        action: "reschedule",
-        label: "Reschedule",
-        calm: true,
-      });
-      continue;
-    }
     if (a.canConfirm && c.status !== "CONFIRMED" && Number.isFinite(c.startMs) && c.startMs - now < 48 * HOUR) {
       out.push({
         card: c,

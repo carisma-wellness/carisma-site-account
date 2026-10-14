@@ -55,10 +55,19 @@ export const cancelCall = (id: string, acceptFee: boolean): ProxyCall => ({
   body: { acceptFee },
 });
 
-export const rescheduleCall = (id: string, startTimeIso: string): ProxyCall => ({
+export const rescheduleCall = (
+  id: string,
+  startTimeIso: string,
+  opts: { staffId?: string | null; acceptLateFee?: boolean } = {},
+): ProxyCall => ({
   path: `${PROXY}/client/booking/appointments/${encodeURIComponent(id)}/reschedule`,
   method: "PATCH",
-  body: { startTime: startTimeIso },
+  body: {
+    startTime: startTimeIso,
+    ...(opts.staffId ? { staffIds: [opts.staffId] } : {}),
+    ...(opts.acceptLateFee ? { acceptLateFee: true } : {}),
+    freeTimesOnly: true,
+  },
 });
 
 /**
@@ -219,13 +228,40 @@ export const slotsCall = (opts: {
   date: string;
   serviceId?: string | null;
   durationMins?: number | null;
+  /** The therapist already on the visit. Absent asks the whole qualified pool. */
+  staffId?: string | null;
+  /** This visit, so its own hour is not treated as taken. */
+  excludeAppointmentId?: string | null;
 }): ProxyCall => {
   const q = new URLSearchParams();
   q.set("brandLocationId", opts.brandLocationId);
   q.set("date", opts.date);
   if (opts.serviceId) q.set("serviceId", opts.serviceId);
-  if (opts.durationMins) q.set("durationMins", String(opts.durationMins));
+  if (opts.durationMins) q.set("durationMinutes", String(opts.durationMins));
+  if (opts.staffId) q.set("staffIds", opts.staffId);
+  if (opts.excludeAppointmentId) q.set("excludeAppointmentId", opts.excludeAppointmentId);
   return { path: `${PROXY}/client/booking/slots?${q.toString()}`, method: "GET" };
+};
+
+export function readStaffList(body: unknown): Array<{ id: string; name: string }> {
+  const envelope = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const inner = envelope.data && typeof envelope.data === "object" ? (envelope.data as Record<string, unknown>) : envelope;
+  const list = Array.isArray(inner.staff) ? inner.staff : Array.isArray(inner) ? inner : [];
+  return list.flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const o = row as Record<string, unknown>;
+    const id = typeof o.id === "string" ? o.id : "";
+    const name = [o.firstName, o.lastName].filter((p) => typeof p === "string" && p).join(" ");
+    return id && name ? [{ id, name }] : [];
+  });
+}
+
+/** People who can perform this treatment at this hotel. The member picks. */
+export const staffCall = (opts: { brandLocationId: string; serviceId: string }): ProxyCall => {
+  const q = new URLSearchParams();
+  q.set("brandLocationId", opts.brandLocationId);
+  q.set("serviceId", opts.serviceId);
+  return { path: `${PROXY}/client/booking/staff?${q.toString()}`, method: "GET" };
 };
 
 export const membershipCall = (id: string, verb: "pause" | "resume"): ProxyCall => ({
@@ -242,6 +278,7 @@ export interface CancellationPreview {
   chargeAmount: number;
   cardLast4: string | null;
   policyText: string;
+  refundAmount: number;
 }
 
 export function readCancellationPreview(body: unknown): CancellationPreview {
@@ -260,8 +297,16 @@ export function readCancellationPreview(body: unknown): CancellationPreview {
     chargeAmount: n(o.chargeAmount),
     cardLast4: typeof o.cardLast4 === "string" ? o.cardLast4 : null,
     policyText: typeof o.policyText === "string" ? o.policyText : "",
+    refundAmount: n(o.refundAmount),
   };
 }
+
+/**
+ * What the guest reads before they confirm a change inside 24 hours.
+ * Written for the club's voice: half the deposit already taken, not a warning label.
+ */
+export const LATE_WINDOW_SENTENCE =
+  "If you move or cancel your visit inside 24 hours, we keep half the deposit already taken.";
 
 const money = (n: number): string => {
   try {
@@ -290,7 +335,11 @@ export function cancelQuestion(p: CancellationPreview): string {
     );
   }
   if (p.forfeitAmount > 0) {
-    lines.push(`${money(p.forfeitAmount)} of what you've already paid is kept.`);
+    lines.push(
+      p.refundAmount > 0
+        ? `${money(p.refundAmount)} comes back. ${money(p.forfeitAmount)} of the deposit stays.`
+        : `${money(p.forfeitAmount)} of the deposit stays.`,
+    );
   }
   if (p.chargeAmount <= 0 && p.forfeitAmount <= 0) {
     lines.push("There's nothing to pay.");
@@ -391,7 +440,14 @@ export function cancelSummary(preview: CancellationPreview | null, free: boolean
         : `A charge of ${money(preview.chargeAmount)} applies.`,
     );
   }
-  if (preview.forfeitAmount > 0) lines.push(`${money(preview.forfeitAmount)} of what you've already paid is kept.`);
+  if (preview.forfeitAmount > 0) {
+    lines.unshift(LATE_WINDOW_SENTENCE);
+    lines.push(
+      preview.refundAmount > 0
+        ? `${money(preview.refundAmount)} comes back. ${money(preview.forfeitAmount)} of the deposit stays.`
+        : `${money(preview.forfeitAmount)} of the deposit stays.`,
+    );
+  }
   if (preview.chargeAmount <= 0 && preview.forfeitAmount <= 0) {
     return {
       headline: "Free to cancel",

@@ -243,7 +243,6 @@ test("Needs you lists only what the server made actionable, at most three", () =
       data: [
         row("hero", 3),
         row("owe", 30, { actions: { ...OPEN, canPayBalance: true, balanceDue: 40 } }),
-        row("closing", 50, { actions: { ...OPEN, rescheduleClosesAt: iso(4) } }),
         row("quiet", 200, { actions: { ...OPEN, rescheduleClosesAt: iso(170) } }),
       ],
     },
@@ -251,9 +250,8 @@ test("Needs you lists only what the server made actionable, at most three", () =
     now: NOW,
   });
   const rows = needsYou(m, "hero");
-  assert.deepEqual(rows.map((r) => r.card.id), ["owe", "closing", "miss"]);
-  assert.match(rows[1].title, /Online changes close in 4 hours/);
-  assert.match(rows[2].title, /Missed-visit fee/);
+  assert.deepEqual(rows.map((r) => r.card.id), ["owe", "miss"]);
+  assert.match(rows[1].title, /Missed-visit fee/);
   // Negative control: a booking with no actions never needs you.
   const bare = row("bare", 30, { balance: { amount: 90 } });
   delete bare.actions;
