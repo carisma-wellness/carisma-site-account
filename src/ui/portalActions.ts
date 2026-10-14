@@ -127,16 +127,32 @@ export function invoiceReturnFrom(search: string): { invoiceId: string; sessionI
 }
 
 /**
+ * The customer-facing sentence in a CarismaSoft error body, or null.
+ *
+ * The error middleware sends `{ error: "<sentence>", code }` — the sentence is
+ * a plain string under `error`; older and success-envelope shapes carry
+ * `message` or `error.message`. Codes (`MEMBER_PAUSE_CLOSED`) and Joi messages
+ * (they quote a field path) are never a sentence and read as null.
+ */
+function serverSentence(body: unknown): string | null {
+  const envelope = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const err = envelope.error;
+  const msg =
+    envelope.message ??
+    (typeof err === "string" ? err : (err as Record<string, unknown> | undefined)?.message);
+  return typeof msg === "string" && msg && !/^[A-Z_]+$/.test(msg) && !msg.includes('"') ? msg : null;
+}
+
+/**
  * Why a statement Pay now could not open Stripe, in the member's words. The
  * server's own sentence wins; a bare code never reaches the page, and a 409
  * here is never "that time was taken" (nothing is being booked).
  */
 export function statementPayFailureMessage(body: unknown, status: number): string {
-  const envelope = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-  const msg = envelope.message ?? (envelope.error as Record<string, unknown> | undefined)?.message;
-  if (typeof msg === "string" && msg && !/^[A-Z_]+$/.test(msg) && !msg.includes('"')) return msg;
+  const msg = serverSentence(body);
+  if (msg) return msg;
   if (status === 409) return "This one can't be paid online yet. The team can take it at your next visit.";
-  if (status === 401 || status === 403) return "Please sign in again to pay.";
+  if (status === 401) return "Please sign in again to pay.";
   return "We couldn't open the payment just now. Please try again in a moment.";
 }
 
@@ -307,11 +323,12 @@ export function needsPreview(actions: Pick<BookingActions, "cancelIsFree"> | nul
  * never show is a status code, a field path or a Joi message.
  */
 export function messageFromError(body: unknown, status: number, fallback: string): string {
-  const envelope = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-  const msg = envelope.message ?? (envelope.error as Record<string, unknown> | undefined)?.message;
-  if (typeof msg === "string" && msg && !/^[A-Z_]+$/.test(msg) && !msg.includes('"')) return msg;
+  const msg = serverSentence(body);
+  if (msg) return msg;
   if (status === 409) return "That time has just been taken. Please pick another.";
-  if (status === 401 || status === 403) return "Please sign in again to change this booking.";
+  // Only a 401 means the session is gone. A 403 is the server saying no to a
+  // signed-in member; telling them to sign in again sends them round in a loop.
+  if (status === 401) return "Please sign in again to change this booking.";
   return fallback;
 }
 
