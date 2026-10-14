@@ -231,7 +231,14 @@ test("a refusal shows the server's own words, never a code or a Joi message", ()
   );
   assert.equal(messageFromError({ message: "FEE_CONSENT_REQUIRED" }, 409, "fallback"), "That time has just been taken. Please pick another.");
   assert.equal(messageFromError({ message: '"startTime" must be a valid date' }, 400, "fallback"), "fallback");
-  assert.equal(messageFromError(null, 403, "fallback"), "Please sign in again to change this booking.");
+  assert.equal(messageFromError(null, 401, "fallback"), "Please sign in again to change this booking.");
+  // CarismaSoft's real envelope: the sentence is a string under `error`.
+  assert.equal(
+    messageFromError({ error: "To pause your membership, speak to the club.", code: "MEMBER_PAUSE_CLOSED" }, 403, "fallback"),
+    "To pause your membership, speak to the club.",
+  );
+  // NEGATIVE CONTROL: a bare 403 is a refusal, not a lost session.
+  assert.equal(messageFromError(null, 403, "fallback"), "fallback");
 });
 
 /* ── The sections ──────────────────────────────────────────────────────── */
@@ -303,18 +310,18 @@ test("a document with no link still appears, with somewhere to go", () => {
   assert.match(html, /Ask at the desk/);
 });
 
-test("membership shows the plan and offers pause only while it is active", () => {
+test("membership shows the plan and never offers self-serve pause or resume", () => {
   const active = buildMembershipModel({ success: true, data: [{ id: "m1", status: "ACTIVE", price: 49, membership: { name: "Gold" }, nextBillingAt: "2026-10-01T00:00:00.000Z" }] });
-  assert.equal(active.canPause, true);
+  assert.equal(active.canPause, false);
   assert.equal(active.canResume, false);
   const html = membershipHTML(active);
   assert.match(html, /Gold/);
   assert.match(html, /€49\.00/);
-  assert.match(html, /Pause membership/);
+  assert.doesNotMatch(html, /Pause membership/);
 
   const paused = buildMembershipModel({ data: [{ id: "m1", status: "PAUSED", membership: { name: "Gold" } }] });
-  assert.equal(paused.canResume, true);
-  assert.match(membershipHTML(paused), /Resume membership/);
+  assert.equal(paused.canResume, false);
+  assert.doesNotMatch(membershipHTML(paused), /Resume membership/);
 });
 
 test("the card that pays is never changeable from a brand site", () => {

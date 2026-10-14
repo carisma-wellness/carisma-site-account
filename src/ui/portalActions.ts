@@ -262,10 +262,19 @@ export function needsPreview(actions: Pick<BookingActions, "cancelIsFree"> | nul
  */
 export function messageFromError(body: unknown, status: number, fallback: string): string {
   const envelope = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-  const msg = envelope.message ?? (envelope.error as Record<string, unknown> | undefined)?.message;
+  // CarismaSoft's error middleware sends `{ error: "<sentence>", code }` — the
+  // sentence is a plain string under `error`. Reading only `message` dropped
+  // every refusal onto the status fallback below, so a 403 like "To pause your
+  // membership, speak to the club." read as "Please sign in again".
+  const err = envelope.error;
+  const msg =
+    envelope.message ??
+    (typeof err === "string" ? err : (err as Record<string, unknown> | undefined)?.message);
   if (typeof msg === "string" && msg && !/^[A-Z_]+$/.test(msg) && !msg.includes('"')) return msg;
   if (status === 409) return "That time has just been taken. Please pick another.";
-  if (status === 401 || status === 403) return "Please sign in again to change this booking.";
+  // Only a 401 means the session is gone. A 403 is the server saying no to a
+  // signed-in member; telling them to sign in again sends them round in a loop.
+  if (status === 401) return "Please sign in again to change this booking.";
   return fallback;
 }
 

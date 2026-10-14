@@ -838,10 +838,12 @@ export function buildMembershipModel(body: unknown): MembershipModel {
     nextChargeAt: str(firstOf(o, ["nextBillingAt", "nextChargeAt", "currentPeriodEnd"])) || null,
     storedValue: num(firstOf(o, ["storedValue", "balance", "creditBalance"])),
     id: str(o.id) || null,
-    // Pause and resume are mutually exclusive, and both are refused outright
-    // on a cancelled membership.
-    canPause: hasMembership && status === "ACTIVE",
-    canResume: hasMembership && (status === "PAUSED" || status === "SUSPENDED"),
+    // Members cannot pause or resume themselves: CarismaSoft refuses both with
+    // 403 MEMBER_PAUSE_CLOSED (only the desk may freeze, from the next bill,
+    // with a reason). Offering the button only to be refused is worse than
+    // pointing at the team, so both stay off until the server reopens them.
+    canPause: false,
+    canResume: false,
   };
 }
 
@@ -877,7 +879,7 @@ export function membershipHTML(m: MembershipModel, ctx: RecordsContext = {}): st
     );
   }
   const chip = membershipChip(m.status);
-  const paused = m.canResume;
+  const paused = m.status === "PAUSED" || m.status === "SUSPENDED";
   const name = (ctx.memberName || "").trim();
 
   const hero =
@@ -914,12 +916,13 @@ export function membershipHTML(m: MembershipModel, ctx: RecordsContext = {}): st
         `</div>`
       : "";
 
-  // Cancelling and changing the card are deliberately NOT buttons here. The
-  // card is an identity-origin act (the brand proxy forbids it); cancelling a
-  // membership is a conversation we would rather have than lose silently.
+  // Pausing, cancelling and changing the card are deliberately NOT buttons
+  // here. The card is an identity-origin act (the brand proxy forbids it);
+  // pausing is desk-only on the server; cancelling a membership is a
+  // conversation we would rather have than lose silently.
   const tel = (ctx.contactPhone || "").replace(/\s+/g, "");
   const rest =
-    `<p class="cw-mnote">To change the card that pays for this, or to cancel, speak to the team` +
+    `<p class="cw-mnote">To ${paused ? "resume" : "pause"} or cancel your membership, or to change the card that pays for it, speak to the team` +
     (tel ? ` on <a class="cw-link" href="tel:${escapeHtml(tel)}">${escapeHtml(phoneLabel(tel))}</a>` : "") +
     `.</p>`;
 
