@@ -145,4 +145,7 @@ test("a refusal speaks the server's sentence, never a code or 'that time was tak
   const coded = statementPayFailureMessage({ message: "PACKAGE_BALANCE_PAY_AT_DESK" }, 409);
   assert.doesNotMatch(coded, /PACKAGE_BALANCE|time has just been taken/);
   assert.match(statementPayFailureMessage(null, 0), /couldn't open the payment/);
+  assert.equal(statementPayFailureMessage({ error: "This statement is already paid.", code: "ALREADY_PAID" }, 409), "This statement is already paid.");
+  assert.match(statementPayFailureMessage(null, 401), /sign in again/);
+  assert.doesNotMatch(statementPayFailureMessage(null, 403), /sign in again/);
 });

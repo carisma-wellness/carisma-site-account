@@ -273,16 +273,14 @@ test("the membership card carries the plan, the member's first name and the stat
   assert.match(membershipHTML(buildMembershipModel(ACTIVE)), /cw-mcard__label">Member</);
 });
 
-test("pause and resume are not on the membership page", () => {
-  const html = membershipHTML(buildMembershipModel(ACTIVE), { contactPhone: "+35627802062" });
-  assert.doesNotMatch(html, /membership-pause/);
-  assert.doesNotMatch(html, /Pause membership/);
-  assert.match(html, /speak to the team/);
-  assert.match(html, /tel:\+35627802062/);
+test("members are not offered pause or resume: the server refuses both (MEMBER_PAUSE_CLOSED)", () => {
+  const html = membershipHTML(buildMembershipModel(ACTIVE));
+  assert.doesNotMatch(html, /data-cw-action="membership-/);
+  assert.match(text(html), /To pause or cancel your membership, or to change the card that pays for it, speak to the team/);
   const paused = membershipHTML(buildMembershipModel({ data: [{ id: "m1", status: "PAUSED", membership: { name: "Gold" } }] }));
-  assert.doesNotMatch(paused, /membership-resume/);
-  assert.doesNotMatch(paused, /membership-pause/);
+  assert.doesNotMatch(paused, /data-cw-action="membership-/);
   assert.match(text(paused), /Next payment Paused/);
+  assert.match(text(paused), /To resume or cancel your membership/);
 });
 
 test("a cancelled membership offers no pause or resume", () => {

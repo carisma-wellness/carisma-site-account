@@ -122,9 +122,11 @@ export const PROXY_ALLOWLIST: readonly AllowRule[] = [
   },
   { method: "GET", label: "membership ledger", match: (p) => /^\/client\/membership\/[^/]+\/ledger$/.test(p) },
   { method: "GET", label: "membership stored value", match: (p) => /^\/client\/membership\/[^/]+\/stored-value$/.test(p) },
-  // Cancelling a membership is still a conversation, and so is pausing it.
-  // The pause and resume calls are not on this allowlist: a hidden button
-  // must not be able to reach them. Changing the card is forbidden below.
+  // Pause / resume / cancel are commercial acts on a subscription the member
+  // owns — the same class as cancelling a booking. Changing the CARD is not,
+  // and is forbidden below.
+  { method: "POST", label: "pause membership", match: (p) => /^\/client\/membership\/[^/]+\/pause$/.test(p) },
+  { method: "POST", label: "resume membership", match: (p) => /^\/client\/membership\/[^/]+\/resume$/.test(p) },
   { method: "POST", label: "cancel membership", match: (p) => /^\/client\/membership\/[^/]+\/cancel$/.test(p) },
 
   /* ── Wallet passes ─────────────────────────────────────────────────── */
@@ -156,9 +158,9 @@ export const FORBIDDEN_PATHS: ReadonlyArray<{ method: string; path: string; why:
   { method: "GET", path: "/hod/clients/abc123/documents", why: "the staff twin of the member documents" },
   { method: "GET", path: "/internal/auth/me", why: "internal surface" },
   { method: "GET", path: "/admin/users", why: "admin surface" },
-  // Pause and resume are closed. The stored card is identity-origin work.
-  { method: "POST", path: "/client/membership/abc123/pause", why: "a member cannot pause their own membership" },
-  { method: "POST", path: "/client/membership/abc123/resume", why: "a member cannot resume their own membership" },
+  // The stored card. A member may pause, resume and cancel a membership from a
+  // brand site; replacing the instrument that pays for it is identity-origin
+  // work, and a brand origin must never be the thing that asks for it.
   { method: "POST", path: "/client/membership/abc123/payment-method", why: "the stored card belongs on the identity origin" },
   { method: "POST", path: "/client/membership/setup-intent", why: "card capture belongs on the identity origin" },
   { method: "POST", path: "/client/membership/subscribe", why: "taking a new subscription is a checkout, not an account read" },

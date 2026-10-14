@@ -641,7 +641,10 @@ export function buildMembershipModel(body) {
         nextChargeAt: str(firstOf(o, ["nextBillingAt", "nextChargeAt", "currentPeriodEnd"])) || null,
         storedValue: num(firstOf(o, ["storedValue", "balance", "creditBalance"])),
         id: str(o.id) || null,
-        // The member cannot pause or resume. The club does that from the desk.
+        // Members cannot pause or resume themselves: CarismaSoft refuses both with
+        // 403 MEMBER_PAUSE_CLOSED (only the desk may freeze, from the next bill,
+        // with a reason). Offering the button only to be refused is worse than
+        // pointing at the team, so both stay off until the server reopens them.
         canPause: false,
         canResume: false,
     };
@@ -685,13 +688,26 @@ export function membershipHTML(m, ctx = {}) {
         fact("Next payment", paused ? "Paused" : m.nextChargeAt ? plainDate(m.nextChargeAt) : "—") +
         fact("Balance", eur(m.storedValue)) +
         `</dl>`;
-    // Pause, resume, cancelling and changing the card are not buttons. The
-    // pause call is closed on the API as well. The member speaks to the club.
+    const btn = (action, label) => `<button type="button" class="cw-btn cw-btn--secondary" data-cw-action="${action}" ` +
+        `data-cw-membership="${escapeHtml(m.id ?? "")}">${escapeHtml(label)}</button>`;
+    const controls = m.id && (m.canPause || m.canResume)
+        ? `<div class="cw-mctl__do">` +
+            (m.canPause
+                ? btn("membership-pause", "Pause membership") +
+                    `<p class="cw-mctl__note">Pausing stops your monthly payments until you resume. Your balance stays on your account.</p>`
+                : btn("membership-resume", "Resume membership") +
+                    `<p class="cw-mctl__note">Your membership is paused. Resuming restarts your monthly payments.</p>`) +
+            `</div>`
+        : "";
+    // Pausing, cancelling and changing the card are deliberately NOT buttons
+    // here. The card is an identity-origin act (the brand proxy forbids it);
+    // pausing is desk-only on the server; cancelling a membership is a
+    // conversation we would rather have than lose silently.
     const tel = (ctx.contactPhone || "").replace(/\s+/g, "");
-    const rest = `<p class="cw-mnote">To pause, to change the card that pays for this, or to cancel, speak to the team` +
+    const rest = `<p class="cw-mnote">To ${paused ? "resume" : "pause"} or cancel your membership, or to change the card that pays for it, speak to the team` +
         (tel ? ` on <a class="cw-link" href="tel:${escapeHtml(tel)}">${escapeHtml(phoneLabel(tel))}</a>` : "") +
         `.</p>`;
-    return recordRoot("membership", hero + facts + `<section class="cw-mctl cw-rise">${rest}</section>`);
+    return recordRoot("membership", hero + facts + `<section class="cw-mctl cw-rise">${controls}${rest}</section>`);
 }
 /**
  * Which site family a brand belongs to. Hair Clinic has no programme of its
