@@ -148,13 +148,14 @@ test("a member can upgrade their own membership, and only through the upgrade do
   // memberUpgradeOnline1020: the brand's membership page upgrades a signed-in
   // member in place instead of sending them to the account page.
   const id = "6f1c2b8e-1d2a-4c3b-9e4f-0a1b2c3d4e5f";
-  assert.equal(isAllowed("POST", `/client/membership/${id}/upgrade/checkout`), true);
-  assert.equal(isAllowed("POST", `/client/membership/${id}/upgrade`), true);
+  for (const p of ["/client/membership/upgrade/quote", "/client/membership/upgrade/checkout", "/client/membership/upgrade"]) {
+    assert.equal(isAllowed("POST", p), true, p);
+    assert.equal(isAllowed("GET", p), false, `GET ${p}`);
+  }
   assert.equal(isAllowed("GET", `/client/membership/invoices/${id}/authentication`), true);
-  // Not a uuid, the wrong verb, or a neighbour of the upgrade path.
-  assert.equal(isAllowed("POST", "/client/membership/abc123/upgrade"), false);
-  assert.equal(isAllowed("GET", `/client/membership/${id}/upgrade/checkout`), false);
-  assert.equal(isAllowed("POST", `/client/membership/${id}/upgrade/anything`), false);
+  // A neighbour of the upgrade paths, or the wrong verb.
+  assert.equal(isAllowed("POST", "/client/membership/upgrade/anything"), false);
+  assert.equal(isAllowed("POST", `/client/membership/${id}/upgrade`), false);
   assert.equal(isAllowed("POST", `/client/membership/invoices/${id}/authentication`), false);
   // The generic card + new-subscription routes stay closed.
   assert.equal(isAllowed("POST", "/client/membership/setup-intent"), false);
