@@ -128,6 +128,14 @@ export const PROXY_ALLOWLIST: readonly AllowRule[] = [
   { method: "POST", label: "pause membership", match: (p) => /^\/client\/membership\/[^/]+\/pause$/.test(p) },
   { method: "POST", label: "resume membership", match: (p) => /^\/client\/membership\/[^/]+\/resume$/.test(p) },
   { method: "POST", label: "cancel membership", match: (p) => /^\/client\/membership\/[^/]+\/cancel$/.test(p) },
+  // Upgrade to a higher tier from the brand's membership page (2026-10-20):
+  // the quote, the quote + a SetupIntent for this purchase, then the charge.
+  // Exact literal paths: the server finds the member's own membership from the
+  // token and the plan's brand, refuses anything that is not an upgrade, and
+  // the generic card routes below stay forbidden. Marker: memberUpgradeOnline1020
+  { method: "POST", label: "membership upgrade quote", match: (p) => p === "/client/membership/upgrade/quote" },
+  { method: "POST", label: "membership upgrade checkout", match: (p) => p === "/client/membership/upgrade/checkout" },
+  { method: "POST", label: "membership upgrade", match: (p) => p === "/client/membership/upgrade" },
 
   /* ── Wallet passes ─────────────────────────────────────────────────── */
   // Built long ago, deployed, and never called by a website.

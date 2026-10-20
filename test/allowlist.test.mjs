@@ -143,3 +143,23 @@ test("the new member reads and writes are all reachable, and their siblings are 
   ];
   for (const [m, p] of refused) assert.equal(isAllowed(m, p), false, `${m} ${p} must be refused`);
 });
+
+test("a member can upgrade their own membership, and only through the upgrade doors", () => {
+  // memberUpgradeOnline1020: the brand's membership page upgrades a signed-in
+  // member in place instead of sending them to the account page.
+  const id = "6f1c2b8e-1d2a-4c3b-9e4f-0a1b2c3d4e5f";
+  for (const p of ["/client/membership/upgrade/quote", "/client/membership/upgrade/checkout", "/client/membership/upgrade"]) {
+    assert.equal(isAllowed("POST", p), true, p);
+    assert.equal(isAllowed("GET", p), false, `GET ${p}`);
+  }
+  // The 3DS approval rides the upgrade answer itself; no invoice read is opened.
+  assert.equal(isAllowed("GET", `/client/membership/invoices/${id}/authentication`), false);
+  // A neighbour of the upgrade paths, or the wrong verb.
+  assert.equal(isAllowed("POST", "/client/membership/upgrade/anything"), false);
+  assert.equal(isAllowed("POST", `/client/membership/${id}/upgrade`), false);
+  assert.equal(isAllowed("POST", `/client/membership/invoices/${id}/authentication`), false);
+  // The generic card + new-subscription routes stay closed.
+  assert.equal(isAllowed("POST", "/client/membership/setup-intent"), false);
+  assert.equal(isAllowed("POST", "/client/membership/subscribe"), false);
+  assert.equal(isAllowed("POST", `/client/membership/${id}/payment-method`), false);
+});
