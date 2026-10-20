@@ -152,7 +152,8 @@ test("a member can upgrade their own membership, and only through the upgrade do
     assert.equal(isAllowed("POST", p), true, p);
     assert.equal(isAllowed("GET", p), false, `GET ${p}`);
   }
-  assert.equal(isAllowed("GET", `/client/membership/invoices/${id}/authentication`), true);
+  // The 3DS approval rides the upgrade answer itself; no invoice read is opened.
+  assert.equal(isAllowed("GET", `/client/membership/invoices/${id}/authentication`), false);
   // A neighbour of the upgrade paths, or the wrong verb.
   assert.equal(isAllowed("POST", "/client/membership/upgrade/anything"), false);
   assert.equal(isAllowed("POST", `/client/membership/${id}/upgrade`), false);

@@ -136,13 +136,6 @@ export const PROXY_ALLOWLIST: readonly AllowRule[] = [
   { method: "POST", label: "membership upgrade quote", match: (p) => p === "/client/membership/upgrade/quote" },
   { method: "POST", label: "membership upgrade checkout", match: (p) => p === "/client/membership/upgrade/checkout" },
   { method: "POST", label: "membership upgrade", match: (p) => p === "/client/membership/upgrade" },
-  // The bank's approval an upgrade's difference can be parked on (3DS). Read
-  // only: it hands back the live PaymentIntent's own secret.
-  {
-    method: "GET",
-    label: "membership invoice authentication",
-    match: (p) => /^\/client\/membership\/invoices\/[0-9a-fA-F-]{36}\/authentication$/.test(p),
-  },
 
   /* ── Wallet passes ─────────────────────────────────────────────────── */
   // Built long ago, deployed, and never called by a website.
