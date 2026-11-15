@@ -11,7 +11,9 @@ export { MEMBER_HREF, PANEL_HREF, ACCOUNT_MARK_ATTR, ACCOUNT_MARK_QC, accountMar
 export { HINT_SIGNED_IN, HINT_INITIALS, readSignedInHint, readInitialsHint } from "./hint.js";
 export { GUEST_GLYPH_SVG, SIGNED_GLYPH_SVG, escapeHtml } from "./html.js";
 export { memberDoor, memberFallbackHTML } from "./memberDoor.js";
-export { buildPanelModel, accountPanelHTML, ACCOUNT_HOME_HREF, ACCOUNT_BOOKINGS_HREF, ACCOUNT_DETAILS_HREF, PANEL_QC, } from "./panel.js";
+export { buildPanelModel, accountPanelHTML, ACCOUNT_HOME_HREF, ACCOUNT_BOOKINGS_HREF, ACCOUNT_DETAILS_HREF, PANEL_QC, PANEL_SESSION_URL, PANEL_SESSION_URL_CIRCLE, } from "./panel.js";
+// Carisma Circle (loyaltyCircleW11115): the model, the copy rules and the HTML.
+export { CIRCLE_QC, CIRCLE_HREF, CIRCLE_TERMS_HREF, CIRCLE_BRANDS, CIRCLE_LEVELS, CENTS_PER_POINT, DEFAULT_MIN_REDEEM_POINTS, DEFAULT_MAX_SHARE_PCT, PROMISE_QUALIFIER, EARN_TERMS_LINE, PAY_STEP_DISCLOSURE, circleAllowedOn, readCircle, readCircleActivity, readCircleRewards, creditText, pointsText, wholeEuroUp, levelText, useByText, readyText, gapText, waysToEarnText, levelProgress, ladderHTML, circlePanelRowHTML, circleOverviewHTML, circleWalletLineHTML, circleActivityHTML, circleActivityRowsHTML, circleShopHTML, shopGroups, circleViewHTML, creditMoment, earnLine, earnPoints, } from "./circle.js";
 export { buildPortalModel, accountPortalHTML, portalShellHTML, bookingDetailHref, PORTAL_QC, PORTAL_SECTIONS, sectionsFor, } from "./portal.js";
 export { requestsFor, subjectFor, titleFor, ledeFor, bodyFor, bookingIdFromPath } from "./portalData.js";
 export { buildBookingDetailModel, bookingDetailHTML, bookingViewParts, bookingSkeletonHTML, bookingPrimary, bookingTreatment, isActiveBooking, dueLabel, policyLead, rebookHref, readActions, statusLabel, BOOKING_DETAIL_QC, } from "./bookingDetail.js";

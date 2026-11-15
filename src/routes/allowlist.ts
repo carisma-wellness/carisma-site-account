@@ -96,6 +96,18 @@ export const PROXY_ALLOWLIST: readonly AllowRule[] = [
   { method: "GET", label: "account credit", match: (p) => p === "/client/credit-balance" },
   { method: "GET", label: "referrals", match: (p) => p === "/client/referrals/me" },
   { method: "GET", label: "loyalty", match: (p) => p === "/client/loyalty/me" },
+  // Carisma Circle (2026-11-15). Every door is an exact literal: the member's
+  // own credit activity and the rewards shop (reads), and spending their own
+  // credit — a preview of how much a booking can take, the redeem that mints
+  // a single-use code locked to this member, and the release that hands the
+  // credit straight back when they change their mind. The staff twins
+  // (/hod/clients/:id/loyalty, the adjustment and settings doors) stay
+  // forbidden below. Marker: loyaltyCircleW11115
+  { method: "GET", label: "loyalty activity", match: (p) => p === "/client/loyalty/activity" },
+  { method: "GET", label: "loyalty rewards shop", match: (p) => p === "/client/loyalty/rewards" },
+  { method: "POST", label: "loyalty redeem preview", match: (p) => p === "/client/loyalty/redeem/preview" },
+  { method: "POST", label: "loyalty redeem", match: (p) => p === "/client/loyalty/redeem" },
+  { method: "POST", label: "loyalty redeem release", match: (p) => p === "/client/loyalty/redeem/release" },
   { method: "GET", label: "visits awaiting a rating", match: (p) => p === "/client/ratings/pending" },
   // `/pending` is the listing, not an appointment id — excluded so the rule
   // cannot be read as "POST anything under /ratings".
@@ -175,6 +187,13 @@ export const FORBIDDEN_PATHS: ReadonlyArray<{ method: string; path: string; why:
   // Another member's rows. These are 404 at the backend too, but the proxy
   // must not be the thing that finds that out.
   { method: "GET", path: "/client/clients/abc123/credit-balance", why: "a member reads their own balance, never one by id" },
+  // Carisma Circle: a balance is changed by the programme or a Super Admin,
+  // never by a member, and never through a brand origin.
+  { method: "GET", path: "/hod/clients/abc123/loyalty", why: "the staff twin of the member's Carisma credit" },
+  { method: "POST", path: "/hod/clients/abc123/loyalty/adjustments", why: "a signed balance correction is Super Admin work" },
+  { method: "PATCH", path: "/hod/settings/loyalty", why: "the programme switch belongs to the HOD" },
+  { method: "POST", path: "/client/loyalty/me", why: "the member's loyalty record is read-only" },
+  { method: "POST", path: "/client/loyalty/adjustments", why: "a member never adjusts their own balance" },
 ];
 
 /** Normalise a proxy sub-path: strip query/hash, collapse to a leading-slash path. */

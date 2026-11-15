@@ -1,4 +1,5 @@
 import { buildWalletModel, walletHTML, buildStatementModel, statementHTML, buildDocumentsModel, documentsHTML, buildMembershipModel, membershipHTML, buildReferModel, referHTML, } from "./records.js";
+import { circleViewHTML, readCircle, readCircleActivity, readCircleRewards } from "./circle.js";
 const PROXY = "/api/auth/proxy";
 /** The proxy reads a section needs, in a fixed order `bodyFor` relies on. */
 export function requestsFor(view) {
@@ -13,6 +14,11 @@ export function requestsFor(view) {
             return [`${PROXY}/client/membership`];
         case "refer":
             return [`${PROXY}/client/referrals/me`];
+        // Carisma Circle. The member read decides whether anything shows at all;
+        // activity and the rewards shop are each optional (a 404 on either costs
+        // only its own block).
+        case "rewards":
+            return [`${PROXY}/client/loyalty/me`, `${PROXY}/client/loyalty/activity?limit=20`, `${PROXY}/client/loyalty/rewards`];
         case "bookings":
             return [
                 `${PROXY}/client/booking/appointments?filter=upcoming&limit=50`,
@@ -52,6 +58,8 @@ export function subjectFor(view) {
             return "membership";
         case "refer":
             return "referrals";
+        case "rewards":
+            return "Carisma credit";
         default:
             return "details";
     }
@@ -92,6 +100,8 @@ export function titleFor(view, greeting) {
             return "Your details";
         case "refer":
             return "Refer a friend";
+        case "rewards":
+            return "Credit & rewards";
         default:
             return greeting;
     }
@@ -121,6 +131,17 @@ export function bodyFor(view, answers, ctx = {}) {
             return membershipHTML(buildMembershipModel(answers[0]), ctx);
         case "refer":
             return referHTML(buildReferModel(answers[0], ctx));
+        case "rewards": {
+            const me = readCircle(answers[0]);
+            return me
+                ? circleViewHTML({
+                    me,
+                    activity: readCircleActivity(answers[1]),
+                    rewards: readCircleRewards(answers[2]),
+                    bookHref: ctx.bookHref,
+                })
+                : "";
+        }
         default:
             return "";
     }

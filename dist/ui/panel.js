@@ -9,10 +9,14 @@
  */
 import { escapeHtml } from "./html.js";
 import { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
+import { CIRCLE_HREF, circlePanelRowHTML, readCircle } from "./circle.js";
 export const ACCOUNT_HOME_HREF = "/account";
 export const ACCOUNT_BOOKINGS_HREF = "/account/bookings";
 export const ACCOUNT_DETAILS_HREF = "/account/details";
 export const PANEL_QC = "account-panel-20260917";
+/** The panel's one read. With Circle on, the session route folds the member's loyalty answer in (no second call). */
+export const PANEL_SESSION_URL = "/api/auth/session?include=upcoming";
+export const PANEL_SESSION_URL_CIRCLE = "/api/auth/session?include=upcoming,loyalty";
 function pick(row, path) {
     let cur = row;
     for (const key of path) {
@@ -83,6 +87,7 @@ export function buildPanelModel(session) {
             details: ACCOUNT_DETAILS_HREF,
         },
         state: visits.length ? "settled" : "empty",
+        circle: readCircle(s.loyalty),
     };
 }
 const M = 'data-clarity-mask="True"';
@@ -109,6 +114,7 @@ export function accountPanelHTML(model) {
     const links = `<nav class="carisma-panel__links">` +
         `<a href="${escapeHtml(model.hub.home)}">My account</a>` +
         `<a href="${escapeHtml(model.hub.appointments)}">My bookings</a>` +
+        (model.circle ? `<a href="${CIRCLE_HREF}">Credit &amp; rewards</a>` : "") +
         `<a href="${escapeHtml(model.hub.details)}">My details</a>` +
         `</nav>`;
     const footer = `<footer class="carisma-panel__footer">` +
@@ -116,6 +122,6 @@ export function accountPanelHTML(model) {
         `<button type="button" data-carisma-signout-all>Sign out of every Carisma site</button>` +
         `</footer>`;
     return (`<section class="carisma-panel" role="dialog" aria-modal="true" aria-label="Your account" data-cw-qc="${PANEL_QC}">` +
-        `${header}<div class="carisma-panel__visits">${rows}</div>${links}${footer}</section>`);
+        `${header}${circlePanelRowHTML(model.circle)}<div class="carisma-panel__visits">${rows}</div>${links}${footer}</section>`);
 }
 //# sourceMappingURL=panel.js.map

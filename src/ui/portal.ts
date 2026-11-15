@@ -28,6 +28,7 @@ import { readActions, statusLabel, type BookingActions } from "./bookingDetail.j
 import { LATE_WINDOW_SENTENCE } from "./portalActions.js";
 import { eur, untilPhrase } from "./money.js";
 import type { WalletModel } from "./records.js";
+import { CIRCLE_HREF, circleAllowedOn } from "./circle.js";
 
 export const PORTAL_QC = "account-portal-20260917";
 export type PortalView =
@@ -40,6 +41,8 @@ export type PortalView =
   | "documents"
   | "membership"
   | "refer"
+  /** Carisma Circle: credit, level, ways to earn, activity, rewards (circleRail sites only). */
+  | "rewards"
   | "details";
 
 /** What a read came back as. `failed` is never shown as `empty`. */
@@ -311,6 +314,12 @@ export interface PortalModel extends PanelModel {
   now: Date;
   /** The rail lists Refer a friend (the site opted in). */
   referRail: boolean;
+  /**
+   * The site opted in to Carisma Circle. The rail row and the Overview slot
+   * are drawn HIDDEN; browser.ts reveals them only when /client/loyalty/me
+   * answers enabled:true. Off (the default) draws nothing at all.
+   */
+  circleRail: boolean;
 }
 
 /** `/account/bookings/<id>` — the local detail page, when the row has an id. */
@@ -343,6 +352,7 @@ export interface PortalExtra {
   contactPhone?: string;
   now?: Date;
   referRail?: boolean;
+  circleRail?: boolean;
 }
 
 export function buildPortalModel(session: unknown, view: PortalView, extra: PortalExtra = {}): PortalModel {
@@ -382,6 +392,7 @@ export function buildPortalModel(session: unknown, view: PortalView, extra: Port
     wallet: extra.wallet ?? null,
     now: extra.now ?? new Date(),
     referRail: extra.referRail === true,
+    circleRail: extra.circleRail === true && circleAllowedOn(siteBrand),
   };
 }
 
@@ -407,10 +418,17 @@ export const PORTAL_SECTIONS: ReadonlyArray<{
    * friend stays unlisted until the pilot; its page still renders when visited.
    */
   optIn?: boolean;
+  /**
+   * Carisma Circle: on the rail only when the site opted in (`circleRail`),
+   * and even then drawn hidden until the member read says the programme is
+   * live for this member (browser.ts). Never on Carisma Medical.
+   */
+  circle?: boolean;
 }> = [
   { id: "home", href: ACCOUNT_HOME_HREF, label: "Overview", group: "Visits" },
   { id: "bookings", href: ACCOUNT_BOOKINGS_HREF, label: "Bookings", group: "Visits" },
   { id: "wallet", href: "/account/wallet", label: "Wallet", group: "Money" },
+  { id: "rewards", href: CIRCLE_HREF, label: "Credit & rewards", group: "Money", circle: true },
   { id: "payments", href: "/account/payments", label: "Payments", group: "Money" },
   { id: "membership", href: "/account/membership", label: "Membership", group: "Money" },
   {
@@ -430,15 +448,23 @@ export const PORTAL_SECTIONS: ReadonlyArray<{
  * (its own page included) unless `referRail` is true. A section limited to
  * some sites still shows on its own page.
  */
-export function sectionsFor(view: PortalView, siteBrand = "", referRail = false): typeof PORTAL_SECTIONS {
+export function sectionsFor(
+  view: PortalView,
+  siteBrand = "",
+  referRail = false,
+  circleRail = false,
+): typeof PORTAL_SECTIONS {
   return PORTAL_SECTIONS.filter(
-    (s) => (!s.optIn || referRail) && (!s.sites || s.id === view || s.sites.includes(siteBrand)),
+    (s) =>
+      (!s.optIn || referRail) &&
+      (!s.circle || (circleRail && circleAllowedOn(siteBrand))) &&
+      (!s.sites || s.id === view || s.sites.includes(siteBrand)),
   );
 }
 
-function nav(view: PortalView, siteBrand = "", referRail = false): string {
+function nav(view: PortalView, siteBrand = "", referRail = false, circleRail = false): string {
   const current: PortalView = view === "booking" ? "bookings" : view;
-  const sections = sectionsFor(current, siteBrand, referRail);
+  const sections = sectionsFor(current, siteBrand, referRail, circleRail);
   const groups: string[] = [];
   for (const s of sections) if (!groups.includes(s.group)) groups.push(s.group);
   return (
@@ -450,7 +476,11 @@ function nav(view: PortalView, siteBrand = "", referRail = false): string {
           sections.filter((s) => s.group === g)
             .map(
               (s) =>
-                `<a class="cw-nav__link" href="${s.href}"${current === s.id ? ' aria-current="page"' : ""}>${s.label}</a>`,
+                // A Circle row is drawn hidden (except on its own page) and
+                // revealed by browser.ts once the member read says it is live.
+                `<a class="cw-nav__link" href="${s.href}"${current === s.id ? ' aria-current="page"' : ""}` +
+                (s.circle ? ` data-cw-circle-rail${current === s.id ? "" : " hidden"}` : "") +
+                `>${escapeHtml(s.label)}</a>`,
             )
             .join("") +
           `</div>`,
@@ -491,6 +521,8 @@ export function portalShellHTML(opts: {
   siteBrand?: string;
   /** Show the opt-in Refer a friend row (off by default until the pilot). */
   referRail?: boolean;
+  /** Draw the (hidden until live) Carisma Circle rail row. */
+  circleRail?: boolean;
 }): string {
   const name = opts.memberName || "";
   const member =
@@ -504,7 +536,7 @@ export function portalShellHTML(opts: {
   return (
     `<main class="carisma-portal" data-cw-qc="${PORTAL_QC}" data-cw-portal="${escapeHtml(opts.view)}">` +
     `<div class="cw-shell">` +
-    `<aside class="cw-rail">${member}${nav(opts.view, opts.siteBrand, opts.referRail === true)}<div class="cw-rail__foot">${signOutLinks()}</div></aside>` +
+    `<aside class="cw-rail">${member}${nav(opts.view, opts.siteBrand, opts.referRail === true, opts.circleRail === true)}<div class="cw-rail__foot">${signOutLinks()}</div></aside>` +
     `<div class="cw-main">` +
     `<header class="cw-head"><h1 class="cw-title" tabindex="-1" ${M}>${escapeHtml(opts.title)}</h1>${lede}</header>` +
     `<div class="cw-body"${opts.busy ? ' aria-busy="true"' : ""}>${opts.body}</div>` +
@@ -539,7 +571,9 @@ export function skeletonHTML(view: PortalView): string {
         ? "your details"
         : view === "refer"
           ? "your referrals"
-          : `your ${view}`;
+          : view === "rewards"
+            ? "your Carisma credit"
+            : `your ${view}`;
   const card = (h: number) => `<span class="cw-skel cw-skel--card" style="height:${h}px"></span>`;
   const rows =
     view === "home"
@@ -732,9 +766,20 @@ function walletStripHTML(w: WalletModel | null): string {
   );
 }
 
+/**
+ * Where the Carisma Circle card set lands on Overview: an EMPTY, hidden slot
+ * that browser.ts fills only when the member read says enabled:true. Absent
+ * altogether unless the site opted in.
+ */
+export function circleSlotHTML(m: { circleRail: boolean }, where: "home" | "wallet"): string {
+  return m.circleRail ? `<div class="cw-circle-slot" data-cw-circle-slot="${where}" hidden></div>` : "";
+}
+
 export function overviewBodyHTML(m: PortalModel): string {
   if (m.upcomingState === "failed") {
-    return errorBlockHTML("bookings", m.contactPhone) + needsHTML(needsYou(m)) + walletStripHTML(m.wallet);
+    return (
+      errorBlockHTML("bookings", m.contactPhone) + needsHTML(needsYou(m)) + circleSlotHTML(m, "home") + walletStripHTML(m.wallet)
+    );
   }
   const [next, ...rest] = m.upcomingCards;
   if (!next) {
@@ -746,6 +791,7 @@ export function overviewBodyHTML(m: PortalModel): string {
         "This is where your visits, gift cards and membership will live.",
       ) +
       needs +
+      circleSlotHTML(m, "home") +
       walletStripHTML(m.wallet)
     );
   }
@@ -756,7 +802,13 @@ export function overviewBodyHTML(m: PortalModel): string {
       `<a class="cw-section__more" href="${ACCOUNT_BOOKINGS_HREF}">All bookings (${m.upcomingCards.length})${ARROW}</a></div>` +
       `<div class="cw-list">${also.map(apptCardHTML).join("")}</div></section>`
     : "";
-  return nextVisitHTML(next, m.now) + needsHTML(needsYou(m, next.id)) + alsoHTML + walletStripHTML(m.wallet);
+  return (
+    nextVisitHTML(next, m.now) +
+    needsHTML(needsYou(m, next.id)) +
+    circleSlotHTML(m, "home") +
+    alsoHTML +
+    walletStripHTML(m.wallet)
+  );
 }
 
 /* ── Bookings ──────────────────────────────────────────────────────────── */
@@ -839,5 +891,6 @@ export function accountPortalHTML(model: PortalModel): string {
     memberName: model.firstName || model.name || "Your account",
     siteBrand: model.siteBrand,
     referRail: model.referRail,
+    circleRail: model.circleRail,
   });
 }

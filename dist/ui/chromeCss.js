@@ -8,7 +8,7 @@
  * block in styles/base.ts. A brand sets its values once on
  * `.cw-account-page, #carisma-account-panel` and every rule follows.
  */
-import { PORTAL_TOKENS_CSS, PORTAL_BASE_CSS, PORTAL_SHELL_CSS, PORTAL_LISTS_CSS, PORTAL_BOOKING_CSS, PORTAL_RECORDS_CSS, } from "./styles/index.js";
+import { PORTAL_TOKENS_CSS, PORTAL_BASE_CSS, PORTAL_SHELL_CSS, PORTAL_LISTS_CSS, PORTAL_BOOKING_CSS, PORTAL_RECORDS_CSS, PORTAL_CIRCLE_CSS, PANEL_CIRCLE_CSS, } from "./styles/index.js";
 export const ACCOUNT_CHROME_STYLE_ID = "carisma-account-chrome";
 /** The header side panel and its backdrop (unchanged in the portal redesign). */
 export const ACCOUNT_PANEL_CSS = `
@@ -162,11 +162,13 @@ export const ACCOUNT_PANEL_CSS = `
 export const ACCOUNT_CHROME_CSS = [
     PORTAL_TOKENS_CSS,
     ACCOUNT_PANEL_CSS,
+    PANEL_CIRCLE_CSS,
     PORTAL_BASE_CSS,
     PORTAL_SHELL_CSS,
     PORTAL_LISTS_CSS,
     PORTAL_BOOKING_CSS,
     PORTAL_RECORDS_CSS,
+    PORTAL_CIRCLE_CSS,
 ]
     .join("\n")
     .replace(/^\s+/gm, "")

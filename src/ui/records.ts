@@ -99,7 +99,17 @@ export interface RecordsContext {
    * Pay now that 404s; those lines read "Pay at the desk" meanwhile.
    */
   invoicePay?: boolean;
+  /**
+   * The site opted in to Carisma Circle: the wallet carries an empty, hidden
+   * slot for the Carisma credit line, filled by browser.ts only when the
+   * member read says the programme is live. Off (default) adds nothing.
+   */
+  circleSlot?: boolean;
+  /** Where "book" goes on this brand (the Credit & rewards page's one button). */
+  bookHref?: string;
 }
+
+const CIRCLE_WALLET_SLOT = `<div class="cw-circle-slot" data-cw-circle-slot="wallet" hidden></div>`;
 
 const MALTA = "Europe/Malta";
 
@@ -520,9 +530,11 @@ function packageHTML(p: PackageView): string {
 }
 
 export function walletHTML(m: WalletModel, ctx: RecordsContext = {}): string {
+  const slot = ctx.circleSlot ? CIRCLE_WALLET_SLOT : "";
   if (m.isEmpty) {
     return recordRoot(
       "wallet",
+      slot +
       emptyHTML(
         GIFT_ICON,
         "No credit or gift cards yet",
@@ -565,7 +577,7 @@ export function walletHTML(m: WalletModel, ctx: RecordsContext = {}): string {
       `</section>`
     : "";
 
-  return recordRoot("wallet", hero + gifts + packs);
+  return recordRoot("wallet", hero + slot + gifts + packs);
 }
 
 /* ── Statement ─────────────────────────────────────────────────────────── */

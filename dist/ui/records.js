@@ -68,6 +68,7 @@ function firstOf(o, keys) {
             return o[k];
     return undefined;
 }
+const CIRCLE_WALLET_SLOT = `<div class="cw-circle-slot" data-cw-circle-slot="wallet" hidden></div>`;
 const MALTA = "Europe/Malta";
 /** One Malta-clock part of a date ("24", "Sept", "2026", "9"). "" when unreadable. */
 function part(raw, opts, type) {
@@ -361,8 +362,10 @@ function packageHTML(p) {
         `</li>`);
 }
 export function walletHTML(m, ctx = {}) {
+    const slot = ctx.circleSlot ? CIRCLE_WALLET_SLOT : "";
     if (m.isEmpty) {
-        return recordRoot("wallet", emptyHTML(GIFT_ICON, "No credit or gift cards yet", "Gift cards, treatment packages and account credit will appear here, ready to spend.", `<a class="cw-btn cw-btn--quiet" href="/gifts">Buy a gift card <span aria-hidden="true">→</span></a>`));
+        return recordRoot("wallet", slot +
+            emptyHTML(GIFT_ICON, "No credit or gift cards yet", "Gift cards, treatment packages and account credit will appear here, ready to spend.", `<a class="cw-btn cw-btn--quiet" href="/gifts">Buy a gift card <span aria-hidden="true">→</span></a>`));
     }
     const total = walletTotal(m, ctx.siteBrand);
     const elsewhere = walletElsewhere(m, ctx.siteBrand);
@@ -394,7 +397,7 @@ export function walletHTML(m, ctx = {}) {
             `<ul class="cw-packs" role="list">${m.packages.map(packageHTML).join("")}</ul>` +
             `</section>`
         : "";
-    return recordRoot("wallet", hero + gifts + packs);
+    return recordRoot("wallet", hero + slot + gifts + packs);
 }
 function statementLine(l) {
     return {
