@@ -26,6 +26,12 @@ import { eur } from "./money.js";
 import { unwrapEnvelope } from "./appointments.js";
 export const CIRCLE_QC = "carisma-circle-20261115";
 export const CIRCLE_HREF = "/account/rewards";
+/**
+ * The Carisma Circle terms, served by each Circle site at this path (W2, 15 Nov 2026).
+ * Every "Terms" beside a credit sentence links here. A site that does not host
+ * the page passes its own address (or `null` for no link) where the HTML builders take one.
+ */
+export const CIRCLE_TERMS_HREF = "/carisma-circle/terms";
 /** Every brand a member can earn at and spend at, in customer words. */
 export const CIRCLE_BRANDS = "Carisma Spa, Aesthetics and Slimming";
 /** 20 points = €1, so a point is 5 cents (Bible pointValue). */
@@ -253,9 +259,14 @@ export function circlePanelRowHTML(m) {
 }
 /* ── Overview card ─────────────────────────────────────────────────────── */
 /** The Overview card set: credit, level, ways to earn. "" when null. */
-export function circleOverviewHTML(m) {
+/** "Terms" as a link, or "" when the site has no terms page to point at. */
+function termsLinkHTML(href, label = "Terms") {
+    return href ? `<a class="cw-link" href="${escapeHtml(href)}" data-cw-circle-terms>${escapeHtml(label)}</a>` : "";
+}
+export function circleOverviewHTML(m, termsHref = CIRCLE_TERMS_HREF) {
     if (!m)
         return "";
+    const terms = termsLinkHTML(termsHref);
     const useBy = useByText(m);
     const gap = gapText(m);
     const prog = levelProgress(m);
@@ -271,7 +282,7 @@ export function circleOverviewHTML(m) {
         `<p class="cw-circle__points" ${M}>${escapeHtml(pointsText(m.points))}${m.ready ? " · ready now" : ""}</p>` +
         (!m.ready && ready ? `<p class="cw-circle__line" ${M}>${escapeHtml(ready)}</p>` : "") +
         (useBy ? `<p class="cw-circle__line" ${M}>${escapeHtml(useBy)}</p>` : "") +
-        `<p class="cw-fine">On up to half of any booking at ${CIRCLE_BRANDS}.</p>` +
+        `<p class="cw-fine">On up to half of any booking at ${CIRCLE_BRANDS}.${terms ? ` ${terms}` : ""}</p>` +
         `</div>` +
         // Level
         `<div class="cw-card cw-circle-ov__level">` +
@@ -509,6 +520,7 @@ export function circleViewHTML(input) {
     if (!input)
         return "";
     const m = input.me;
+    const terms = termsLinkHTML(input.termsHref === undefined ? CIRCLE_TERMS_HREF : input.termsHref, "Terms of Carisma Circle");
     const useBy = useByText(m);
     const gap = gapText(m);
     const ready = readyText(m);
@@ -542,7 +554,7 @@ export function circleViewHTML(input) {
         circleActivityHTML(m, input.activity) +
         circleShopHTML(input.rewards, m) +
         passportHTML(m) +
-        `<p class="cw-fine cw-prose">${escapeHtml(PROMISE_QUALIFIER)}</p>` +
+        `<p class="cw-fine cw-prose">${escapeHtml(PROMISE_QUALIFIER)}${terms ? ` ${terms}` : ""}</p>` +
         `</div>`);
 }
 const NONE = { kind: "none", hero: "", sentence: "", conditions: [], quiet: "" };

@@ -19,6 +19,7 @@ import {
   circleWalletLineHTML,
   circleViewHTML,
   circleShopHTML,
+  CIRCLE_TERMS_HREF,
   creditMoment,
   earnLine,
   earnPoints,
@@ -153,6 +154,21 @@ test("customer copy names the brands and never says 'house', 'voucher' or 'store
   assert.match(all, /data-clarity-mask="True"/);
   assert.match(all, /No credit is given for reviews, ratings, follows, posts, tags or shares\./);
   assert.match(all, /Prices include VAT/);
+});
+
+test("every 'Terms' beside credit links the Carisma Circle terms page (W2)", () => {
+  const m = readCircle(MARIA);
+  assert.equal(CIRCLE_TERMS_HREF, "/carisma-circle/terms");
+  const view = circleViewHTML({ me: m, activity: null, rewards: null });
+  assert.match(view, /<a class="cw-link" href="\/carisma-circle\/terms" data-cw-circle-terms>Terms of Carisma Circle<\/a><\/p>/);
+  assert.match(circleOverviewHTML(m), /On up to half of any booking at Carisma Spa, Aesthetics and Slimming\. <a class="cw-link" href="\/carisma-circle\/terms" data-cw-circle-terms>Terms<\/a>/);
+  // A site hosting the page elsewhere passes its own address; null draws no link at all.
+  assert.match(circleViewHTML({ me: m, activity: null, rewards: null, termsHref: "https://www.carismaspa.com/carisma-circle/terms" }), /href="https:\/\/www\.carismaspa\.com\/carisma-circle\/terms"/);
+  assert.doesNotMatch(circleViewHTML({ me: m, activity: null, rewards: null, termsHref: null }), /data-cw-circle-terms/);
+  assert.doesNotMatch(circleOverviewHTML(m, null), /data-cw-circle-terms/);
+  // Off / unknown member: still nothing at all.
+  assert.equal(circleOverviewHTML(null), "");
+  assert.equal(circleViewHTML(null), "");
 });
 
 test("the shop opens 'Yours now', then at most two 'Next up' with the euro gap", () => {

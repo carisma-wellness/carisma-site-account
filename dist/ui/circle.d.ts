@@ -1,5 +1,11 @@
 export declare const CIRCLE_QC = "carisma-circle-20261115";
 export declare const CIRCLE_HREF = "/account/rewards";
+/**
+ * The Carisma Circle terms, served by each Circle site at this path (W2, 15 Nov 2026).
+ * Every "Terms" beside a credit sentence links here. A site that does not host
+ * the page passes its own address (or `null` for no link) where the HTML builders take one.
+ */
+export declare const CIRCLE_TERMS_HREF = "/carisma-circle/terms";
 /** Every brand a member can earn at and spend at, in customer words. */
 export declare const CIRCLE_BRANDS = "Carisma Spa, Aesthetics and Slimming";
 /** 20 points = €1, so a point is 5 cents (Bible pointValue). */
@@ -109,8 +115,7 @@ export declare function ladderHTML(level: CircleLevelView, cls?: string): string
  * to Credit & rewards. "" when the model is null.
  */
 export declare function circlePanelRowHTML(m: CircleModel | null): string;
-/** The Overview card set: credit, level, ways to earn. "" when null. */
-export declare function circleOverviewHTML(m: CircleModel | null): string;
+export declare function circleOverviewHTML(m: CircleModel | null, termsHref?: string | null): string;
 /**
  * Carisma credit as its own line in the Wallet, NOT added to "Available to
  * spend" (it covers up to half of a booking, so summing it would overstate
@@ -158,6 +163,8 @@ export interface CircleViewInput {
     } | null;
     rewards: CircleReward[] | null;
     bookHref?: string;
+    /** Where "Terms of Carisma Circle" points (default CIRCLE_TERMS_HREF; null = no link). */
+    termsHref?: string | null;
 }
 export declare function circleActivityHTML(m: CircleModel, activity: CircleViewInput["activity"]): string;
 /** The whole Credit & rewards page body. "" when the member read is null. */
