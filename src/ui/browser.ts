@@ -427,12 +427,17 @@ export function mountAccountPanel(doc: MinimalDocument, opts: HydrateOptions = {
       const restore = setBusy(btn, "Rejoining…");
       void postJson(fetchImpl, circleRejoinCall()).then((r) => {
         if (r.ok && readRejoined(r.body)) {
+          close();
           navigate(CIRCLE_HREF);
           return;
         }
+        if (r.status === 401) {
+          navigate(`/member?next=${encodeURIComponent(CIRCLE_HREF)}`);
+          return;
+        }
         restore();
-        const note = qs(doc.getElementById(mountId), "[data-cw-circle-rejoin-note]");
-        if (note) note.innerHTML = escapeHtml(GENERIC_FAILURE);
+        const msg = qs(doc.getElementById(mountId), "[data-cw-circle-rejoin-msg]");
+        if (msg) msg.innerHTML = escapeHtml(GENERIC_FAILURE);
       });
       return;
     }
@@ -1822,7 +1827,9 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
       const t = ev.target;
       if (closestOf(t, "[data-cw-dialog-close]")) {
         ev.preventDefault();
-        dlg.close?.();
+        // Once the leave is on its way, "Stay" can no longer stop it: the sheet
+        // stays open until the server answers, so nobody reads "Stay" as undo.
+        if (!busy) dlg.close?.();
         return;
       }
       const go = closestOf(t, "[data-cw-circle-leave-commit]");
@@ -1830,21 +1837,28 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
       ev.preventDefault();
       busy = true;
       render("ready");
+      qs(dlg, "[data-cw-circle-leave-commit]")?.focus?.();
       void postJson(fetchImpl, circleLeaveCall()).then((r) => {
-        if (!alive) return;
         busy = false;
         if (r.ok && readCircleLeft(r.body)) {
-          dlg.close?.();
+          // The page ALWAYS follows the server, even if the sheet was closed
+          // (Escape, the backdrop) while the leave was in flight.
+          if (alive) dlg.close?.();
           circleNow = undefined;
           void load(() => announce(mount, "You have left Carisma Circle.", "ok"), true);
           return;
         }
         if (r.status === 401) {
-          dlg.close?.();
+          if (alive) dlg.close?.();
           signIn();
           return;
         }
+        if (!alive) {
+          announce(mount, messageFromError(r.body, r.status, GENERIC_FAILURE), "bad");
+          return;
+        }
         render("ready", messageFromError(r.body, r.status, GENERIC_FAILURE));
+        qs(dlg, ".cw-btn--primary")?.focus?.();
       });
     });
   };

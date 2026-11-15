@@ -306,8 +306,9 @@ export function circlePanelLeftHTML(l) {
     return (`<div class="carisma-panel__circle carisma-panel__circle--left" data-cw-qc="${CIRCLE_QC}" data-cw-circle="panel-left">` +
         `<span class="carisma-panel__circle-label">Carisma Circle</span>` +
         `<span class="carisma-panel__circle-left" ${M}>${escapeHtml(leftText(l))}</span>` +
-        `<span class="carisma-panel__circle-sub" data-cw-circle-rejoin-note>${escapeHtml(REJOIN_NOTE)}</span>` +
+        `<span class="carisma-panel__circle-sub">${escapeHtml(REJOIN_NOTE)}</span>` +
         `<button type="button" class="carisma-panel__circle-rejoin" data-cw-circle-rejoin>${REJOIN_LABEL}</button>` +
+        `<span class="carisma-panel__circle-gap" role="status" data-cw-circle-rejoin-msg></span>` +
         `</div>`);
 }
 /* ── Overview card ─────────────────────────────────────────────────────── */
@@ -703,7 +704,7 @@ export function leaveSheetFootHTML(p, busy = false) {
             ? `Leave and give up ${creditText(p.cents)}`
             : "Leave Carisma Circle";
     return (`<div class="cw-cx-actions">` +
-        `<button type="button" class="cw-btn cw-btn--primary" data-cw-dialog-close autofocus>Stay in Carisma Circle</button>` +
+        `<button type="button" class="cw-btn cw-btn--primary" data-cw-dialog-close autofocus${busy ? ' aria-disabled="true"' : ""}>Stay in Carisma Circle</button>` +
         (canLeave
             ? `<button type="button" class="cw-btn cw-btn--danger${busy ? " is-busy" : ""}" data-cw-circle-leave-commit` +
                 (busy ? ' aria-disabled="true"' : "") +
@@ -781,7 +782,7 @@ function offersRowHTML(p, channel, busy) {
     return (`<div class="cw-circle-prefs__row">` +
         `<input type="checkbox" class="cw-circle-prefs__box" id="${id}" data-cw-circle-pref="${channel}"` +
         (state !== "off" ? " checked" : "") +
-        (state === "mixed" ? ' data-cw-mixed aria-checked="mixed"' : "") +
+        (state === "mixed" ? " data-cw-mixed" : "") +
         (note ? ` aria-describedby="${id}-note"` : "") +
         (busy ? " disabled" : "") +
         `>` +

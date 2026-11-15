@@ -197,7 +197,8 @@ test("offers: the Bible's two sentences verbatim, one box each, ticked ONLY when
   const p = readCirclePrefs(PREFS_MIXED);
   assert.deepEqual(offersState(p, "email"), { state: "mixed", onFor: ["Carisma Spa"] });
   const mixed = circlePrefsHTML(p);
-  assert.match(mixed, /data-cw-circle-pref="email" checked data-cw-mixed aria-checked="mixed"/);
+  assert.match(mixed, /data-cw-circle-pref="email" checked data-cw-mixed aria-describedby="cw-circle-pref-email-note"/);
+  assert.doesNotMatch(mixed, /aria-checked/, "a native checkbox reports mixed through its indeterminate property");
   assert.match(mixed, /On for Carisma Spa only\. Untick to stop all three\./);
   // Off / 404 / garbage: no box. Carisma Medical never listed.
   for (const bad of [{ enabled: false }, null, { error: "not_found" }, { enabled: true, brands: [] }]) assert.equal(readCirclePrefs(bad), null);
@@ -226,7 +227,7 @@ test("W3 CSS reads tokens only (no raw colour)", () => {
 /* ── The browser: the sheet, Rejoin and the boxes, end to end ──────────── */
 
 /** A fake DOM just deep enough for the portal: a mount, a dialog with a body and a foot, a status region, the prefs slot. */
-function harness({ me = MARIA, prefs = PREFS_OFF, view = "rewards", leave = LEAVE_PREVIEW, patchAnswer = null } = {}) {
+function harness({ me = MARIA, prefs = PREFS_OFF, view = "rewards", leave = LEAVE_PREVIEW, patchAnswer = null, slowLeave = 0 } = {}) {
   const state = { me, prefs };
   const calls = [];
   const handlers = [];
@@ -254,7 +255,11 @@ function harness({ me = MARIA, prefs = PREFS_OFF, view = "rewards", leave = LEAV
   };
   const status = el();
   Object.defineProperty(status, "innerHTML", { get() { return this._h || ""; }, set(v) { this._h = v; if (v) toasts.push(v); } });
-  const prefsSlot = el({ querySelectorAll() { return []; }, querySelector() { return el(); } });
+  // Two live checkboxes inside the prefs slot, so "disable while saving" is observable.
+  const slotInputs = [el(), el()];
+  const prefsSlot = el({ querySelectorAll(sel) { return sel === "input[data-cw-circle-pref]" ? slotInputs : []; }, querySelector() { return el(); } });
+  // The mixed box on the painted page, so markMixed (the indeterminate property) is observable.
+  const mixedInputs = [];
   const mount = {
     innerHTML: "", setAttribute() {}, getAttribute() { return null; },
     addEventListener(t, h) { if (t === "click") handlers.push(h); },
@@ -271,6 +276,11 @@ function harness({ me = MARIA, prefs = PREFS_OFF, view = "rewards", leave = LEAV
     },
     querySelectorAll(sel) {
       if (sel === "dialog.cw-dialog") return inserted ? [dialog] : [];
+      if (sel === "input[data-cw-mixed]") {
+        const n = (mount.innerHTML.match(/data-cw-mixed/g) || []).length;
+        while (mixedInputs.length < n) mixedInputs.push({});
+        return mixedInputs.slice(0, n);
+      }
       if (sel === "[data-cw-circle-rail]" && /data-cw-circle-rail hidden/.test(mount.innerHTML)) {
         return [{ removeAttribute() { mount.innerHTML = mount.innerHTML.replace("data-cw-circle-rail hidden", "data-cw-circle-rail"); } }];
       }
@@ -292,7 +302,8 @@ function harness({ me = MARIA, prefs = PREFS_OFF, view = "rewards", leave = LEAV
     if (url === "/api/auth/proxy/client/loyalty/leave" && method === "GET") return typeof leave === "number" ? res(leave, { error: "x" }) : res(200, { success: true, data: leave });
     if (url === "/api/auth/proxy/client/loyalty/leave" && method === "POST") {
       state.me = LEFT;
-      return res(200, { success: true, data: { enabled: true, left: true, leftAt: LEFT.leftAt, forfeited: LEAVE_PREVIEW.forfeit, alreadyLeft: false } });
+      const answer = () => res(200, { success: true, data: { enabled: true, left: true, leftAt: LEFT.leftAt, forfeited: LEAVE_PREVIEW.forfeit, alreadyLeft: false } });
+      return slowLeave ? new Promise((r) => setTimeout(() => r(answer()), slowLeave)) : answer();
     }
     if (url === "/api/auth/proxy/client/loyalty/rejoin") {
       state.me = MARIA;
@@ -322,7 +333,7 @@ function harness({ me = MARIA, prefs = PREFS_OFF, view = "rewards", leave = LEAV
   };
   const click = (t) => handlers.forEach((h) => h({ target: t, preventDefault() {}, stopPropagation() {} }));
   const clickDialog = (t) => dlgListeners.click.forEach((h) => h({ target: t, preventDefault() {} }));
-  return { doc, mount, calls, fetchImpl, navs, toasts, body, foot, prefsSlot, target, click, clickDialog, shown: () => shown, isOpen: () => dialogOpen, state };
+  return { doc, mount, calls, fetchImpl, navs, toasts, body, foot, prefsSlot, slotInputs, mixedInputs, dialog, target, click, clickDialog, shown: () => shown, isOpen: () => dialogOpen, state };
 }
 const settle = () => new Promise((r) => setTimeout(r, 40));
 const mountIt = (h, view = "rewards") =>
@@ -449,7 +460,41 @@ test("NEGATIVE CONTROL: Circle off = no leave, no offers box, no extra request b
   await settle();
   assert.deepEqual(h.navs, ["/account"]);
   assert.doesNotMatch(h.mount.innerHTML, /Offers and reminders|Leave Carisma Circle/);
-  assert.equal(h.calls.filter((c) => c.url.includes("/loyalty/")).length, requestsFor("rewards").length);
+  // The page's own four reads (me, activity, rewards, preferences) and not one more.
+  assert.equal(h.calls.filter((c) => c.url.includes("/loyalty/")).length, 4);
+  assert.equal(h.calls.filter((c) => c.method !== "GET").length, 0);
+});
+
+test("leave: closing the sheet while the leave is in flight cannot stop it, and the page still follows the server", async () => {
+  const h = harness({ slowLeave: 30 });
+  mountIt(h);
+  await settle();
+  h.click(h.target("data-cw-circle-leave"));
+  await settle();
+  h.clickDialog(h.target("data-cw-circle-leave-commit", "", { inDialog: true }));
+  assert.match(h.foot.innerHTML, /aria-disabled="true">Stay in Carisma Circle/, "Stay is inert while leaving");
+  h.clickDialog(h.target("data-cw-dialog-close", "", { inDialog: true })); // "Stay" mid-flight: ignored
+  assert.equal(h.isOpen(), true);
+  h.dialog.close(); // Escape / the backdrop: the sheet goes, the leave does not
+  assert.equal(h.isOpen(), false);
+  await new Promise((r) => setTimeout(r, 90));
+  assert.equal(h.calls.filter((c) => c.method === "POST").length, 1);
+  assert.match(h.mount.innerHTML, /You left Carisma Circle on 15 November 2026/, "the page shows what the server did");
+  assert.doesNotMatch(h.mount.innerHTML.replace(REJOIN_NOTE, ""), /€\s?\d/);
+  assert.ok(h.toasts.some((t) => /You have left Carisma Circle\./.test(t)));
+});
+
+test("offers: a box on for some brands only is set indeterminate, and ONE untick opts out of all three", async () => {
+  const h = harness({ prefs: PREFS_MIXED });
+  mountIt(h);
+  await settle();
+  assert.equal(h.mixedInputs.length, 1);
+  assert.equal(h.mixedInputs[0].indeterminate, true, "markMixed ran on the painted page");
+  h.click(h.target("data-cw-circle-pref", "email", { checked: false })); // the browser unticks a ticked+mixed box
+  assert.ok(h.slotInputs.every((i) => "disabled" in i.attrs), "both boxes are disabled while the save is in flight");
+  await settle();
+  assert.deepEqual(h.calls.filter((c) => c.method === "PATCH").map((c) => c.body), [{ offersEmail: false }]);
+  assert.doesNotMatch(h.prefsSlot.innerHTML, /data-cw-circle-pref="email" checked|data-cw-mixed/);
 });
 
 test("panel: a left member rejoins from the header row, then lands on Credit & rewards", async () => {
@@ -539,9 +584,15 @@ test("proxy: the consent PATCH carries the member's own browser to the backend's
   }));
   assert.equal(patch.status, 200);
   await r.proxy(new Request("http://localhost:3100/api/auth/proxy/client/loyalty/me", { headers: { cookie: `cw_session=${cookie()}`, "user-agent": ua } }));
+  await r.proxy(new Request("http://localhost:3100/api/auth/proxy/client/loyalty/leave", {
+    method: "POST",
+    headers: { cookie: `cw_session=${cookie()}`, origin: "http://localhost:3100", "content-type": "application/json", "user-agent": ua },
+    body: JSON.stringify({ confirm: true }),
+  }));
   assert.deepEqual(seen.map((s) => [s.method, s.url.replace("http://backend.local/api/v1", ""), s.ua]), [
     ["PATCH", "/client/loyalty/preferences", ua],
     ["GET", "/client/loyalty/me", null],
+    ["POST", "/client/loyalty/leave", null],
   ]);
   assert.equal(seen[0].body, JSON.stringify({ offersEmail: true }));
 });
