@@ -192,8 +192,9 @@ test("Details draws only an EMPTY, HIDDEN Circle slot (and none when the site di
  * per section (each redraw is recorded), each section's live region, the
  * birthday selects, and one stub per radio actually drawn.
  */
-function harness({ comfort = COMFORT, birthday = BDAY_EMPTY, wa = WA, put = {} } = {}) {
-  const state = { comfort, birthday, wa };
+const LIVE_ME = { enabled: true, level: { key: "first_light", name: "First Light", numeral: "I" }, credit: { points: 0, cents: 0 } };
+function harness({ comfort = COMFORT, birthday = BDAY_EMPTY, wa = WA, put = {}, me = LIVE_ME } = {}) {
+  const state = { comfort, birthday, wa, me };
   const calls = [];
   const handlers = [];
   const selects = { day: { value: "" }, month: { value: "" } };
@@ -264,7 +265,7 @@ function harness({ comfort = COMFORT, birthday = BDAY_EMPTY, wa = WA, put = {} }
       if (method === "PUT") state.wa = { ...state.wa, optedIn: JSON.parse(init.body).optedIn };
       return typeof state.wa === "number" ? res(state.wa, {}) : res(200, { success: true, data: state.wa });
     }
-    if (door === "me") return res(200, { success: true, data: { enabled: false } });
+    if (door === "me") return res(200, { success: true, data: state.me });
     return res(200, { success: true, data: [] });
   };
   const target = (attr, value = "", extra = {}) => {
@@ -305,6 +306,24 @@ test("Details: B4 off / 404 = the slot stays hidden and empty; live = three sect
   mountDetails(notOpted, false);
   await settle();
   assert.equal(notOpted.calls.some((c) => c.url.includes("/loyalty/")), false);
+});
+
+test("Details: while the member read says Circle is OFF (production today) not one B4 request is made; a member who left still gets them", async () => {
+  for (const me of [{ enabled: false }, { tier: "gold", perks: [] }, null]) {
+    const h = harness({ me });
+    mountDetails(h);
+    await settle();
+    const b4 = h.calls.filter((c) => /loyalty\/(comfort|birthday|whatsapp-updates)/.test(c.url));
+    assert.deepEqual(b4, [], JSON.stringify(me));
+    assert.equal(h.outer.innerHTML, "");
+  }
+  const left = harness({ me: { enabled: true, left: true, leftAt: "2026-11-14T10:00:00Z" }, comfort: LEFT_ONLY, birthday: LEFT_ONLY, wa: { ...WA, left: true, optedIn: true } });
+  mountDetails(left);
+  await settle();
+  assert.equal(left.calls.filter((c) => /loyalty\/(comfort|birthday|whatsapp-updates)/.test(c.url)).length, 3);
+  assert.match(left.outer.innerHTML, /data-cw-circle="whatsapp-updates"/);
+  // One member read for the page, never two.
+  assert.equal(left.calls.filter((c) => c.url.endsWith("/loyalty/me")).length, 1);
 });
 
 test("comfort: a keyboard sweep (Light → Medium → Firm) settles into ONE save of 'firm'; the drawn choices are held while it flies", async () => {
