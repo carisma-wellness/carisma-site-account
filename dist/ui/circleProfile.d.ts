@@ -36,8 +36,13 @@ export declare function birthdayText(b: {
 }): string;
 /** 'YYYY-MM-DD' → "14 November 2027" (a calendar day, no time zone maths). */
 export declare function calendarDayText(ymd: string): string;
-/** The Bible's consent text for the service opt-in (ways to earn: `whatsapp`), word for word. */
-export declare const WHATSAPP_UPDATES_SENTENCE = "Send my booking updates and Carisma credit receipts on WhatsApp from Carisma Spa, Carisma Aesthetics and Carisma Slimming. No offers. Reply STOP to end.";
+/**
+ * The consent text for the service opt-in (ways to earn: `whatsapp`): counsel's re-versioned wording
+ * (surface-consistency row 55 — WhatsApp credit receipts are not built, so the sentence no longer promises them;
+ * terms v1.0 §7 "service messages … (no offers)"), word for word. Fail-closed: the box is drawn only when the
+ * server records EXACTLY this sentence, so until the backend re-versions its consent wording the box stays hidden.
+ */
+export declare const WHATSAPP_UPDATES_SENTENCE = "Send me Carisma Circle service messages on WhatsApp from Carisma Spa, Carisma Aesthetics and Carisma Slimming. No offers. Reply STOP to end.";
 export interface CircleWhatsapp {
     left: boolean;
     optedIn: boolean;

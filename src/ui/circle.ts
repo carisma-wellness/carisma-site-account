@@ -43,9 +43,15 @@ export const CIRCLE_BRANDS = "Carisma Spa, Aesthetics and Slimming";
 export const CENTS_PER_POINT = 5;
 export const DEFAULT_MIN_REDEEM_POINTS = 100;
 export const DEFAULT_MAX_SHARE_PCT = 50;
+/** Counsel's corrected wording (surface-consistency row 1, terms v1.0 §3–§4), word for word. */
 export const PROMISE_QUALIFIER =
-  "Medical treatments prescribed or performed by a doctor, fees and tips don't earn credit. Gift cards earn for the person who uses them.";
+  "Medical treatments, consultations with a doctor, prescription-only medicines, fees and tips don't earn credit. A gift card someone bought earns for the person who uses it.";
 export const EARN_TERMS_LINE = "No credit is given for reviews, ratings, follows, posts, tags or shares.";
+/**
+ * Under the shop: rewards are taken at the desk by showing the member card in the Carisma app (terms v1.0 §10).
+ * Counsel's corrected wording for the same sentence on the Spa page (surface-consistency row 26).
+ */
+export const SHOP_FOOT = "Rewards are paid in full with credit: show your card in the Carisma app at the desk. Prices include VAT.";
 
 /** The five levels, in order. Names and numerals are fixed by the Bible; thresholds are euros a calendar year. */
 export const CIRCLE_LEVELS: ReadonlyArray<{ key: string; name: string; numeral: string; thresholdEur: number }> = [
@@ -247,9 +253,12 @@ export function leftText(l: CircleLeftModel): string {
   }
 }
 
-/** Beside every Rejoin: what rejoining does, and that nothing forfeited comes back. */
+/**
+ * Beside every Rejoin: what rejoining does, that nothing forfeited comes back, and (counsel, surface-consistency
+ * row 8; terms v1.0 §13) that a balance below zero comes back too unless it has been written off.
+ */
 export const REJOIN_NOTE =
-  "If you rejoin, you start again at I First Light with no credit. The credit you gave up when you left does not come back.";
+  "If you rejoin, you start again at I First Light with no credit. The credit you gave up when you left does not come back. If your balance was below zero when you left, that comes back too, unless it has been written off.";
 export const REJOIN_LABEL = "Rejoin Carisma Circle";
 
 /* ── Copy ──────────────────────────────────────────────────────────────── */
@@ -661,7 +670,7 @@ export function circleShopHTML(items: CircleReward[] | null, m: CircleModel): st
     `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-shop-title">Spend your credit</h2></div>` +
     group("Yours now", now, true) +
     group("Next up", next, false) +
-    `<p class="cw-fine">Rewards are paid in full with credit: tell the desk when you arrive. Prices include VAT.</p>` +
+    `<p class="cw-fine">${escapeHtml(SHOP_FOOT)}</p>` +
     `</section>`
   );
 }
@@ -696,7 +705,7 @@ function waysToEarnHTML(m: CircleModel): string {
     `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-earn-title">Ways to earn</h2>` +
     `<p class="cw-circle-earn__sum" ${M}>${escapeHtml(waysToEarnText(m))}</p></div>` +
     `<ul class="cw-circle-earn__list" role="list" ${M}>${rows}</ul>` +
-    `<p class="cw-fine">Every €1 you pay at ${CIRCLE_BRANDS} earns credit too. ${escapeHtml(EARN_TERMS_LINE)}</p>` +
+    `<p class="cw-fine">Every €1 you pay on eligible treatments at ${CIRCLE_BRANDS} earns credit too. ${escapeHtml(EARN_TERMS_LINE)}</p>` +
     `</section>`
   );
 }
@@ -1113,9 +1122,12 @@ export function creditMoment(input: CreditMomentInput | null | undefined): Credi
   };
 }
 
-/** The pay-step disclosure (Bible storeCredit.payStepDisclosure), word for word. */
+/**
+ * The pay-step disclosure. Counsel's corrected wording (surface-consistency row 6; terms v1.0 §12–§13: spent credit
+ * is never taken from a refund, the balance goes below zero instead), word for word.
+ */
 export const PAY_STEP_DISCLOSURE =
-  "If you cancel, the credit this booking gives you is removed; if you've already used it, its value comes off your refund.";
+  "If you cancel, the credit this booking gives you is removed. If you've already used it, your balance can go below zero. We never take it from your refund.";
 
 /**
  * "You'll receive €X in Carisma credit" for a pre-payment line, from the euros

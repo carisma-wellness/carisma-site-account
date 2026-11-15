@@ -120,10 +120,10 @@ test("birthday: locked shows the saved day and the date it can change; a 409 nam
 
 /* ── WhatsApp booking updates: a service, never marketing ─────────────── */
 
-test("WhatsApp updates: the Bible's sentence word for word, drawn only when the server records EXACTLY that wording", () => {
+test("WhatsApp updates: counsel's re-versioned sentence word for word, drawn only when the server records EXACTLY that wording", () => {
   assert.equal(
     WHATSAPP_UPDATES_SENTENCE,
-    "Send my booking updates and Carisma credit receipts on WhatsApp from Carisma Spa, Carisma Aesthetics and Carisma Slimming. No offers. Reply STOP to end.",
+    "Send me Carisma Circle service messages on WhatsApp from Carisma Spa, Carisma Aesthetics and Carisma Slimming. No offers. Reply STOP to end.",
   );
   const html = whatsappUpdatesHTML(readCircleWhatsapp(WA));
   assert.ok(html.includes(WHATSAPP_UPDATES_SENTENCE));

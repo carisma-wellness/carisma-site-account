@@ -211,7 +211,7 @@ test("the credit moment: hero only when the bill gave credit, balance ≥ €5.0
   assert.equal(creditMoment({ earnedCents: 1545, balanceCents: null, hasExcludedLine: true }).kind, "none");
   assert.equal(
     PAY_STEP_DISCLOSURE,
-    "If you cancel, the credit this booking gives you is removed; if you've already used it, its value comes off your refund.",
+    "If you cancel, the credit this booking gives you is removed. If you've already used it, your balance can go below zero. We never take it from your refund.",
   );
 });
 

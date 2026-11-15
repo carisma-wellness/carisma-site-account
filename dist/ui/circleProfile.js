@@ -95,8 +95,13 @@ export function calendarDayText(ymd) {
     return month ? `${Number(m[3])} ${month} ${m[1]}` : "";
 }
 /* ── WhatsApp booking updates (SERVICE, never marketing) ───────────────── */
-/** The Bible's consent text for the service opt-in (ways to earn: `whatsapp`), word for word. */
-export const WHATSAPP_UPDATES_SENTENCE = "Send my booking updates and Carisma credit receipts on WhatsApp from Carisma Spa, Carisma Aesthetics and Carisma Slimming. No offers. Reply STOP to end.";
+/**
+ * The consent text for the service opt-in (ways to earn: `whatsapp`): counsel's re-versioned wording
+ * (surface-consistency row 55 — WhatsApp credit receipts are not built, so the sentence no longer promises them;
+ * terms v1.0 §7 "service messages … (no offers)"), word for word. Fail-closed: the box is drawn only when the
+ * server records EXACTLY this sentence, so until the backend re-versions its consent wording the box stays hidden.
+ */
+export const WHATSAPP_UPDATES_SENTENCE = "Send me Carisma Circle service messages on WhatsApp from Carisma Spa, Carisma Aesthetics and Carisma Slimming. No offers. Reply STOP to end.";
 /**
  * GET/PUT /client/loyalty/whatsapp-updates → the model, or null. Fail-closed on
  * the wording: the box is drawn only when the server records EXACTLY the
