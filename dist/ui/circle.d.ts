@@ -80,6 +80,31 @@ export declare function circleAllowedOn(siteBrand?: string): boolean;
  * unknown level, a non-object body, an envelope around any of those.
  */
 export declare function readCircle(body: unknown): CircleModel | null;
+/** A member who used "Leave Carisma Circle": the date they left, and nothing else. */
+export interface CircleLeftModel {
+    /** ISO instant, or "" when the server did not say. */
+    leftAt: string;
+}
+/** What the member read says about this member: live, left, or nothing to show (null). */
+export type CircleState = {
+    kind: "live";
+    model: CircleModel;
+} | {
+    kind: "left";
+    left: CircleLeftModel;
+};
+/**
+ * `/client/loyalty/me` → the left state, or null. Only a clean `enabled: true`
+ * with `left: true` is a left member; anything else (off, live, garbage) is null.
+ */
+export declare function readCircleLeft(body: unknown): CircleLeftModel | null;
+/** One read, three outcomes: live (the full model), left (the date only), or null (draw nothing). */
+export declare function readCircleState(body: unknown): CircleState | null;
+/** "You left Carisma Circle on 14 November 2026" (Malta date; no date when the server gave none). */
+export declare function leftText(l: CircleLeftModel): string;
+/** Beside every Rejoin: what rejoining does, and that nothing forfeited comes back. */
+export declare const REJOIN_NOTE = "If you rejoin, you start again at I First Light with no credit. The credit you gave up when you left does not come back.";
+export declare const REJOIN_LABEL = "Rejoin Carisma Circle";
 /** "€62.00" — credit is always two decimals. */
 export declare function creditText(cents: number): string;
 /** "1,240 points" / "1 point". */
@@ -115,6 +140,13 @@ export declare function ladderHTML(level: CircleLevelView, cls?: string): string
  * to Credit & rewards. "" when the model is null.
  */
 export declare function circlePanelRowHTML(m: CircleModel | null): string;
+/**
+ * The header-panel row for a member who left: the date and Rejoin, nothing
+ * else (no credit, no level). "" when null.
+ */
+export declare function circlePanelLeftHTML(l: CircleLeftModel | null): string;
+/** The Overview card for a member who left: the date, what rejoining means, Rejoin. "" when null. */
+export declare function circleOverviewLeftHTML(l: CircleLeftModel | null): string;
 export declare function circleOverviewHTML(m: CircleModel | null, termsHref?: string | null): string;
 /**
  * Carisma credit as its own line in the Wallet, NOT added to "Available to
@@ -165,10 +197,83 @@ export interface CircleViewInput {
     bookHref?: string;
     /** Where "Terms of Carisma Circle" points (default CIRCLE_TERMS_HREF; null = no link). */
     termsHref?: string | null;
+    /** The member's "Offers and reminders" answer (null = the box is not drawn). */
+    prefs?: CirclePrefs | null;
 }
 export declare function circleActivityHTML(m: CircleModel, activity: CircleViewInput["activity"]): string;
 /** The whole Credit & rewards page body. "" when the member read is null. */
 export declare function circleViewHTML(input: CircleViewInput | null): string;
+/**
+ * The Credit & rewards page for a member who left: the date and Rejoin, then
+ * "Offers and reminders" (an opt-out must always be possible). No credit, no
+ * level, no activity, no shop.
+ */
+export declare function circleLeftViewHTML(input: {
+    left: CircleLeftModel;
+    prefs?: CirclePrefs | null;
+} | null): string;
+/** GET /client/loyalty/leave, read for the confirm sheet. */
+export type LeavePreview = {
+    kind: "preview";
+    points: number;
+    cents: number;
+    warning: string;
+} | {
+    kind: "left";
+    left: CircleLeftModel;
+};
+/**
+ * The server's answer → what the sheet shows, or null (off, 404, garbage): with
+ * null the sheet never offers the confirm button. A missing `warning` falls back
+ * to the backend's own sentence, built from the same figures.
+ */
+export declare function readLeavePreview(body: unknown): LeavePreview | null;
+/** The sheet's body: the figure given up, then the server's warning word for word. */
+export declare function leaveSheetBodyHTML(p: LeavePreview | null, state: "loading" | "ready" | "failed", alert?: string): string;
+/** The sheet's foot. Staying is primary and takes focus; leaving names the figure. */
+export declare function leaveSheetFootHTML(p: LeavePreview | null, busy?: boolean): string;
+/**
+ * The Bible's two consent sentences, word for word (§ "Account claim / create").
+ * One box per channel, covering all three brands; never pre-ticked, never
+ * rewarded, never needed to join.
+ */
+export declare const OFFERS_EMAIL_SENTENCE = "Email me offers and reminders from Carisma Spa, Carisma Aesthetics and Carisma Slimming.";
+export declare const OFFERS_WHATSAPP_SENTENCE = "Send me offers and reminders on WhatsApp from Carisma Spa, Carisma Aesthetics and Carisma Slimming.";
+export type OffersChannel = "email" | "whatsapp";
+export interface CirclePrefsBrand {
+    brandId: string;
+    name: string;
+    offersEmail: boolean;
+    offersWhatsapp: boolean;
+    canEmail: boolean;
+    canWhatsapp: boolean;
+}
+export interface CirclePrefs {
+    left: boolean;
+    brands: CirclePrefsBrand[];
+}
+/**
+ * GET/PATCH /client/loyalty/preferences → the model, or null (off, 404,
+ * garbage, no brands). A flag is true ONLY when the server says so: a
+ * missing field is never consent.
+ */
+export declare function readCirclePrefs(body: unknown): CirclePrefs | null;
+/** One box over three brands: on (every brand), off (none) or mixed (some), with the brands it is on for. */
+export declare function offersState(p: CirclePrefs, channel: OffersChannel): {
+    state: "on" | "off" | "mixed";
+    onFor: string[];
+};
+/** The plain words for a refused or failed save. */
+export declare function offersErrorText(code: string): string;
+/** What to say after a save, from the state the server answered. */
+export declare function offersSavedText(p: CirclePrefs, channel: OffersChannel): string;
+/** The "Offers and reminders" box. "" when null. `msg` is the line under it after a save. */
+export declare function circlePrefsHTML(p: CirclePrefs | null, msg?: {
+    text: string;
+    tone: "ok" | "bad";
+} | null, busy?: boolean): string;
+/** The box inside its own slot, so browser.ts can redraw it after a save without touching the page. */
+export declare function circlePrefsSlotHTML(p: CirclePrefs | null): string;
 export interface CreditMomentInput {
     /** What THIS bill gave, in cents. */
     earnedCents: number;
@@ -227,4 +332,6 @@ export declare const PAY_STEP_DISCLOSURE = "If you cancel, the credit this booki
 export declare function earnLine(eligibleCents: number, multiplier?: number, from?: boolean): string;
 /** floor(eligible euros × multiplier) points — whole euros paid, VAT-inclusive. */
 export declare function earnPoints(eligibleCents: number, multiplier?: number): number;
+/** POST /client/loyalty/rejoin answered: the member is in again (or never left). */
+export declare function readRejoined(body: unknown): boolean;
 //# sourceMappingURL=circle.d.ts.map

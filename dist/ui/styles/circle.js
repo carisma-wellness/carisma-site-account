@@ -123,6 +123,31 @@ export const PORTAL_CIRCLE_CSS = `
 .carisma-portal .cw-circle-pass__state { font-size: 12px; color: var(--cw-account-muted); }
 .carisma-portal .cw-circle-pass .cw-circle__line { margin-top: 12px; }
 
+/* ── A member who left (W3): the date, what rejoining means, Rejoin ──── */
+.carisma-portal .cw-circle-left { display: grid; gap: 10px; align-content: start; }
+.carisma-portal .cw-circle-left .cw-actions { margin-top: 6px; }
+.carisma-portal .cw-circle-left-wrap { display: grid; }
+
+/* ── Offers and reminders (W3): two boxes, three brands ──────────────── */
+.carisma-portal .cw-circle-prefs__card { display: grid; gap: 14px; }
+.carisma-portal .cw-circle-prefs__row { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; gap: 12px; }
+.carisma-portal .cw-circle-prefs__box {
+  width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--cw-account-accent);
+  cursor: pointer;
+}
+.carisma-portal .cw-circle-prefs__box:focus-visible { outline: 2px solid var(--cw-account-focus); outline-offset: 2px; }
+.carisma-portal .cw-circle-prefs__box[disabled] { cursor: progress; opacity: 0.6; }
+.carisma-portal .cw-circle-prefs__label { font-size: 15px; line-height: 22px; color: var(--cw-account-ink); cursor: pointer; }
+.carisma-portal .cw-circle-prefs__note { margin: -6px 0 0 34px; font-size: 13px; line-height: 18px; color: var(--cw-account-muted); }
+.carisma-portal .cw-circle-prefs__msg { font-size: 14px; line-height: 20px; min-height: 0; }
+.carisma-portal .cw-circle-prefs__msg:empty { display: none; }
+.carisma-portal .cw-circle-prefs__msg--ok { color: var(--cw-account-ok-text); }
+.carisma-portal .cw-circle-prefs__msg--bad { color: var(--cw-account-bad-text); }
+
+/* ── Leave Carisma Circle (W3): quiet, at the very foot ──────────────── */
+.carisma-portal .cw-circle-leave { display: grid; gap: 6px; justify-items: start; padding-top: 24px; border-top: 1px solid var(--cw-account-line); }
+.carisma-portal .cw-circle-leave__btn { color: var(--cw-account-bad-text); }
+
 /* ── Wallet line ─────────────────────────────────────────────────────── */
 .carisma-portal .cw-strip__note { font-size: 13px; line-height: 18px; color: var(--cw-account-muted); }
 
@@ -159,5 +184,22 @@ export const PANEL_CIRCLE_CSS = `
 .carisma-panel__ladder__step.is-past, .carisma-panel__ladder__step.is-on { background: var(--cw-account-accent); }
 .carisma-panel__ladder__num { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .carisma-panel__circle-more { font-size: 14px; font-weight: 600; color: var(--cw-account-accent); }
+.carisma-panel__circle--left { background: var(--cw-account-surface); }
+.carisma-panel__circle-left { font-size: 15px; line-height: 21px; font-weight: 600; }
+.carisma-panel__circle-rejoin {
+  justify-self: start;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cw-account-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.carisma-panel__circle-rejoin[aria-disabled="true"] { cursor: progress; opacity: 0.7; }
 `;
 //# sourceMappingURL=circle.js.map

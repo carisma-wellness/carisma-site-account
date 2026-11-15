@@ -264,6 +264,24 @@ export const staffCall = (opts: { brandLocationId: string; serviceId: string }):
   return { path: `${PROXY}/client/booking/staff?${q.toString()}`, method: "GET" };
 };
 
+/* ── Carisma Circle membership + offers (W3, backend B3b) ──────────────── */
+
+/** What leaving would forfeit, for the confirm sheet (read before any leave is offered). */
+export const circleLeavePreviewCall = (): ProxyCall => ({ path: `${PROXY}/client/loyalty/leave`, method: "GET" });
+/** Leave Carisma Circle. Only ever sent from the sheet's explicit confirm. */
+export const circleLeaveCall = (): ProxyCall => ({ path: `${PROXY}/client/loyalty/leave`, method: "POST", body: { confirm: true } });
+/** Rejoin: a fresh start at I First Light (nothing forfeited comes back). */
+export const circleRejoinCall = (): ProxyCall => ({ path: `${PROXY}/client/loyalty/rejoin`, method: "POST", body: {} });
+/**
+ * One "Offers and reminders" box = all three brands: `brandId` is left out on
+ * purpose (B3b: omitted = Carisma Spa, Aesthetics and Slimming together).
+ */
+export const circleOffersCall = (channel: "email" | "whatsapp", on: boolean): ProxyCall => ({
+  path: `${PROXY}/client/loyalty/preferences`,
+  method: "PATCH",
+  body: channel === "email" ? { offersEmail: on } : { offersWhatsapp: on },
+});
+
 export const membershipCall = (id: string, verb: "pause" | "resume"): ProxyCall => ({
   path: `${PROXY}/client/membership/${encodeURIComponent(id)}/${verb}`,
   method: "POST",

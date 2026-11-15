@@ -95,6 +95,17 @@ export const PROXY_ALLOWLIST = [
     { method: "POST", label: "loyalty redeem preview", match: (p) => p === "/client/loyalty/redeem/preview" },
     { method: "POST", label: "loyalty redeem", match: (p) => p === "/client/loyalty/redeem" },
     { method: "POST", label: "loyalty redeem release", match: (p) => p === "/client/loyalty/redeem/release" },
+    // Carisma Circle W3 (2026-11-15, backend B3b). Exact literals again: what
+    // leaving would forfeit (read for the confirm sheet), leaving (the server
+    // refuses it without {confirm:true}), rejoining (a fresh start), and the
+    // member's own "Offers and reminders" consent for the three brands (read +
+    // update; an opt-out must always be reachable). The till, launch-placement
+    // and settings doors stay forbidden. Marker: loyaltyCircleW31115
+    { method: "GET", label: "loyalty leave preview", match: (p) => p === "/client/loyalty/leave" },
+    { method: "POST", label: "leave Carisma Circle", match: (p) => p === "/client/loyalty/leave" },
+    { method: "POST", label: "rejoin Carisma Circle", match: (p) => p === "/client/loyalty/rejoin" },
+    { method: "GET", label: "loyalty offers preferences", match: (p) => p === "/client/loyalty/preferences" },
+    { method: "PATCH", label: "loyalty offers preferences update", match: (p) => p === "/client/loyalty/preferences" },
     { method: "GET", label: "visits awaiting a rating", match: (p) => p === "/client/ratings/pending" },
     // `/pending` is the listing, not an appointment id — excluded so the rule
     // cannot be read as "POST anything under /ratings".
@@ -178,6 +189,8 @@ export const FORBIDDEN_PATHS = [
     { method: "PATCH", path: "/hod/settings/loyalty", why: "the programme switch belongs to the HOD" },
     { method: "POST", path: "/client/loyalty/me", why: "the member's loyalty record is read-only" },
     { method: "POST", path: "/client/loyalty/adjustments", why: "a member never adjusts their own balance" },
+    { method: "POST", path: "/hod/appointments/abc123/checkout/loyalty-reward", why: "a shop reward is taken at the till, by staff" },
+    { method: "POST", path: "/hod/settings/loyalty/launch-placement/apply", why: "launch placement is Super Admin work" },
 ];
 /** Normalise a proxy sub-path: strip query/hash, collapse to a leading-slash path. */
 export function normalizePath(path) {

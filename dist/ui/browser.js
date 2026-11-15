@@ -15,7 +15,7 @@ import { accountMarkSignedInHTML, accountMarkState, ACCOUNT_MARK_ATTR } from "./
 import { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, avatarUrlFromSession, sanitizeAvatarUrl } from "./avatar.js";
 import { readInitialsHint, readSignedInHint } from "./hint.js";
 import { buildPanelModel, accountPanelHTML, PANEL_SESSION_URL, PANEL_SESSION_URL_CIRCLE } from "./panel.js";
-import { circleAllowedOn, circleActivityRowsHTML, circleOverviewHTML, circleWalletLineHTML, readCircle, readCircleActivity, } from "./circle.js";
+import { CIRCLE_HREF, circleAllowedOn, circleActivityRowsHTML, circleOverviewHTML, circleOverviewLeftHTML, circlePrefsHTML, circleWalletLineHTML, leaveSheetBodyHTML, leaveSheetFootHTML, offersErrorText, offersSavedText, readCircleActivity, readCircleLeft, readCirclePrefs, readCircleState, readLeavePreview, readRejoined, } from "./circle.js";
 import { accountPortalHTML, buildPortalModel, errorBlockHTML, greetingFor, portalShellHTML, skeletonHTML, } from "./portal.js";
 import { bodyFor, bookingIdFromPath, ledeFor, requestsFor, subjectFor, titleFor } from "./portalData.js";
 import { bookableTreatments, buildWalletModel, packageActions, venuesFor } from "./records.js";
@@ -25,7 +25,7 @@ import { ACCOUNT_BOOKINGS_HREF } from "./panel.js";
 import { linkifyPhones } from "./portal.js";
 import { bookingSkeletonHTML, bookingTreatment, bookingViewParts, buildBookingDetailModel, isActiveBooking, } from "./bookingDetail.js";
 import { buildSlotsModel, venueDateString, venueLocalToUtcIso } from "./reschedule.js";
-import { cancelCall, cancelSummary, cancellationPreviewCall, confirmCall, membershipCall, messageFromError, needsPreview, payBalanceCall, isTakenTimeRefusal, packageBookCall, packageBookFailureMessage, packagePayCall, packagePayConfirmCall, packageReturnFrom, invoicePayCall, invoicePayConfirmCall, invoiceReturnFrom, statementPayFailureMessage, readBookedAppointmentId, readCheckoutUrl, readCancellationPreview, readWalletAvailability, LATE_WINDOW_SENTENCE, rescheduleCall, slotsCall, readStaffList, staffCall, walletAvailabilityCall, walletPassCall, } from "./portalActions.js";
+import { cancelCall, cancelSummary, circleLeaveCall, circleLeavePreviewCall, circleOffersCall, circleRejoinCall, errorCodeOf, cancellationPreviewCall, confirmCall, membershipCall, messageFromError, needsPreview, payBalanceCall, isTakenTimeRefusal, packageBookCall, packageBookFailureMessage, packagePayCall, packagePayConfirmCall, packageReturnFrom, invoicePayCall, invoicePayConfirmCall, invoiceReturnFrom, statementPayFailureMessage, readBookedAppointmentId, readCheckoutUrl, readCancellationPreview, readWalletAvailability, LATE_WINDOW_SENTENCE, rescheduleCall, slotsCall, readStaffList, staffCall, walletAvailabilityCall, walletPassCall, } from "./portalActions.js";
 import { buildDayStrip, cancelBodyHTML, cancelDialogHTML, cancelFootHTML, clockOf, dateWords, dayChipsHTML, dialogFrameHTML, instantWords, packageBookBarHTML, packageBookDialogHTML, rescheduleDialogHTML, rescheduleTimesHTML, reviewBarHTML, } from "./dialogs.js";
 import { buildIcs, icsFileName, icsLocation } from "./ics.js";
 import { installBrandLinkInterceptor } from "./linkInterceptor.js";
@@ -270,6 +270,26 @@ export function mountAccountPanel(doc, opts = {}) {
             e.preventDefault();
             if (fetchImpl)
                 postLogout(fetchImpl, false, navigate, opts.storage);
+            return;
+        }
+        // Carisma Circle: a member who left rejoins from the panel row (B3b), then
+        // lands on Credit & rewards, which reads the fresh start.
+        if (matches(t, "data-cw-circle-rejoin")) {
+            e.preventDefault();
+            const btn = closestOf(t, "[data-cw-circle-rejoin]") ?? live(t);
+            if (!fetchImpl || !btn || btn.getAttribute("aria-disabled") === "true")
+                return;
+            const restore = setBusy(btn, "Rejoining…");
+            void postJson(fetchImpl, circleRejoinCall()).then((r) => {
+                if (r.ok && readRejoined(r.body)) {
+                    navigate(CIRCLE_HREF);
+                    return;
+                }
+                restore();
+                const note = qs(doc.getElementById(mountId), "[data-cw-circle-rejoin-note]");
+                if (note)
+                    note.innerHTML = escapeHtml(GENERIC_FAILURE);
+            });
             return;
         }
         const mark = t && typeof t.closest === "function" ? t.closest(`[${ACCOUNT_MARK_ATTR}]`) : null;
@@ -589,20 +609,32 @@ export function mountAccountPortal(doc, opts = {}) {
      * failed / not understood (nothing is ever drawn), a model = live.
      */
     let circleNow = circleRail ? undefined : null;
+    /** "Offers and reminders" as the server last answered it (Credit & rewards only). */
+    let prefsNow = null;
     const fillCircle = () => {
         if (!circleNow)
             return;
+        // Live or left, the member has a Credit & rewards page to reach.
         qsa(mount, "[data-cw-circle-rail]").forEach((a) => a.removeAttribute?.("hidden"));
         const home = qs(mount, '[data-cw-circle-slot="home"]');
         if (home && !home.innerHTML) {
-            home.innerHTML = circleOverviewHTML(circleNow);
+            // A member who left sees the date and Rejoin, never a figure.
+            home.innerHTML = circleNow.kind === "live" ? circleOverviewHTML(circleNow.model) : circleOverviewLeftHTML(circleNow.left);
             home.removeAttribute?.("hidden");
         }
+        if (circleNow.kind !== "live")
+            return;
         const wallet = qs(mount, '[data-cw-circle-slot="wallet"]');
         if (wallet && !wallet.innerHTML) {
-            wallet.innerHTML = circleWalletLineHTML(circleNow);
+            wallet.innerHTML = circleWalletLineHTML(circleNow.model);
             wallet.removeAttribute?.("hidden");
         }
+    };
+    /** A box on for some brands only is drawn ticked AND indeterminate (a property, not an attribute). */
+    const markMixed = () => {
+        qsa(mount, "input[data-cw-mixed]").forEach((i) => {
+            i.indeterminate = true;
+        });
     };
     const readCircleOnce = () => {
         if (!circleRail || circleNow !== undefined || !fetchImpl)
@@ -611,7 +643,7 @@ export function mountAccountPortal(doc, opts = {}) {
         fetchImpl("/api/auth/proxy/client/loyalty/me", { credentials: "same-origin" })
             .then((r) => (r.ok ? r.json() : null))
             .then((body) => {
-            circleNow = readCircle(body);
+            circleNow = readCircleState(body);
             fillCircle();
         }, () => {
             circleNow = null;
@@ -621,6 +653,7 @@ export function mountAccountPortal(doc, opts = {}) {
         mount.innerHTML = html;
         revealCurrentTab(mount);
         fillCircle();
+        markMixed();
     };
     const focusTitle = () => qs(mount, ".cw-title")?.focus?.({ preventScroll: false });
     const skeleton = () => {
@@ -732,7 +765,7 @@ export function mountAccountPortal(doc, opts = {}) {
                     // not understand: this page has nothing to show — back to the
                     // account. A transient failure (5xx, no answer) is said plainly.
                     const me = reads[0];
-                    const model = me.state === "failed" ? null : readCircle(me.body);
+                    const model = me.state === "failed" ? null : readCircleState(me.body);
                     if (!model) {
                         if (me.state === "failed" && me.status !== 404) {
                             paint(shellHTML({
@@ -748,6 +781,8 @@ export function mountAccountPortal(doc, opts = {}) {
                         return;
                     }
                     circleNow = model;
+                    const prefsRead = reads[3];
+                    prefsNow = prefsRead && prefsRead.state !== "failed" ? readCirclePrefs(prefsRead.body) : null;
                 }
                 if (view === "wallet") {
                     // requestsFor("wallet") is [gift cards, packages, credit].
@@ -1479,6 +1514,138 @@ export function mountAccountPortal(doc, opts = {}) {
             });
         });
     };
+    /* ── Carisma Circle: leave, rejoin, offers (W3, backend B3b) ──────────── */
+    /**
+     * "Leave Carisma Circle?" The sheet reads GET /client/loyalty/leave FIRST and
+     * offers the leave button only once it can show what is given up and the
+     * server's own warning; a failed or unknown answer offers Stay only. The
+     * POST {confirm:true} goes out from that one explicit button, never a tap
+     * anywhere else.
+     */
+    const openLeave = (opener) => {
+        let preview = null;
+        let busy = false;
+        let alive = true;
+        const dlg = openDialog(dialogFrameHTML({
+            kind: "cancel",
+            title: "Leave Carisma Circle?",
+            body: leaveSheetBodyHTML(null, "loading"),
+            foot: leaveSheetFootHTML(null),
+        }), opener);
+        if (!dlg)
+            return;
+        dlg.addEventListener?.("close", () => {
+            alive = false;
+        });
+        const render = (state, alert = "") => {
+            const body = qs(dlg, ".cw-dialog__body");
+            if (body)
+                body.innerHTML = leaveSheetBodyHTML(preview, state, alert);
+            const foot = qs(dlg, ".cw-dialog__foot");
+            if (foot)
+                foot.innerHTML = leaveSheetFootHTML(state === "ready" ? preview : null, busy);
+        };
+        void readT(circleLeavePreviewCall().path).then((r) => {
+            if (!alive)
+                return;
+            if (r.status === 401) {
+                dlg.close?.();
+                signIn();
+                return;
+            }
+            preview = r.state === "failed" ? null : readLeavePreview(r.body);
+            if (preview && preview.kind === "left") {
+                // Already out (another tab, the app): show the page as it now is.
+                dlg.close?.();
+                circleNow = undefined;
+                void load(undefined, true);
+                return;
+            }
+            render(preview ? "ready" : "failed");
+            qs(dlg, ".cw-btn--primary")?.focus?.();
+        });
+        dlg.addEventListener?.("click", (ev) => {
+            const t = ev.target;
+            if (closestOf(t, "[data-cw-dialog-close]")) {
+                ev.preventDefault();
+                dlg.close?.();
+                return;
+            }
+            const go = closestOf(t, "[data-cw-circle-leave-commit]");
+            if (!go || busy || !preview || preview.kind !== "preview")
+                return;
+            ev.preventDefault();
+            busy = true;
+            render("ready");
+            void postJson(fetchImpl, circleLeaveCall()).then((r) => {
+                if (!alive)
+                    return;
+                busy = false;
+                if (r.ok && readCircleLeft(r.body)) {
+                    dlg.close?.();
+                    circleNow = undefined;
+                    void load(() => announce(mount, "You have left Carisma Circle.", "ok"), true);
+                    return;
+                }
+                if (r.status === 401) {
+                    dlg.close?.();
+                    signIn();
+                    return;
+                }
+                render("ready", messageFromError(r.body, r.status, GENERIC_FAILURE));
+            });
+        });
+    };
+    /** Rejoin acts on the tap (it gives something back); the note beside it says nothing forfeited returns. */
+    const rejoinCircle = (btn) => {
+        if (btn.getAttribute("aria-disabled") === "true")
+            return;
+        const restore = setBusy(btn, "Rejoining…");
+        void postJson(fetchImpl, circleRejoinCall()).then((r) => {
+            if (r.ok && readRejoined(r.body)) {
+                circleNow = undefined;
+                void load(() => announce(mount, "Welcome back to Carisma Circle.", "ok"), true);
+                return;
+            }
+            if (r.status === 401)
+                return signIn();
+            restore();
+            announce(mount, messageFromError(r.body, r.status, GENERIC_FAILURE), "bad");
+        });
+    };
+    /**
+     * One tick = one PATCH for all three brands (no brandId). The box is redrawn
+     * from the SERVER's answer, so what shows is what is recorded; a refusal
+     * (no email / no mobile on file) redraws the last recorded state and says why.
+     */
+    const saveOffers = (input) => {
+        if (!prefsNow)
+            return;
+        const channel = input.getAttribute("data-cw-circle-pref") === "whatsapp" ? "whatsapp" : "email";
+        const want = input.checked === true;
+        const slot = () => qs(mount, '[data-cw-circle-slot="prefs"]');
+        const draw = (msg, busy = false) => {
+            const s = slot();
+            if (!s || !prefsNow)
+                return;
+            s.innerHTML = circlePrefsHTML(prefsNow, msg, busy);
+            markMixed();
+            if (!busy)
+                qs(s, `#cw-circle-pref-${channel}`)?.focus?.();
+        };
+        qsa(slot(), "input[data-cw-circle-pref]").forEach((i) => i.setAttribute("disabled", ""));
+        void postJson(fetchImpl, circleOffersCall(channel, want)).then((r) => {
+            if (r.status === 401)
+                return signIn();
+            const next = r.ok ? readCirclePrefs(r.body) : null;
+            if (next) {
+                prefsNow = next;
+                draw({ text: offersSavedText(next, channel), tone: "ok" });
+                return;
+            }
+            draw({ text: offersErrorText(errorCodeOf(r.body)), tone: "bad" });
+        });
+    };
     /* ── One delegated listener for every view ────────────────────────────── */
     if (!portalListBound.has(mount)) {
         portalListBound.add(mount);
@@ -1524,6 +1691,26 @@ export function mountAccountPortal(doc, opts = {}) {
                         : `Couldn't open sharing. Select it here instead: ${fallback}`, ok ? "ok" : "bad"));
                 });
                 return;
+            }
+            if (circleRail) {
+                const pref = closestOf(t, "input[data-cw-circle-pref]");
+                if (pref) {
+                    // Never preventDefault here: the tick IS the request.
+                    saveOffers(pref);
+                    return;
+                }
+                const leave = closestOf(t, "[data-cw-circle-leave]");
+                if (leave) {
+                    ev.preventDefault?.();
+                    openLeave(leave);
+                    return;
+                }
+                const rejoin = closestOf(t, "[data-cw-circle-rejoin]");
+                if (rejoin) {
+                    ev.preventDefault?.();
+                    rejoinCircle(rejoin);
+                    return;
+                }
             }
             const btn = closestOf(t, "[data-cw-action]");
             if (!btn)

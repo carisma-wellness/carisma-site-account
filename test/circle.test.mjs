@@ -257,6 +257,8 @@ test("the portal: not opted in draws nothing Circle; opted in draws only HIDDEN,
     "/api/auth/proxy/client/loyalty/me",
     "/api/auth/proxy/client/loyalty/activity?limit=20",
     "/api/auth/proxy/client/loyalty/rewards",
+    // W3: "Offers and reminders" (the member's own consent for the three brands).
+    "/api/auth/proxy/client/loyalty/preferences",
   ]);
 });
 

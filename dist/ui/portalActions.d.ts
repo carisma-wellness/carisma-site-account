@@ -113,6 +113,17 @@ export declare const staffCall: (opts: {
     brandLocationId: string;
     serviceId: string;
 }) => ProxyCall;
+/** What leaving would forfeit, for the confirm sheet (read before any leave is offered). */
+export declare const circleLeavePreviewCall: () => ProxyCall;
+/** Leave Carisma Circle. Only ever sent from the sheet's explicit confirm. */
+export declare const circleLeaveCall: () => ProxyCall;
+/** Rejoin: a fresh start at I First Light (nothing forfeited comes back). */
+export declare const circleRejoinCall: () => ProxyCall;
+/**
+ * One "Offers and reminders" box = all three brands: `brandId` is left out on
+ * purpose (B3b: omitted = Carisma Spa, Aesthetics and Slimming together).
+ */
+export declare const circleOffersCall: (channel: "email" | "whatsapp", on: boolean) => ProxyCall;
 export declare const membershipCall: (id: string, verb: "pause" | "resume") => ProxyCall;
 export interface CancellationPreview {
     kind: string;

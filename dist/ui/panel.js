@@ -9,7 +9,7 @@
  */
 import { escapeHtml } from "./html.js";
 import { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
-import { CIRCLE_HREF, circlePanelRowHTML, readCircle } from "./circle.js";
+import { CIRCLE_HREF, circlePanelLeftHTML, circlePanelRowHTML, readCircle, readCircleLeft, } from "./circle.js";
 export const ACCOUNT_HOME_HREF = "/account";
 export const ACCOUNT_BOOKINGS_HREF = "/account/bookings";
 export const ACCOUNT_DETAILS_HREF = "/account/details";
@@ -88,6 +88,7 @@ export function buildPanelModel(session) {
         },
         state: visits.length ? "settled" : "empty",
         circle: readCircle(s.loyalty),
+        circleLeft: readCircleLeft(s.loyalty),
     };
 }
 const M = 'data-clarity-mask="True"';
@@ -114,7 +115,7 @@ export function accountPanelHTML(model) {
     const links = `<nav class="carisma-panel__links">` +
         `<a href="${escapeHtml(model.hub.home)}">My account</a>` +
         `<a href="${escapeHtml(model.hub.appointments)}">My bookings</a>` +
-        (model.circle ? `<a href="${CIRCLE_HREF}">Credit &amp; rewards</a>` : "") +
+        (model.circle || model.circleLeft ? `<a href="${CIRCLE_HREF}">Credit &amp; rewards</a>` : "") +
         `<a href="${escapeHtml(model.hub.details)}">My details</a>` +
         `</nav>`;
     const footer = `<footer class="carisma-panel__footer">` +
@@ -122,6 +123,6 @@ export function accountPanelHTML(model) {
         `<button type="button" data-carisma-signout-all>Sign out of every Carisma site</button>` +
         `</footer>`;
     return (`<section class="carisma-panel" role="dialog" aria-modal="true" aria-label="Your account" data-cw-qc="${PANEL_QC}">` +
-        `${header}${circlePanelRowHTML(model.circle)}<div class="carisma-panel__visits">${rows}</div>${links}${footer}</section>`);
+        `${header}${circlePanelRowHTML(model.circle)}${circlePanelLeftHTML(model.circleLeft)}<div class="carisma-panel__visits">${rows}</div>${links}${footer}</section>`);
 }
 //# sourceMappingURL=panel.js.map
