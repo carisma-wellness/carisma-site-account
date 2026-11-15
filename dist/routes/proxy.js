@@ -2,6 +2,8 @@ import { unseal } from "../seal/index.js";
 import { COOKIES, parseCookies } from "./cookies.js";
 import { isAllowed, normalizePath } from "./allowlist.js";
 import { originAllowed, json } from "./http.js";
+/** The member's "Offers and reminders" consent door (Carisma Circle W3). */
+const CONSENT_PATH = "/client/loyalty/preferences";
 /**
  * POST|GET|PATCH|DELETE /api/auth/proxy/[...path]
  *
@@ -38,6 +40,14 @@ export function makeProxy(cfg) {
         const headers = { authorization: `Bearer ${sess.at}` };
         if (reqBody != null && reqBody.length > 0)
             headers["content-type"] = "application/json";
+        // A consent write records its proof (wording, time, user agent) at the
+        // backend: send the member's own browser, not this server's fetch client.
+        // Only on the one consent door; every other call is unchanged.
+        if (method === "PATCH" && sub === CONSENT_PATH) {
+            const ua = req.headers.get("user-agent");
+            if (ua)
+                headers["user-agent"] = ua.slice(0, 512);
+        }
         let upstreamRes;
         try {
             upstreamRes = await cfg.fetchImpl(cfg.carismasoftApiUrl + sub + url.search, {

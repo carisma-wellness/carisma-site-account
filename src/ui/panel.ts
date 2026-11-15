@@ -9,7 +9,15 @@
  */
 import { escapeHtml } from "./html.js";
 import { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
-import { CIRCLE_HREF, circlePanelRowHTML, readCircle, type CircleModel } from "./circle.js";
+import {
+  CIRCLE_HREF,
+  circlePanelLeftHTML,
+  circlePanelRowHTML,
+  readCircle,
+  readCircleLeft,
+  type CircleLeftModel,
+  type CircleModel,
+} from "./circle.js";
 
 export const ACCOUNT_HOME_HREF = "/account";
 export const ACCOUNT_BOOKINGS_HREF = "/account/bookings";
@@ -37,6 +45,8 @@ export interface PanelModel {
    * and a null draws nothing, so the panel is exactly what it was.
    */
   circle: CircleModel | null;
+  /** A member who left Carisma Circle (B3b): the date and Rejoin only. Null otherwise. */
+  circleLeft: CircleLeftModel | null;
 }
 
 /** The panel's one read. With Circle on, the session route folds the member's loyalty answer in (no second call). */
@@ -118,6 +128,7 @@ export function buildPanelModel(session: unknown): PanelModel {
     },
     state: visits.length ? "settled" : "empty",
     circle: readCircle(s.loyalty),
+    circleLeft: readCircleLeft(s.loyalty),
   };
 }
 
@@ -154,7 +165,7 @@ export function accountPanelHTML(model: PanelModel): string {
     `<nav class="carisma-panel__links">` +
     `<a href="${escapeHtml(model.hub.home)}">My account</a>` +
     `<a href="${escapeHtml(model.hub.appointments)}">My bookings</a>` +
-    (model.circle ? `<a href="${CIRCLE_HREF}">Credit &amp; rewards</a>` : "") +
+    (model.circle || model.circleLeft ? `<a href="${CIRCLE_HREF}">Credit &amp; rewards</a>` : "") +
     `<a href="${escapeHtml(model.hub.details)}">My details</a>` +
     `</nav>`;
 
@@ -166,6 +177,6 @@ export function accountPanelHTML(model: PanelModel): string {
 
   return (
     `<section class="carisma-panel" role="dialog" aria-modal="true" aria-label="Your account" data-cw-qc="${PANEL_QC}">` +
-    `${header}${circlePanelRowHTML(model.circle)}<div class="carisma-panel__visits">${rows}</div>${links}${footer}</section>`
+    `${header}${circlePanelRowHTML(model.circle)}${circlePanelLeftHTML(model.circleLeft)}<div class="carisma-panel__visits">${rows}</div>${links}${footer}</section>`
   );
 }

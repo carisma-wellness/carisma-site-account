@@ -1,4 +1,4 @@
-import { type CircleModel } from "./circle.js";
+import { type CircleLeftModel, type CircleModel } from "./circle.js";
 export declare const ACCOUNT_HOME_HREF = "/account";
 export declare const ACCOUNT_BOOKINGS_HREF = "/account/bookings";
 export declare const ACCOUNT_DETAILS_HREF = "/account/details";
@@ -27,6 +27,8 @@ export interface PanelModel {
      * and a null draws nothing, so the panel is exactly what it was.
      */
     circle: CircleModel | null;
+    /** A member who left Carisma Circle (B3b): the date and Rejoin only. Null otherwise. */
+    circleLeft: CircleLeftModel | null;
 }
 /** The panel's one read. With Circle on, the session route folds the member's loyalty answer in (no second call). */
 export declare const PANEL_SESSION_URL = "/api/auth/session?include=upcoming";

@@ -1,5 +1,5 @@
 import { buildWalletModel, walletHTML, buildStatementModel, statementHTML, buildDocumentsModel, documentsHTML, buildMembershipModel, membershipHTML, buildReferModel, referHTML, } from "./records.js";
-import { circleViewHTML, readCircle, readCircleActivity, readCircleRewards } from "./circle.js";
+import { circleLeftViewHTML, circleViewHTML, readCircleActivity, readCirclePrefs, readCircleRewards, readCircleState, } from "./circle.js";
 const PROXY = "/api/auth/proxy";
 /** The proxy reads a section needs, in a fixed order `bodyFor` relies on. */
 export function requestsFor(view) {
@@ -15,10 +15,15 @@ export function requestsFor(view) {
         case "refer":
             return [`${PROXY}/client/referrals/me`];
         // Carisma Circle. The member read decides whether anything shows at all;
-        // activity and the rewards shop are each optional (a 404 on either costs
-        // only its own block).
+        // activity, the rewards shop and "Offers and reminders" are each optional
+        // (a 404 on any of them costs only its own block).
         case "rewards":
-            return [`${PROXY}/client/loyalty/me`, `${PROXY}/client/loyalty/activity?limit=20`, `${PROXY}/client/loyalty/rewards`];
+            return [
+                `${PROXY}/client/loyalty/me`,
+                `${PROXY}/client/loyalty/activity?limit=20`,
+                `${PROXY}/client/loyalty/rewards`,
+                `${PROXY}/client/loyalty/preferences`,
+            ];
         case "bookings":
             return [
                 `${PROXY}/client/booking/appointments?filter=upcoming&limit=50`,
@@ -132,15 +137,21 @@ export function bodyFor(view, answers, ctx = {}) {
         case "refer":
             return referHTML(buildReferModel(answers[0], ctx));
         case "rewards": {
-            const me = readCircle(answers[0]);
-            return me
-                ? circleViewHTML({
-                    me,
-                    activity: readCircleActivity(answers[1]),
-                    rewards: readCircleRewards(answers[2]),
-                    bookHref: ctx.bookHref,
-                })
-                : "";
+            // Live: the whole page. Left (B3b): the date, Rejoin and the offers box
+            // only. Anything else: nothing (browser.ts sends the member back).
+            const state = readCircleState(answers[0]);
+            const prefs = readCirclePrefs(answers[3]);
+            if (!state)
+                return "";
+            if (state.kind === "left")
+                return circleLeftViewHTML({ left: state.left, prefs });
+            return circleViewHTML({
+                me: state.model,
+                activity: readCircleActivity(answers[1]),
+                rewards: readCircleRewards(answers[2]),
+                bookHref: ctx.bookHref,
+                prefs,
+            });
         }
         default:
             return "";

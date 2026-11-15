@@ -88,6 +88,10 @@ export function readCircle(body) {
     const o = obj(unwrapEnvelope(body));
     if (!o || o.enabled !== true)
         return null;
+    // A member who left (B3b) has no card, credit or level, and must never be
+    // shown one — even if a stray figure rode along with the answer.
+    if (o.left === true)
+        return null;
     const credit = obj(o.credit);
     if (!credit)
         return null;
@@ -149,6 +153,41 @@ export function readCircle(body) {
         actionsLeftCents: Math.max(0, actionsLeftCents),
     };
 }
+/**
+ * `/client/loyalty/me` → the left state, or null. Only a clean `enabled: true`
+ * with `left: true` is a left member; anything else (off, live, garbage) is null.
+ */
+export function readCircleLeft(body) {
+    const o = obj(unwrapEnvelope(body));
+    if (!o || o.enabled !== true || o.left !== true)
+        return null;
+    const at = str(o.leftAt);
+    return { leftAt: Number.isFinite(Date.parse(at)) ? at : "" };
+}
+/** One read, three outcomes: live (the full model), left (the date only), or null (draw nothing). */
+export function readCircleState(body) {
+    const left = readCircleLeft(body);
+    if (left)
+        return { kind: "left", left };
+    const model = readCircle(body);
+    return model ? { kind: "live", model } : null;
+}
+/** "You left Carisma Circle on 14 November 2026" (Malta date; no date when the server gave none). */
+export function leftText(l) {
+    const ms = Date.parse(l.leftAt);
+    if (!Number.isFinite(ms))
+        return "You left Carisma Circle";
+    try {
+        const d = new Intl.DateTimeFormat("en-GB", { timeZone: MALTA, day: "numeric", month: "long", year: "numeric" }).format(new Date(ms));
+        return `You left Carisma Circle on ${d}`;
+    }
+    catch {
+        return "You left Carisma Circle";
+    }
+}
+/** Beside every Rejoin: what rejoining does, and that nothing forfeited comes back. */
+export const REJOIN_NOTE = "If you rejoin, you start again at I First Light with no credit. The credit you gave up when you left does not come back.";
+export const REJOIN_LABEL = "Rejoin Carisma Circle";
 /* ── Copy ──────────────────────────────────────────────────────────────── */
 /** "€62.00" — credit is always two decimals. */
 export function creditText(cents) {
@@ -257,7 +296,39 @@ export function circlePanelRowHTML(m) {
         `<span class="carisma-panel__circle-more">Credit &amp; rewards</span>` +
         `</a>`);
 }
+/**
+ * The header-panel row for a member who left: the date and Rejoin, nothing
+ * else (no credit, no level). "" when null.
+ */
+export function circlePanelLeftHTML(l) {
+    if (!l)
+        return "";
+    return (`<div class="carisma-panel__circle carisma-panel__circle--left" data-cw-qc="${CIRCLE_QC}" data-cw-circle="panel-left">` +
+        `<span class="carisma-panel__circle-label">Carisma Circle</span>` +
+        `<span class="carisma-panel__circle-left" ${M}>${escapeHtml(leftText(l))}</span>` +
+        `<span class="carisma-panel__circle-sub">${escapeHtml(REJOIN_NOTE)}</span>` +
+        `<button type="button" class="carisma-panel__circle-rejoin" data-cw-circle-rejoin>${REJOIN_LABEL}</button>` +
+        `<span class="carisma-panel__circle-gap" role="status" data-cw-circle-rejoin-msg></span>` +
+        `</div>`);
+}
 /* ── Overview card ─────────────────────────────────────────────────────── */
+/** The Overview card for a member who left: the date, what rejoining means, Rejoin. "" when null. */
+export function circleOverviewLeftHTML(l) {
+    if (!l)
+        return "";
+    return (`<section class="cw-circle-ov cw-rise" aria-labelledby="cw-circle-ov-title" data-cw-qc="${CIRCLE_QC}" data-cw-circle="overview-left">` +
+        `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-ov-title">Carisma Circle</h2>` +
+        `<a class="cw-section__more" href="${CIRCLE_HREF}">Credit &amp; rewards${ARROW}</a></div>` +
+        circleLeftCardHTML(l, "secondary") +
+        `</section>`);
+}
+function circleLeftCardHTML(l, tone) {
+    return (`<div class="cw-card cw-circle-left" data-cw-circle="left">` +
+        `<p class="cw-circle__level" ${M}>${escapeHtml(leftText(l))}</p>` +
+        `<p class="cw-circle__rule">${escapeHtml(REJOIN_NOTE)}</p>` +
+        `<div class="cw-actions"><button type="button" class="cw-btn cw-btn--${tone}" data-cw-circle-rejoin>${REJOIN_LABEL}</button></div>` +
+        `</div>`);
+}
 /** The Overview card set: credit, level, ways to earn. "" when null. */
 /** "Terms" as a link, or "" when the site has no terms page to point at. */
 function termsLinkHTML(href, label = "Terms") {
@@ -555,7 +626,187 @@ export function circleViewHTML(input) {
         circleShopHTML(input.rewards, m) +
         passportHTML(m) +
         `<p class="cw-fine cw-prose">${escapeHtml(PROMISE_QUALIFIER)}${terms ? ` ${terms}` : ""}</p>` +
+        circlePrefsSlotHTML(input.prefs ?? null) +
+        circleLeaveFootHTML() +
         `</div>`);
+}
+/**
+ * The Credit & rewards page for a member who left: the date and Rejoin, then
+ * "Offers and reminders" (an opt-out must always be possible). No credit, no
+ * level, no activity, no shop.
+ */
+export function circleLeftViewHTML(input) {
+    if (!input)
+        return "";
+    return (`<div class="cw-rec cw-circle cw-circle--left" data-cw-qc="${CIRCLE_QC}">` +
+        `<section class="cw-circle-left-wrap cw-rise" aria-label="Carisma Circle" data-cw-circle="left-view">` +
+        circleLeftCardHTML(input.left, "primary") +
+        `</section>` +
+        circlePrefsSlotHTML(input.prefs ?? null) +
+        `</div>`);
+}
+/* ── Leave Carisma Circle (W3, backend B3b) ────────────────────────────── */
+/** The control at the foot of Credit & rewards. It only opens the sheet; the sheet asks the server first. */
+function circleLeaveFootHTML() {
+    return (`<section class="cw-circle-leave" aria-labelledby="cw-circle-leave-title" data-cw-circle="leave">` +
+        `<h2 class="cw-label" id="cw-circle-leave-title">Leave Carisma Circle</h2>` +
+        `<p class="cw-fine">You can leave at any time. Leaving gives up your Carisma credit, and we show you exactly how much before you confirm.</p>` +
+        `<button type="button" class="cw-link cw-circle-leave__btn" data-cw-circle-leave>Leave Carisma Circle</button>` +
+        `</section>`);
+}
+/**
+ * The server's answer → what the sheet shows, or null (off, 404, garbage): with
+ * null the sheet never offers the confirm button. A missing `warning` falls back
+ * to the backend's own sentence, built from the same figures.
+ */
+export function readLeavePreview(body) {
+    const o = obj(unwrapEnvelope(body));
+    if (!o || o.enabled !== true)
+        return null;
+    if (o.left === true)
+        return { kind: "left", left: { leftAt: Number.isFinite(Date.parse(str(o.leftAt))) ? str(o.leftAt) : "" } };
+    if (o.left !== false)
+        return null;
+    const f = obj(o.forfeit);
+    if (!f)
+        return null;
+    const points = Math.max(0, int(f.points));
+    const cents = Math.max(0, int(f.cents, points * CENTS_PER_POINT));
+    const warning = str(o.warning).trim() ||
+        `If you leave Carisma Circle, your ${creditText(cents)} of Carisma credit (${pointsText(points)}) is forfeited and cannot be restored, even if you rejoin. We stop using your purchase history for the programme.`;
+    return { kind: "preview", points, cents, warning };
+}
+/** The sheet's body: the figure given up, then the server's warning word for word. */
+export function leaveSheetBodyHTML(p, state, alert = "") {
+    const err = alert ? `<p class="cw-rs-alert" role="alert">${escapeHtml(alert)}</p>` : "";
+    if (state === "loading") {
+        return (`<div class="cw-cx-summary" aria-hidden="true"><span class="cw-skel cw-skel--line" style="width:40%"></span>` +
+            `<span class="cw-skel cw-skel--line" style="width:30%;height:22px"></span></div>` +
+            `<p class="cw-vh">Checking your Carisma credit…</p>`);
+    }
+    if (state === "failed" || !p || p.kind !== "preview") {
+        return `<p class="cw-cx-line" role="alert">We couldn't check your Carisma credit just now. Nothing has changed, so try again in a moment.</p>`;
+    }
+    return (err +
+        `<div class="cw-cx-summary cw-cx-summary--bad" data-cw-circle-forfeit>` +
+        `<p class="cw-label">You would give up</p>` +
+        `<p class="cw-cx-summary__amount" ${M}>${escapeHtml(creditText(p.cents))}</p>` +
+        `<p class="cw-circle__points" ${M}>${escapeHtml(pointsText(p.points))}</p>` +
+        `</div>` +
+        `<p class="cw-cx-line" ${M} data-cw-circle-warning>${escapeHtml(p.warning)}</p>`);
+}
+/** The sheet's foot. Staying is primary and takes focus; leaving names the figure. */
+export function leaveSheetFootHTML(p, busy = false) {
+    const canLeave = Boolean(p && p.kind === "preview");
+    const label = busy
+        ? "Leaving…"
+        : p && p.kind === "preview" && p.cents > 0
+            ? `Leave and give up ${creditText(p.cents)}`
+            : "Leave Carisma Circle";
+    return (`<div class="cw-cx-actions">` +
+        `<button type="button" class="cw-btn cw-btn--primary" data-cw-dialog-close autofocus${busy ? ' aria-disabled="true"' : ""}>Stay in Carisma Circle</button>` +
+        (canLeave
+            ? `<button type="button" class="cw-btn cw-btn--danger${busy ? " is-busy" : ""}" data-cw-circle-leave-commit` +
+                (busy ? ' aria-disabled="true"' : "") +
+                `>${escapeHtml(label)}</button>`
+            : "") +
+        `</div>`);
+}
+/* ── Offers and reminders (W3, backend B3b) ────────────────────────────── */
+/**
+ * The Bible's two consent sentences, word for word (§ "Account claim / create").
+ * One box per channel, covering all three brands; never pre-ticked, never
+ * rewarded, never needed to join.
+ */
+export const OFFERS_EMAIL_SENTENCE = "Email me offers and reminders from Carisma Spa, Carisma Aesthetics and Carisma Slimming.";
+export const OFFERS_WHATSAPP_SENTENCE = "Send me offers and reminders on WhatsApp from Carisma Spa, Carisma Aesthetics and Carisma Slimming.";
+/**
+ * GET/PATCH /client/loyalty/preferences → the model, or null (off, 404,
+ * garbage, no brands). A flag is true ONLY when the server says so: a
+ * missing field is never consent.
+ */
+export function readCirclePrefs(body) {
+    const o = obj(unwrapEnvelope(body));
+    if (!o || o.enabled !== true || !Array.isArray(o.brands))
+        return null;
+    const brands = o.brands
+        .map(obj)
+        .filter((b) => Boolean(b && str(b.brandId)))
+        // Carisma Medical never appears here (the server never sends it; this holds if it ever did).
+        .filter((b) => circleAllowedOn(str(b.name)) && str(b.house) !== "medical")
+        .map((b) => ({
+        brandId: str(b.brandId),
+        name: str(b.name),
+        offersEmail: b.offersEmail === true,
+        offersWhatsapp: b.offersWhatsapp === true,
+        canEmail: b.canEmail === true,
+        canWhatsapp: b.canWhatsapp === true,
+    }));
+    return brands.length ? { left: o.left === true, brands } : null;
+}
+/** One box over three brands: on (every brand), off (none) or mixed (some), with the brands it is on for. */
+export function offersState(p, channel) {
+    const key = channel === "email" ? "offersEmail" : "offersWhatsapp";
+    const onFor = p.brands.filter((b) => b[key]).map((b) => b.name).filter(Boolean);
+    const n = p.brands.filter((b) => b[key]).length;
+    return { state: n === 0 ? "off" : n === p.brands.length ? "on" : "mixed", onFor };
+}
+function joinNames(names) {
+    if (names.length <= 1)
+        return names.join("");
+    return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+/** The plain words for a refused or failed save. */
+export function offersErrorText(code) {
+    if (code === "LOYALTY_NO_EMAIL")
+        return "We don't have an email address for you yet. Add one in My details, then tick this box again.";
+    if (code === "LOYALTY_NO_PHONE")
+        return "We don't have a mobile number for you yet. Add one in My details, then tick this box again.";
+    return "That didn't save, so nothing has changed. Please try again in a moment.";
+}
+/** What to say after a save, from the state the server answered. */
+export function offersSavedText(p, channel) {
+    const { state } = offersState(p, channel);
+    const how = channel === "email" ? "by email" : "on WhatsApp";
+    return state === "off" ? `Saved. No more offers and reminders ${how}.` : `Saved. You'll get offers and reminders ${how}.`;
+}
+function offersRowHTML(p, channel, busy) {
+    const { state, onFor } = offersState(p, channel);
+    const id = `cw-circle-pref-${channel}`;
+    const sentence = channel === "email" ? OFFERS_EMAIL_SENTENCE : OFFERS_WHATSAPP_SENTENCE;
+    // Mixed is drawn ticked + indeterminate (browser.ts sets the property), so ONE
+    // tap always turns it off everywhere: an opt-out never takes two taps.
+    const note = state === "mixed"
+        ? `<p class="cw-circle-prefs__note" id="${id}-note" ${M}>${escapeHtml(`On for ${joinNames(onFor)} only. Untick to stop all three.`)}</p>`
+        : "";
+    return (`<div class="cw-circle-prefs__row">` +
+        `<input type="checkbox" class="cw-circle-prefs__box" id="${id}" data-cw-circle-pref="${channel}"` +
+        (state !== "off" ? " checked" : "") +
+        (state === "mixed" ? " data-cw-mixed" : "") +
+        (note ? ` aria-describedby="${id}-note"` : "") +
+        (busy ? " disabled" : "") +
+        `>` +
+        `<label class="cw-circle-prefs__label" for="${id}">${escapeHtml(sentence)}</label>` +
+        `</div>` +
+        note);
+}
+/** The "Offers and reminders" box. "" when null. `msg` is the line under it after a save. */
+export function circlePrefsHTML(p, msg, busy = false) {
+    if (!p)
+        return "";
+    return (`<section class="cw-section cw-rise cw-circle-prefs" aria-labelledby="cw-circle-prefs-title" data-cw-circle="prefs">` +
+        `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-prefs-title">Offers and reminders</h2></div>` +
+        `<div class="cw-card cw-circle-prefs__card">` +
+        offersRowHTML(p, "email", busy) +
+        offersRowHTML(p, "whatsapp", busy) +
+        `<p class="cw-fine">Optional, and not needed for Carisma Circle. No credit is given for ticking these. Untick either box at any time to stop.</p>` +
+        `<p class="cw-circle-prefs__msg${msg ? ` cw-circle-prefs__msg--${msg.tone}` : ""}" role="status" aria-live="polite" data-cw-circle-pref-msg>${msg ? escapeHtml(msg.text) : ""}</p>` +
+        `</div>` +
+        `</section>`);
+}
+/** The box inside its own slot, so browser.ts can redraw it after a save without touching the page. */
+export function circlePrefsSlotHTML(p) {
+    return `<div class="cw-circle-slot" data-cw-circle-slot="prefs">${circlePrefsHTML(p)}</div>`;
 }
 const NONE = { kind: "none", hero: "", sentence: "", conditions: [], quiet: "" };
 /**
@@ -620,5 +871,10 @@ export function earnPoints(eligibleCents, multiplier = 1) {
     const euros = Math.max(0, Number(eligibleCents) || 0) / 100;
     const m = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
     return Math.floor(euros * m + 1e-9);
+}
+/** POST /client/loyalty/rejoin answered: the member is in again (or never left). */
+export function readRejoined(body) {
+    const o = obj(unwrapEnvelope(body));
+    return Boolean(o && o.enabled === true && o.left === false);
 }
 //# sourceMappingURL=circle.js.map
