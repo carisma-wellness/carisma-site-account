@@ -31,7 +31,58 @@ export {
   ACCOUNT_BOOKINGS_HREF,
   ACCOUNT_DETAILS_HREF,
   PANEL_QC,
+  PANEL_SESSION_URL,
+  PANEL_SESSION_URL_CIRCLE,
 } from "./panel.js";
+
+// Carisma Circle (loyaltyCircleW11115): the model, the copy rules and the HTML.
+export {
+  CIRCLE_QC,
+  CIRCLE_HREF,
+  CIRCLE_BRANDS,
+  CIRCLE_LEVELS,
+  CENTS_PER_POINT,
+  DEFAULT_MIN_REDEEM_POINTS,
+  DEFAULT_MAX_SHARE_PCT,
+  PROMISE_QUALIFIER,
+  EARN_TERMS_LINE,
+  PAY_STEP_DISCLOSURE,
+  circleAllowedOn,
+  readCircle,
+  readCircleActivity,
+  readCircleRewards,
+  creditText,
+  pointsText,
+  wholeEuroUp,
+  levelText,
+  useByText,
+  readyText,
+  gapText,
+  waysToEarnText,
+  levelProgress,
+  ladderHTML,
+  circlePanelRowHTML,
+  circleOverviewHTML,
+  circleWalletLineHTML,
+  circleActivityHTML,
+  circleActivityRowsHTML,
+  circleShopHTML,
+  shopGroups,
+  circleViewHTML,
+  creditMoment,
+  earnLine,
+  earnPoints,
+} from "./circle.js";
+export type {
+  CircleModel,
+  CircleLevelView,
+  CircleAction,
+  CircleActivityItem,
+  CircleReward,
+  CircleViewInput,
+  CreditMoment,
+  CreditMomentInput,
+} from "./circle.js";
 export type { PanelModel, PanelVisit } from "./panel.js";
 
 export {

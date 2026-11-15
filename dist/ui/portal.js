@@ -15,6 +15,7 @@ import { ACCOUNT_BOOKINGS_HREF, ACCOUNT_DETAILS_HREF, ACCOUNT_HOME_HREF, buildPa
 import { readActions, statusLabel } from "./bookingDetail.js";
 import { LATE_WINDOW_SENTENCE } from "./portalActions.js";
 import { eur, untilPhrase } from "./money.js";
+import { CIRCLE_HREF, circleAllowedOn } from "./circle.js";
 export const PORTAL_QC = "account-portal-20260917";
 const M = 'data-clarity-mask="True"';
 const MALTA = "Europe/Malta";
@@ -250,6 +251,7 @@ export function buildPortalModel(session, view, extra = {}) {
         wallet: extra.wallet ?? null,
         now: extra.now ?? new Date(),
         referRail: extra.referRail === true,
+        circleRail: extra.circleRail === true && circleAllowedOn(siteBrand),
     };
 }
 /* ── Navigation ────────────────────────────────────────────────────────── */
@@ -261,6 +263,7 @@ export const PORTAL_SECTIONS = [
     { id: "home", href: ACCOUNT_HOME_HREF, label: "Overview", group: "Visits" },
     { id: "bookings", href: ACCOUNT_BOOKINGS_HREF, label: "Bookings", group: "Visits" },
     { id: "wallet", href: "/account/wallet", label: "Wallet", group: "Money" },
+    { id: "rewards", href: CIRCLE_HREF, label: "Credit & rewards", group: "Money", circle: true },
     { id: "payments", href: "/account/payments", label: "Payments", group: "Money" },
     { id: "membership", href: "/account/membership", label: "Membership", group: "Money" },
     {
@@ -279,12 +282,14 @@ export const PORTAL_SECTIONS = [
  * (its own page included) unless `referRail` is true. A section limited to
  * some sites still shows on its own page.
  */
-export function sectionsFor(view, siteBrand = "", referRail = false) {
-    return PORTAL_SECTIONS.filter((s) => (!s.optIn || referRail) && (!s.sites || s.id === view || s.sites.includes(siteBrand)));
+export function sectionsFor(view, siteBrand = "", referRail = false, circleRail = false) {
+    return PORTAL_SECTIONS.filter((s) => (!s.optIn || referRail) &&
+        (!s.circle || (circleRail && circleAllowedOn(siteBrand))) &&
+        (!s.sites || s.id === view || s.sites.includes(siteBrand)));
 }
-function nav(view, siteBrand = "", referRail = false) {
+function nav(view, siteBrand = "", referRail = false, circleRail = false) {
     const current = view === "booking" ? "bookings" : view;
-    const sections = sectionsFor(current, siteBrand, referRail);
+    const sections = sectionsFor(current, siteBrand, referRail, circleRail);
     const groups = [];
     for (const s of sections)
         if (!groups.includes(s.group))
@@ -293,7 +298,12 @@ function nav(view, siteBrand = "", referRail = false) {
         groups
             .map((g) => `<div class="cw-nav__group"><p class="cw-label cw-nav__label" aria-hidden="true">${g}</p>` +
             sections.filter((s) => s.group === g)
-                .map((s) => `<a class="cw-nav__link" href="${s.href}"${current === s.id ? ' aria-current="page"' : ""}>${s.label}</a>`)
+                .map((s) => 
+            // A Circle row is drawn hidden (except on its own page) and
+            // revealed by browser.ts once the member read says it is live.
+            `<a class="cw-nav__link" href="${s.href}"${current === s.id ? ' aria-current="page"' : ""}` +
+                (s.circle ? ` data-cw-circle-rail${current === s.id ? "" : " hidden"}` : "") +
+                `>${escapeHtml(s.label)}</a>`)
                 .join("") +
             `</div>`)
             .join("") +
@@ -324,7 +334,7 @@ export function portalShellHTML(opts) {
     const lede = opts.lede ? `<p class="cw-lede" ${M}>${opts.lede}</p>` : "";
     return (`<main class="carisma-portal" data-cw-qc="${PORTAL_QC}" data-cw-portal="${escapeHtml(opts.view)}">` +
         `<div class="cw-shell">` +
-        `<aside class="cw-rail">${member}${nav(opts.view, opts.siteBrand, opts.referRail === true)}<div class="cw-rail__foot">${signOutLinks()}</div></aside>` +
+        `<aside class="cw-rail">${member}${nav(opts.view, opts.siteBrand, opts.referRail === true, opts.circleRail === true)}<div class="cw-rail__foot">${signOutLinks()}</div></aside>` +
         `<div class="cw-main">` +
         `<header class="cw-head"><h1 class="cw-title" tabindex="-1" ${M}>${escapeHtml(opts.title)}</h1>${lede}</header>` +
         `<div class="cw-body"${opts.busy ? ' aria-busy="true"' : ""}>${opts.body}</div>` +
@@ -352,7 +362,9 @@ export function skeletonHTML(view) {
             ? "your details"
             : view === "refer"
                 ? "your referrals"
-                : `your ${view}`;
+                : view === "rewards"
+                    ? "your Carisma credit"
+                    : `your ${view}`;
     const card = (h) => `<span class="cw-skel cw-skel--card" style="height:${h}px"></span>`;
     const rows = view === "home"
         ? card(340) + `<div class="cw-list">${card(104)}${card(104)}</div>`
@@ -521,15 +533,24 @@ function walletStripHTML(w) {
         `<span class="cw-strip__value" ${M}>${escapeHtml(text)}</span></span>` +
         `<span class="cw-strip__arrow" aria-hidden="true">${ARROW.replace('class="cw-btn__arrow" ', "")}</span></a>`);
 }
+/**
+ * Where the Carisma Circle card set lands on Overview: an EMPTY, hidden slot
+ * that browser.ts fills only when the member read says enabled:true. Absent
+ * altogether unless the site opted in.
+ */
+export function circleSlotHTML(m, where) {
+    return m.circleRail ? `<div class="cw-circle-slot" data-cw-circle-slot="${where}" hidden></div>` : "";
+}
 export function overviewBodyHTML(m) {
     if (m.upcomingState === "failed") {
-        return errorBlockHTML("bookings", m.contactPhone) + needsHTML(needsYou(m)) + walletStripHTML(m.wallet);
+        return (errorBlockHTML("bookings", m.contactPhone) + needsHTML(needsYou(m)) + circleSlotHTML(m, "home") + walletStripHTML(m.wallet));
     }
     const [next, ...rest] = m.upcomingCards;
     if (!next) {
         const needs = needsHTML(needsYou(m));
         return (emptyVisitsHTML(m, "Your next visit starts here.", "This is where your visits, gift cards and membership will live.") +
             needs +
+            circleSlotHTML(m, "home") +
             walletStripHTML(m.wallet));
     }
     const also = rest.slice(0, 2);
@@ -539,7 +560,11 @@ export function overviewBodyHTML(m) {
             `<a class="cw-section__more" href="${ACCOUNT_BOOKINGS_HREF}">All bookings (${m.upcomingCards.length})${ARROW}</a></div>` +
             `<div class="cw-list">${also.map(apptCardHTML).join("")}</div></section>`
         : "";
-    return nextVisitHTML(next, m.now) + needsHTML(needsYou(m, next.id)) + alsoHTML + walletStripHTML(m.wallet);
+    return (nextVisitHTML(next, m.now) +
+        needsHTML(needsYou(m, next.id)) +
+        circleSlotHTML(m, "home") +
+        alsoHTML +
+        walletStripHTML(m.wallet));
 }
 /* ── Bookings ──────────────────────────────────────────────────────────── */
 export function bookingsBodyHTML(m) {
@@ -613,6 +638,7 @@ export function accountPortalHTML(model) {
         memberName: model.firstName || model.name || "Your account",
         siteBrand: model.siteBrand,
         referRail: model.referRail,
+        circleRail: model.circleRail,
     });
 }
 //# sourceMappingURL=portal.js.map

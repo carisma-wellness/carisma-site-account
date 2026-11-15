@@ -14,7 +14,8 @@
 import { accountMarkSignedInHTML, accountMarkState, ACCOUNT_MARK_ATTR } from "./accountMark.js";
 import { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, avatarUrlFromSession, sanitizeAvatarUrl } from "./avatar.js";
 import { readInitialsHint, readSignedInHint } from "./hint.js";
-import { buildPanelModel, accountPanelHTML } from "./panel.js";
+import { buildPanelModel, accountPanelHTML, PANEL_SESSION_URL, PANEL_SESSION_URL_CIRCLE } from "./panel.js";
+import { circleAllowedOn, circleActivityRowsHTML, circleOverviewHTML, circleWalletLineHTML, readCircle, readCircleActivity, } from "./circle.js";
 import { accountPortalHTML, buildPortalModel, errorBlockHTML, greetingFor, portalShellHTML, skeletonHTML, } from "./portal.js";
 import { bodyFor, bookingIdFromPath, ledeFor, requestsFor, subjectFor, titleFor } from "./portalData.js";
 import { bookableTreatments, buildWalletModel, packageActions, venuesFor } from "./records.js";
@@ -285,7 +286,7 @@ export function mountAccountPanel(doc, opts = {}) {
             openPanel(fallback);
             return;
         }
-        fetchImpl("/api/auth/session?include=upcoming", { credentials: "same-origin" })
+        fetchImpl(opts.circle === true ? PANEL_SESSION_URL_CIRCLE : PANEL_SESSION_URL, { credentials: "same-origin" })
             .then((r) => (r.ok ? r.json() : null))
             .then((body) => {
             openPanel(body && typeof body === "object" ? body : fallback);
@@ -347,6 +348,34 @@ function closestOf(el, sel) {
     return live(el)?.closest?.(sel) ?? null;
 }
 const portalListBound = new WeakSet();
+const portalCircleBound = new WeakSet();
+/**
+ * "Show more" under the Carisma credit activity: the next page, appended.
+ * A failed page leaves the button for another try; nothing else changes.
+ */
+function bindCircleMore(mount, readT) {
+    live(mount)?.addEventListener?.("click", (e) => {
+        const btn = closestOf(e.target, "[data-cw-circle-more]");
+        if (!btn)
+            return;
+        e.preventDefault?.();
+        const cursor = btn.getAttribute("data-cw-circle-more") || "";
+        if (!cursor || btn.getAttribute("aria-busy") === "true")
+            return;
+        btn.setAttribute("aria-busy", "true");
+        readT(`/api/auth/proxy/client/loyalty/activity?cursor=${encodeURIComponent(cursor)}&limit=20`).then((r) => {
+            btn.removeAttribute?.("aria-busy");
+            const page = r.state === "failed" ? null : readCircleActivity(r.body);
+            if (!page)
+                return;
+            qs(mount, "[data-cw-circle-activity]")?.insertAdjacentHTML?.("beforeend", circleActivityRowsHTML(page.items));
+            if (page.nextCursor)
+                btn.setAttribute("data-cw-circle-more", page.nextCursor);
+            else
+                btn.remove?.();
+        });
+    });
+}
 const portalMembershipBound = new WeakSet();
 const GENERIC_FAILURE = "That didn't go through. Nothing has changed — try again.";
 /**
@@ -511,15 +540,22 @@ export function mountAccountPortal(doc, opts = {}) {
     const initialSearch = loc?.search ?? "";
     const siteBrand = opts.siteBrand ?? siteBrandFromHost(loc?.host ?? "");
     const referRail = opts.referRail === true;
-    const extras = { siteBrand, bookHref: opts.bookHref, contactPhone: opts.contactPhone, referRail };
+    const circleRail = opts.circle === true && circleAllowedOn(siteBrand);
+    const extras = { siteBrand, bookHref: opts.bookHref, contactPhone: opts.contactPhone, referRail, circleRail };
     /** Every shell this mount paints knows the site, so the rail shows only this site's sections. */
-    const shellHTML = (o) => portalShellHTML({ siteBrand, referRail, ...o });
+    const shellHTML = (o) => portalShellHTML({ siteBrand, referRail, circleRail, ...o });
     if (!readSignedInHint(doc.cookie || "")) {
         navigate(`/member?next=${encodeURIComponent(next)}`);
         return;
     }
     if (!mount)
         return;
+    // Credit & rewards on a site that did not opt in (or Medical): the page
+    // does not exist for this site — back to the account, nothing drawn.
+    if (view === "rewards" && !circleRail) {
+        navigate("/account");
+        return;
+    }
     const fetchImpl = opts.fetchImpl;
     const fallback = cookieFallbackSession(doc.cookie || "");
     if (!fetchImpl) {
@@ -547,9 +583,44 @@ export function mountAccountPortal(doc, opts = {}) {
     let walletOnce = null;
     let noteShown = false;
     let identity = { emailMasked: "", memberName: "" };
+    /**
+     * Carisma Circle, read ONCE per mount beside the page's own reads and never
+     * in front of them. `undefined` = not answered yet, `null` = off / 404 /
+     * failed / not understood (nothing is ever drawn), a model = live.
+     */
+    let circleNow = circleRail ? undefined : null;
+    const fillCircle = () => {
+        if (!circleNow)
+            return;
+        qsa(mount, "[data-cw-circle-rail]").forEach((a) => a.removeAttribute?.("hidden"));
+        const home = qs(mount, '[data-cw-circle-slot="home"]');
+        if (home && !home.innerHTML) {
+            home.innerHTML = circleOverviewHTML(circleNow);
+            home.removeAttribute?.("hidden");
+        }
+        const wallet = qs(mount, '[data-cw-circle-slot="wallet"]');
+        if (wallet && !wallet.innerHTML) {
+            wallet.innerHTML = circleWalletLineHTML(circleNow);
+            wallet.removeAttribute?.("hidden");
+        }
+    };
+    const readCircleOnce = () => {
+        if (!circleRail || circleNow !== undefined || !fetchImpl)
+            return;
+        circleNow = null; // in flight: a second load() never starts a second read
+        fetchImpl("/api/auth/proxy/client/loyalty/me", { credentials: "same-origin" })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((body) => {
+            circleNow = readCircle(body);
+            fillCircle();
+        }, () => {
+            circleNow = null;
+        });
+    };
     const paint = (html) => {
         mount.innerHTML = html;
         revealCurrentTab(mount);
+        fillCircle();
     };
     const focusTitle = () => qs(mount, ".cw-title")?.focus?.({ preventScroll: false });
     const skeleton = () => {
@@ -581,6 +652,8 @@ export function mountAccountPortal(doc, opts = {}) {
         // paint (and Try again) shows the skeleton.
         if (!quiet)
             skeleton();
+        if (view !== "rewards")
+            readCircleOnce();
         return readT("/api/auth/session?include=upcoming")
             .then((sessionRead) => {
             const body = sessionRead.body;
@@ -654,6 +727,28 @@ export function mountAccountPortal(doc, opts = {}) {
             return Promise.all(urls.map(readT)).then((reads) => {
                 if (reads.some((r) => r.status === 401))
                     return signIn();
+                if (view === "rewards") {
+                    // The member read decides everything. Off, 404 or an answer we do
+                    // not understand: this page has nothing to show — back to the
+                    // account. A transient failure (5xx, no answer) is said plainly.
+                    const me = reads[0];
+                    const model = me.state === "failed" ? null : readCircle(me.body);
+                    if (!model) {
+                        if (me.state === "failed" && me.status !== 404) {
+                            paint(shellHTML({
+                                view,
+                                title: titleFor(view, "Your account"),
+                                emailMasked,
+                                memberName,
+                                body: errorBlockHTML(subjectFor(view), opts.contactPhone),
+                            }));
+                            return;
+                        }
+                        navigate("/account");
+                        return;
+                    }
+                    circleNow = model;
+                }
                 if (view === "wallet") {
                     // requestsFor("wallet") is [gift cards, packages, credit].
                     const packs = reads[1];
@@ -682,11 +777,17 @@ export function mountAccountPortal(doc, opts = {}) {
                                 siteBrand,
                                 siteOrigin: loc?.origin,
                                 invoicePay: opts.invoicePay === true,
+                                circleSlot: circleRail,
+                                bookHref: opts.bookHref,
                             })}</div>`,
                 }));
                 if (!portalMembershipBound.has(mount)) {
                     portalMembershipBound.add(mount);
                     bindMembershipActions(mount, opts);
+                }
+                if (view === "rewards" && !portalCircleBound.has(mount)) {
+                    portalCircleBound.add(mount);
+                    bindCircleMore(mount, readT);
                 }
             });
         })

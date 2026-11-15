@@ -4,7 +4,9 @@ import type { WalletModel } from "./records.js";
 export declare const PORTAL_QC = "account-portal-20260917";
 export type PortalView = "home" | "bookings"
 /** One booking, with its actions. The id comes from the URL, not the view. */
- | "booking" | "wallet" | "payments" | "documents" | "membership" | "refer" | "details";
+ | "booking" | "wallet" | "payments" | "documents" | "membership" | "refer"
+/** Carisma Circle: credit, level, ways to earn, activity, rewards (circleRail sites only). */
+ | "rewards" | "details";
 /** What a read came back as. `failed` is never shown as `empty`. */
 export type LoadState = "ok" | "empty" | "failed";
 export type ChipTone = "ok" | "warn" | "bad" | "neutral";
@@ -72,6 +74,12 @@ export interface PortalModel extends PanelModel {
     now: Date;
     /** The rail lists Refer a friend (the site opted in). */
     referRail: boolean;
+    /**
+     * The site opted in to Carisma Circle. The rail row and the Overview slot
+     * are drawn HIDDEN; browser.ts reveals them only when /client/loyalty/me
+     * answers enabled:true. Off (the default) draws nothing at all.
+     */
+    circleRail: boolean;
 }
 /** `/account/bookings/<id>` — the local detail page, when the row has an id. */
 export declare function bookingDetailHref(row: Record<string, unknown>): string;
@@ -86,6 +94,7 @@ export interface PortalExtra {
     contactPhone?: string;
     now?: Date;
     referRail?: boolean;
+    circleRail?: boolean;
 }
 export declare function buildPortalModel(session: unknown, view: PortalView, extra?: PortalExtra): PortalModel;
 /**
@@ -108,13 +117,19 @@ export declare const PORTAL_SECTIONS: ReadonlyArray<{
      * friend stays unlisted until the pilot; its page still renders when visited.
      */
     optIn?: boolean;
+    /**
+     * Carisma Circle: on the rail only when the site opted in (`circleRail`),
+     * and even then drawn hidden until the member read says the programme is
+     * live for this member (browser.ts). Never on Carisma Medical.
+     */
+    circle?: boolean;
 }>;
 /**
  * The sections this site's rail shows. An opt-in section is off everywhere
  * (its own page included) unless `referRail` is true. A section limited to
  * some sites still shows on its own page.
  */
-export declare function sectionsFor(view: PortalView, siteBrand?: string, referRail?: boolean): typeof PORTAL_SECTIONS;
+export declare function sectionsFor(view: PortalView, siteBrand?: string, referRail?: boolean, circleRail?: boolean): typeof PORTAL_SECTIONS;
 /**
  * The chrome every section shares: rail (or tabs), the page header, one
  * persistent status region, the body the caller built, and sign-out OUTSIDE
@@ -137,6 +152,8 @@ export declare function portalShellHTML(opts: {
     siteBrand?: string;
     /** Show the opt-in Refer a friend row (off by default until the pilot). */
     referRail?: boolean;
+    /** Draw the (hidden until live) Carisma Circle rail row. */
+    circleRail?: boolean;
 }): string;
 /** The failed-read block. Never the empty state: "you have no bookings" is a lie when we could not ask. */
 export declare function errorBlockHTML(what: string, phone?: string): string;
@@ -162,6 +179,14 @@ interface NeedRow {
 export declare function needsYou(m: PortalModel, excludeId?: string): NeedRow[];
 /** "€85.00 credit · 2 gift cards · 4 of 6 sessions left" — or "" when there is no value. */
 export declare function walletSummary(w: WalletModel | null): string;
+/**
+ * Where the Carisma Circle card set lands on Overview: an EMPTY, hidden slot
+ * that browser.ts fills only when the member read says enabled:true. Absent
+ * altogether unless the site opted in.
+ */
+export declare function circleSlotHTML(m: {
+    circleRail: boolean;
+}, where: "home" | "wallet"): string;
 export declare function overviewBodyHTML(m: PortalModel): string;
 export declare function bookingsBodyHTML(m: PortalModel): string;
 export declare function detailsBodyHTML(m: PortalModel): string;

@@ -50,6 +50,14 @@ export interface HydrateOptions {
     panelMountId?: string;
     /** where the member's photo URL is cached for the tab (the bootstrap passes sessionStorage) */
     storage?: StorageLike | null;
+    /**
+     * Carisma Circle (default false). On, the panel asks the session route to
+     * fold the member's loyalty answer into its ONE read, and the account pages
+     * read /client/loyalty/me beside their own reads. Nothing new is drawn
+     * unless that answer says enabled:true; off, not one extra request is made.
+     * Never on Carisma Medical (the site brand decides).
+     */
+    circle?: boolean;
 }
 /**
  * Mount the panel: on a click of a signed-in mark, make the ONE authenticated read

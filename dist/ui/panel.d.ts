@@ -1,3 +1,4 @@
+import { type CircleModel } from "./circle.js";
 export declare const ACCOUNT_HOME_HREF = "/account";
 export declare const ACCOUNT_BOOKINGS_HREF = "/account/bookings";
 export declare const ACCOUNT_DETAILS_HREF = "/account/details";
@@ -20,7 +21,16 @@ export interface PanelModel {
         details: string;
     };
     state: "settled" | "empty";
+    /**
+     * Carisma Circle, when the session read carried `loyalty` (asked for with
+     * `include=upcoming,loyalty`) AND it said enabled:true. Null otherwise —
+     * and a null draws nothing, so the panel is exactly what it was.
+     */
+    circle: CircleModel | null;
 }
+/** The panel's one read. With Circle on, the session route folds the member's loyalty answer in (no second call). */
+export declare const PANEL_SESSION_URL = "/api/auth/session?include=upcoming";
+export declare const PANEL_SESSION_URL_CIRCLE = "/api/auth/session?include=upcoming,loyalty";
 /** Map the /api/auth/session?include=upcoming body to the panel view model. */
 export declare function buildPanelModel(session: unknown): PanelModel;
 /** Render the settled panel. Every personal string carries the recorder mask. */

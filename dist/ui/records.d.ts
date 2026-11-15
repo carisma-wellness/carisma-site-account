@@ -25,6 +25,14 @@ export interface RecordsContext {
      * Pay now that 404s; those lines read "Pay at the desk" meanwhile.
      */
     invoicePay?: boolean;
+    /**
+     * The site opted in to Carisma Circle: the wallet carries an empty, hidden
+     * slot for the Carisma credit line, filled by browser.ts only when the
+     * member read says the programme is live. Off (default) adds nothing.
+     */
+    circleSlot?: boolean;
+    /** Where "book" goes on this brand (the Credit & rewards page's one button). */
+    bookHref?: string;
 }
 /** "September 2026" + a sortable "2026-09" key, on the Malta clock. */
 export declare function monthOf(raw: string): {

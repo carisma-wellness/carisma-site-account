@@ -13,12 +13,36 @@ import { extractAppointmentList } from "../ui/appointments.js";
  *  - Backend answers 401                  -> clear cw_session + hints, {signedIn:false}.
  *  - Backend answers 5xx / connection err -> DO NOT touch a cookie; return known state
  *                                            from the seal (W-9: failure never signs out).
- *  - Backend answers 200                  -> {signedIn:true, initials, profile[, upcoming]}.
+ *  - Backend answers 200                  -> {signedIn:true, initials, profile[, upcoming][, loyalty]}.
+ *
+ * `include` is a comma list: `upcoming` (the panel's visits) and `loyalty`
+ * (Carisma Circle). `loyalty` is folded in ONLY when the member read answers
+ * 200 with `enabled: true`; off, 404, 5xx or a timeout leave the field out and
+ * never touch the rest of the answer (the panel then draws what it always did).
  */
+/** The most the panel waits for Carisma Circle before opening without it. */
+export const LOYALTY_READ_BUDGET_MS = 2500;
+function withinMs(p, ms) {
+    let timer;
+    return Promise.race([
+        p.catch(() => null),
+        new Promise((resolve) => {
+            timer = setTimeout(() => resolve(null), ms);
+        }),
+    ]).finally(() => {
+        if (timer)
+            clearTimeout(timer);
+    });
+}
 export function makeSession(cfg, refresh) {
     return async function session(req) {
         const url = new URL(req.url);
-        const includeUpcoming = url.searchParams.get("include") === "upcoming";
+        const include = new Set((url.searchParams.get("include") || "")
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean));
+        const includeUpcoming = include.has("upcoming");
+        const includeLoyalty = include.has("loyalty");
         const cookies = parseCookies(req);
         const raw = cookies[COOKIES.session];
         if (!raw) {
@@ -64,13 +88,26 @@ export function makeSession(cfg, refresh) {
             initials: sess.initials ?? profile.initials ?? null,
             profile,
         };
-        if (includeUpcoming) {
+        // The two optional reads run side by side, so Circle never adds a round trip.
+        const [appts, loyalty] = await Promise.all([
             // The live list door is filter=upcoming (Joi). The house envelope is
             // {success,data:{data: AppointmentCard[]}} — an array check on the raw
             // body was always [] and the panel rendered "no upcoming visits" for
             // people with a diary.
-            const appts = await upstream(cfg, "/client/booking/appointments?filter=upcoming&limit=20", "GET", at, null);
-            body.upcoming = appts.status === 200 ? extractAppointmentList(appts.body) : [];
+            includeUpcoming
+                ? upstream(cfg, "/client/booking/appointments?filter=upcoming&limit=20", "GET", at, null)
+                : Promise.resolve(null),
+            // Bounded: a slow loyalty read must never hold the panel up.
+            includeLoyalty ? withinMs(upstream(cfg, "/client/loyalty/me", "GET", at, null), LOYALTY_READ_BUDGET_MS) : Promise.resolve(null),
+        ]);
+        if (includeUpcoming) {
+            body.upcoming = appts && appts.status === 200 ? extractAppointmentList(appts.body) : [];
+        }
+        if (loyalty && loyalty.status === 200) {
+            const inner = unwrapEnvelope(loyalty.body);
+            if (inner && typeof inner === "object" && inner.enabled === true) {
+                body.loyalty = inner;
+            }
         }
         const headers = new Headers(NO_STORE_HEADERS);
         if (reseal) {

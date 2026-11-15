@@ -15,6 +15,8 @@ import {
   PORTAL_LISTS_CSS,
   PORTAL_BOOKING_CSS,
   PORTAL_RECORDS_CSS,
+  PORTAL_CIRCLE_CSS,
+  PANEL_CIRCLE_CSS,
 } from "./styles/index.js";
 
 export const ACCOUNT_CHROME_STYLE_ID = "carisma-account-chrome";
@@ -172,11 +174,13 @@ export const ACCOUNT_PANEL_CSS = `
 export const ACCOUNT_CHROME_CSS = [
   PORTAL_TOKENS_CSS,
   ACCOUNT_PANEL_CSS,
+  PANEL_CIRCLE_CSS,
   PORTAL_BASE_CSS,
   PORTAL_SHELL_CSS,
   PORTAL_LISTS_CSS,
   PORTAL_BOOKING_CSS,
   PORTAL_RECORDS_CSS,
+  PORTAL_CIRCLE_CSS,
 ]
   .join("\n")
   .replace(/^\s+/gm, "")
