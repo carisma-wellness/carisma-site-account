@@ -427,7 +427,9 @@ function rewardHTML(r, m, yours) {
             ? `<p class="cw-circle-shop__disc">${escapeHtml(`Fewer points: your first reward at ${r.brand}`)}</p>`
             : "") +
         `<p class="cw-circle-shop__price">${escapeHtml(`${creditText(costCents)} · ${pointsText(cost)}`)}` +
-        (r.valueCents > 0 ? `<span class="cw-circle-shop__value">${escapeHtml(`${creditText(r.valueCents)} on the menu`)}</span>` : "") +
+        // The menu price only when it says something the cost does not (a discovery
+        // price, a reward worth more than its points).
+        (r.valueCents > costCents ? `<span class="cw-circle-shop__value">${escapeHtml(`${creditText(r.valueCents)} on the menu`)}</span>` : "") +
         `</p>` +
         `<p class="cw-circle-shop__note" ${M}>${escapeHtml(note)}</p>` +
         `</li>`);
