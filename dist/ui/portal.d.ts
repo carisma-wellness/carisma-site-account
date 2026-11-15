@@ -186,7 +186,7 @@ export declare function walletSummary(w: WalletModel | null): string;
  */
 export declare function circleSlotHTML(m: {
     circleRail: boolean;
-}, where: "home" | "wallet"): string;
+}, where: "home" | "wallet" | "details"): string;
 export declare function overviewBodyHTML(m: PortalModel): string;
 export declare function bookingsBodyHTML(m: PortalModel): string;
 export declare function detailsBodyHTML(m: PortalModel): string;

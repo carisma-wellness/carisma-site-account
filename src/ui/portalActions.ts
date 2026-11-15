@@ -25,7 +25,7 @@ export type PortalActionName =
 
 export interface ProxyCall {
   path: string;
-  method: "GET" | "POST" | "PATCH" | "DELETE";
+  method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
   body?: unknown;
 }
 
@@ -263,6 +263,30 @@ export const staffCall = (opts: { brandLocationId: string; serviceId: string }):
   q.set("serviceId", opts.serviceId);
   return { path: `${PROXY}/client/booking/staff?${q.toString()}`, method: "GET" };
 };
+
+/* ── Carisma Circle profile (W4, backend B4) ───────────────────────────── */
+
+export const circleComfortReadCall = (): ProxyCall => ({ path: `${PROXY}/client/loyalty/comfort`, method: "GET" });
+export const circleBirthdayReadCall = (): ProxyCall => ({ path: `${PROXY}/client/loyalty/birthday`, method: "GET" });
+export const circleWhatsappReadCall = (): ProxyCall => ({ path: `${PROXY}/client/loyalty/whatsapp-updates`, method: "GET" });
+/** The changed comfort choices only (a key left out is unchanged on the server). */
+export const circleComfortCall = (changes: Partial<Record<"pressure" | "oils" | "music" | "roomTemperature", string>>): ProxyCall => ({
+  path: `${PROXY}/client/loyalty/comfort`,
+  method: "PUT",
+  body: { ...changes },
+});
+/** Day + month only: a year is never sent (the server refuses one). */
+export const circleBirthdayCall = (day: number, month: number): ProxyCall => ({
+  path: `${PROXY}/client/loyalty/birthday`,
+  method: "PUT",
+  body: { day, month },
+});
+/** The WhatsApp booking-updates SERVICE opt-in (never marketing consent). */
+export const circleWhatsappCall = (optedIn: boolean): ProxyCall => ({
+  path: `${PROXY}/client/loyalty/whatsapp-updates`,
+  method: "PUT",
+  body: { optedIn },
+});
 
 /* ── Carisma Circle membership + offers (W3, backend B3b) ──────────────── */
 

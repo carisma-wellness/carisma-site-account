@@ -594,7 +594,10 @@ export function detailsBodyHTML(m) {
         fact("Email", m.emailMasked) +
         `</dl>` +
         `<p class="cw-fine cw-prose cw-details__note">To change these, ask the team at the desk — this page is your record, not a form.</p>` +
-        `</section>`);
+        `</section>` +
+        // Carisma Circle (W4): comfort, birthday, WhatsApp booking updates — hidden and
+        // empty until the member's own B4 reads answer live (browser.ts fills it).
+        circleSlotHTML(m, "details"));
 }
 /* ── Titles and ledes ──────────────────────────────────────────────────── */
 function nextLede(m) {

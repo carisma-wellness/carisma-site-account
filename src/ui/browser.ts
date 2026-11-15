@@ -38,6 +38,21 @@ import {
   type LeavePreview,
 } from "./circle.js";
 import {
+  circleDetailsHTML,
+  profileErrorText,
+  profileSectionHTML,
+  readCircleBirthday,
+  readCircleComfort,
+  readCircleWhatsapp,
+  type CircleDetailsInput,
+  type ComfortKey,
+  type ProfileMsg,
+  type ProfileSection,
+} from "./circleProfile.js";
+
+/** How long comfort choices settle before ONE save (a keyboard sweep through a radio group is one change). */
+const COMFORT_SETTLE_MS = 600;
+import {
   accountPortalHTML,
   buildPortalModel,
   errorBlockHTML,
@@ -66,6 +81,12 @@ import { buildSlotsModel, venueDateString, venueLocalToUtcIso, type SlotsModel }
 import {
   cancelCall,
   cancelSummary,
+  circleBirthdayCall,
+  circleBirthdayReadCall,
+  circleComfortCall,
+  circleComfortReadCall,
+  circleWhatsappCall,
+  circleWhatsappReadCall,
   circleLeaveCall,
   circleLeavePreviewCall,
   circleOffersCall,
@@ -1029,6 +1050,9 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
 
         if (view === "details") {
           paint(accountPortalHTML(buildPortalModel(session, view, extras)));
+          // Carisma Circle W4: the member's own comfort / birthday / WhatsApp
+          // updates, read AFTER the page is on screen and drawn only when live.
+          if (circleRail) readCircleProfile();
           return undefined;
         }
 
@@ -1909,6 +1933,160 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
     });
   };
 
+  /* ── Carisma Circle profile in Details (W4, backend B4) ───────────────── */
+
+  let profileNow: CircleDetailsInput = { comfort: null, birthday: null, whatsapp: null };
+  const profileSlot = () => qs(mount, '[data-cw-circle-slot="details"]');
+  const sectionSlot = (s: ProfileSection) => qs(mount, `[data-cw-profile-slot="${s}"]`);
+  /** Write a message into a section's live region AFTER it exists, so a screen reader announces it. */
+  const say = (s: ProfileSection, msg: ProfileMsg) => {
+    const el = qs(sectionSlot(s), "[data-cw-profile-msg]");
+    if (!el || !msg) return;
+    el.setAttribute("class", `cw-circle-prefs__msg cw-circle-prefs__msg--${msg.tone}`);
+    el.innerHTML = escapeHtml(msg.text);
+  };
+  /**
+   * Redraw ONE section from what the server last said (the other two, and any
+   * day/month the member picked there, are left alone). Focus goes back to the
+   * control, or to the section's title when that control is gone.
+   */
+  const drawSection = (s: ProfileSection, msg?: ProfileMsg, focusSel?: string) => {
+    const slot = sectionSlot(s);
+    if (!slot) return;
+    slot.innerHTML = profileSectionHTML(s, profileNow);
+    if (focusSel) (qs(slot, focusSel) ?? qs(slot, ".cw-section__title"))?.focus?.();
+    if (msg) say(s, msg);
+  };
+  /** The three B4 reads, side by side; each one that is off / 404 / failed simply draws nothing. */
+  const readCircleProfile = (): void => {
+    void Promise.all([circleComfortReadCall(), circleBirthdayReadCall(), circleWhatsappReadCall()].map((c) => readT(c.path))).then(
+      ([c, b, w]) => {
+        profileNow = {
+          comfort: c.state === "failed" ? null : readCircleComfort(c.body),
+          birthday: b.state === "failed" ? null : readCircleBirthday(b.body),
+          whatsapp: w.state === "failed" ? null : readCircleWhatsapp(w.body),
+        };
+        const slot = profileSlot();
+        if (!slot) return;
+        const html = circleDetailsHTML(profileNow);
+        slot.innerHTML = html;
+        if (html) slot.removeAttribute?.("hidden");
+      },
+    );
+  };
+  const refused = (r: { status: number; body: unknown }): ProfileMsg => ({
+    text: profileErrorText(errorCodeOf(r.body), r.body),
+    tone: "bad",
+  });
+
+  /**
+   * Comfort: the choices settle for a moment before one PUT carries every
+   * changed key (arrow keys walk a radio group one click per step — Light →
+   * Medium → Firm must be ONE save of "firm", not three). The group redraws from
+   * the server's answer; a refusal redraws what is on file.
+   */
+  const comfortPending = new Map<ComfortKey, string>();
+  let comfortTimer: ReturnType<typeof setTimeout> | null = null;
+  let comfortInFlight = false;
+  let comfortLastKey: ComfortKey | null = null;
+  const flushComfort = (): void => {
+    comfortTimer = null;
+    const now = profileNow.comfort;
+    if (!now) return;
+    if (comfortInFlight) {
+      comfortTimer = setTimeout(flushComfort, COMFORT_SETTLE_MS);
+      return;
+    }
+    const changes: Partial<Record<ComfortKey, string>> = {};
+    for (const [k, v] of comfortPending) if (now.values[k] !== v) changes[k] = v;
+    comfortPending.clear();
+    if (!Object.keys(changes).length) return;
+    comfortInFlight = true;
+    qsa(sectionSlot("comfort"), "input[data-cw-comfort]").forEach((i) => i.setAttribute("disabled", ""));
+    void postJson(fetchImpl, circleComfortCall(changes)).then((r) => {
+      comfortInFlight = false;
+      if (r.status === 401) return signIn();
+      const next = r.ok ? readCircleComfort(r.body) : null;
+      if (next) profileNow.comfort = next;
+      const k = comfortLastKey;
+      drawSection("comfort", next ? { text: "Saved.", tone: "ok" } : refused(r), k ? `input[data-cw-comfort="${k}"]:checked` : undefined);
+    });
+  };
+  const saveComfort = (input: LiveEl): void => {
+    const now = profileNow.comfort;
+    const key = (input.getAttribute("data-cw-comfort") || "") as ComfortKey;
+    const value = (input as unknown as { value?: string }).value || "";
+    if (!now || !(key in now.values) || !value) return;
+    comfortPending.set(key, value);
+    comfortLastKey = key;
+    if (comfortTimer) clearTimeout(comfortTimer);
+    comfortTimer = setTimeout(flushComfort, COMFORT_SETTLE_MS);
+  };
+
+  /** Day + month, saved only on the member's tap (a prefill from the date of birth is never saved by itself). */
+  const saveBirthday = (btn: LiveEl): void => {
+    if (!profileNow.birthday || btn.getAttribute("aria-disabled") === "true") return;
+    const slot = sectionSlot("birthday");
+    const day = Number(qs(slot, "[data-cw-bday-day]")?.value || "");
+    const month = Number(qs(slot, "[data-cw-bday-month]")?.value || "");
+    if (!day || !month) {
+      say("birthday", { text: "Choose a day and a month.", tone: "bad" });
+      return;
+    }
+    const restore = setBusy(btn, "Saving…");
+    void postJson(fetchImpl, circleBirthdayCall(day, month)).then((r) => {
+      if (r.status === 401) return signIn();
+      const next = r.ok ? readCircleBirthday(r.body) : null;
+      if (next) {
+        profileNow.birthday = next;
+        drawSection("birthday", { text: "Saved.", tone: "ok" }, "[data-cw-bday-save]");
+        return;
+      }
+      if (errorCodeOf(r.body) === "LOYALTY_BIRTHDAY_LOCKED") {
+        // Already saved and locked: show it as it is on file, with the date it opens.
+        void readT(circleBirthdayReadCall().path).then((g) => {
+          const fresh = g.state === "failed" ? null : readCircleBirthday(g.body);
+          if (fresh) {
+            profileNow.birthday = fresh;
+            drawSection("birthday", refused(r), ".cw-section__title");
+          } else {
+            restore();
+            say("birthday", refused(r));
+          }
+        });
+        return;
+      }
+      // Any other refusal keeps the member's picks on screen; only the message changes.
+      restore();
+      say("birthday", refused(r));
+      btn.focus?.();
+    });
+  };
+
+  /** The SERVICE opt-in. Opt-out always goes through, a member who left included. */
+  const saveWhatsapp = (input: LiveEl): void => {
+    const now = profileNow.whatsapp;
+    if (!now) return;
+    const want = (input as unknown as { checked?: boolean }).checked === true;
+    input.setAttribute("disabled", "");
+    void postJson(fetchImpl, circleWhatsappCall(want)).then((r) => {
+      if (r.status === 401) return signIn();
+      const next = r.ok ? readCircleWhatsapp(r.body) : null;
+      // An opt-out while the programme is off answers {enabled:false, optedIn:false}: still saved.
+      if (next || (r.ok && !want)) {
+        profileNow.whatsapp = next ?? { ...now, optedIn: false };
+        const on = profileNow.whatsapp.optedIn;
+        drawSection(
+          "whatsapp",
+          { text: on ? "Saved. Your booking updates will come on WhatsApp." : "Saved. No more booking updates on WhatsApp.", tone: "ok" },
+          "#cw-wa-updates",
+        );
+        return;
+      }
+      drawSection("whatsapp", refused(r), "#cw-wa-updates");
+    });
+  };
+
   /* ── One delegated listener for every view ────────────────────────────── */
 
   if (!portalListBound.has(mount)) {
@@ -1962,6 +2140,23 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
         return;
       }
       if (circleRail) {
+        // W4 (Details): the tick / the choice IS the request — never preventDefault.
+        const comfort = closestOf(t, "input[data-cw-comfort]");
+        if (comfort) {
+          saveComfort(comfort);
+          return;
+        }
+        const wa = closestOf(t, "input[data-cw-wa-updates]");
+        if (wa) {
+          saveWhatsapp(wa);
+          return;
+        }
+        const bday = closestOf(t, "[data-cw-bday-save]");
+        if (bday) {
+          ev.preventDefault?.();
+          saveBirthday(bday);
+          return;
+        }
         const pref = closestOf(t, "input[data-cw-circle-pref]");
         if (pref) {
           // Never preventDefault here: the tick IS the request.

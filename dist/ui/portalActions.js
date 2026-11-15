@@ -207,6 +207,28 @@ export const staffCall = (opts) => {
     q.set("serviceId", opts.serviceId);
     return { path: `${PROXY}/client/booking/staff?${q.toString()}`, method: "GET" };
 };
+/* ── Carisma Circle profile (W4, backend B4) ───────────────────────────── */
+export const circleComfortReadCall = () => ({ path: `${PROXY}/client/loyalty/comfort`, method: "GET" });
+export const circleBirthdayReadCall = () => ({ path: `${PROXY}/client/loyalty/birthday`, method: "GET" });
+export const circleWhatsappReadCall = () => ({ path: `${PROXY}/client/loyalty/whatsapp-updates`, method: "GET" });
+/** The changed comfort choices only (a key left out is unchanged on the server). */
+export const circleComfortCall = (changes) => ({
+    path: `${PROXY}/client/loyalty/comfort`,
+    method: "PUT",
+    body: { ...changes },
+});
+/** Day + month only: a year is never sent (the server refuses one). */
+export const circleBirthdayCall = (day, month) => ({
+    path: `${PROXY}/client/loyalty/birthday`,
+    method: "PUT",
+    body: { day, month },
+});
+/** The WhatsApp booking-updates SERVICE opt-in (never marketing consent). */
+export const circleWhatsappCall = (optedIn) => ({
+    path: `${PROXY}/client/loyalty/whatsapp-updates`,
+    method: "PUT",
+    body: { optedIn },
+});
 /* ── Carisma Circle membership + offers (W3, backend B3b) ──────────────── */
 /** What leaving would forfeit, for the confirm sheet (read before any leave is offered). */
 export const circleLeavePreviewCall = () => ({ path: `${PROXY}/client/loyalty/leave`, method: "GET" });

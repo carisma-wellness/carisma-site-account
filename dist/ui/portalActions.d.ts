@@ -14,7 +14,7 @@ import type { BookingActions } from "./bookingDetail.js";
 export type PortalActionName = "confirm" | "cancel" | "reschedule" | "pay" | "rebook" | "membership-pause" | "membership-resume";
 export interface ProxyCall {
     path: string;
-    method: "GET" | "POST" | "PATCH" | "DELETE";
+    method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
     body?: unknown;
 }
 export declare const confirmCall: (id: string) => ProxyCall;
@@ -113,6 +113,15 @@ export declare const staffCall: (opts: {
     brandLocationId: string;
     serviceId: string;
 }) => ProxyCall;
+export declare const circleComfortReadCall: () => ProxyCall;
+export declare const circleBirthdayReadCall: () => ProxyCall;
+export declare const circleWhatsappReadCall: () => ProxyCall;
+/** The changed comfort choices only (a key left out is unchanged on the server). */
+export declare const circleComfortCall: (changes: Partial<Record<"pressure" | "oils" | "music" | "roomTemperature", string>>) => ProxyCall;
+/** Day + month only: a year is never sent (the server refuses one). */
+export declare const circleBirthdayCall: (day: number, month: number) => ProxyCall;
+/** The WhatsApp booking-updates SERVICE opt-in (never marketing consent). */
+export declare const circleWhatsappCall: (optedIn: boolean) => ProxyCall;
 /** What leaving would forfeit, for the confirm sheet (read before any leave is offered). */
 export declare const circleLeavePreviewCall: () => ProxyCall;
 /** Leave Carisma Circle. Only ever sent from the sheet's explicit confirm. */

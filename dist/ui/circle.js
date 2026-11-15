@@ -24,6 +24,9 @@
 import { escapeHtml } from "./html.js";
 import { eur } from "./money.js";
 import { unwrapEnvelope } from "./appointments.js";
+import { profileMissingInDetails, profileMissingText } from "./circleProfile.js";
+/** Same literal as panel.ts ACCOUNT_DETAILS_HREF (not imported: panel.ts imports this module). */
+const ACCOUNT_DETAILS_PATH = "/account/details";
 export const CIRCLE_QC = "carisma-circle-20261115";
 export const CIRCLE_HREF = "/account/rewards";
 /**
@@ -125,7 +128,8 @@ export function readCircle(body) {
         .filter((a) => Boolean(a && str(a.key) && str(a.label)))
         .map((a) => {
         const pts = Math.max(0, int(a.points));
-        return { key: str(a.key), label: str(a.label), points: pts, cents: pts * CENTS_PER_POINT, done: a.done === true };
+        const missing = Array.isArray(a.missing) ? a.missing.filter((x) => typeof x === "string") : undefined;
+        return { key: str(a.key), label: str(a.label), points: pts, cents: pts * CENTS_PER_POINT, done: a.done === true, ...(missing ? { missing } : {}) };
     });
     const summary = obj(o.actionsSummary);
     const actionsDone = summary ? int(summary.done) : actions.filter((a) => a.done).length;
@@ -539,7 +543,7 @@ function waysToEarnHTML(m) {
     const rows = m.actions
         .map((a) => `<li class="cw-circle-earn__row${a.done ? " is-done" : ""}">` +
         `<span class="cw-circle-earn__tick" aria-hidden="true">${a.done ? TICK : ""}</span>` +
-        `<span class="cw-circle-earn__label">${escapeHtml(a.label)}</span>` +
+        `<span class="cw-circle-earn__label">${escapeHtml(a.label)}${profileMissingHTML(a)}</span>` +
         `<span class="cw-circle-earn__amt">${a.done ? "Done" : escapeHtml(creditText(a.cents))}</span>` +
         `</li>`)
         .join("");
@@ -549,6 +553,18 @@ function waysToEarnHTML(m) {
         `<ul class="cw-circle-earn__list" role="list" ${M}>${rows}</ul>` +
         `<p class="cw-fine">Every €1 you pay at ${CIRCLE_BRANDS} earns credit too. ${escapeHtml(EARN_TERMS_LINE)}</p>` +
         `</section>`);
+}
+/** W4: under "Complete your profile", what is still missing and where to finish it. */
+function profileMissingHTML(a) {
+    if (a.key !== "profile" || a.done)
+        return "";
+    const text = profileMissingText(a.missing);
+    if (!text)
+        return "";
+    return (`<span class="cw-circle-earn__missing" data-cw-circle-missing>${escapeHtml(text)}` +
+        // Only when Details can finish it (verifying an email is done from the email itself).
+        (profileMissingInDetails(a.missing) ? ` · <a class="cw-link" href="${ACCOUNT_DETAILS_PATH}">Finish in your details</a>` : "") +
+        `</span>`);
 }
 function passportHTML(m) {
     const p = m.passport;
@@ -758,10 +774,11 @@ function joinNames(names) {
 }
 /** The plain words for a refused or failed save. */
 export function offersErrorText(code) {
+    // Details is a record on a brand site, not a form: the team adds contact details (W4 fix of the W3 words).
     if (code === "LOYALTY_NO_EMAIL")
-        return "We don't have an email address for you yet. Add one in My details, then tick this box again.";
+        return "We don't have an email address for you yet. Ask the team to add it to your details, then tick this box again.";
     if (code === "LOYALTY_NO_PHONE")
-        return "We don't have a mobile number for you yet. Add one in My details, then tick this box again.";
+        return "We don't have a mobile number for you yet. Ask the team to add it to your details, then tick this box again.";
     return "That didn't save, so nothing has changed. Please try again in a moment.";
 }
 /** What to say after a save, from the state the server answered. */

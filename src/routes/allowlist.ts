@@ -119,6 +119,17 @@ export const PROXY_ALLOWLIST: readonly AllowRule[] = [
   { method: "POST", label: "rejoin Carisma Circle", match: (p) => p === "/client/loyalty/rejoin" },
   { method: "GET", label: "loyalty offers preferences", match: (p) => p === "/client/loyalty/preferences" },
   { method: "PATCH", label: "loyalty offers preferences update", match: (p) => p === "/client/loyalty/preferences" },
+  // Carisma Circle W4 (2026-11-15, backend B4). Exact literals: the member's own
+  // room comfort (fixed choices), birthday (day + month only) and the WhatsApp
+  // booking-updates SERVICE opt-in (never marketing) — each read + replaced.
+  // The staff twin GET /hod/clients/:id/loyalty/comfort stays forbidden.
+  // Marker: loyaltyCircleW41115
+  { method: "GET", label: "loyalty comfort", match: (p) => p === "/client/loyalty/comfort" },
+  { method: "PUT", label: "loyalty comfort update", match: (p) => p === "/client/loyalty/comfort" },
+  { method: "GET", label: "loyalty birthday", match: (p) => p === "/client/loyalty/birthday" },
+  { method: "PUT", label: "loyalty birthday update", match: (p) => p === "/client/loyalty/birthday" },
+  { method: "GET", label: "loyalty whatsapp booking updates", match: (p) => p === "/client/loyalty/whatsapp-updates" },
+  { method: "PUT", label: "loyalty whatsapp booking updates change", match: (p) => p === "/client/loyalty/whatsapp-updates" },
   { method: "GET", label: "visits awaiting a rating", match: (p) => p === "/client/ratings/pending" },
   // `/pending` is the listing, not an appointment id — excluded so the rule
   // cannot be read as "POST anything under /ratings".
@@ -207,6 +218,7 @@ export const FORBIDDEN_PATHS: ReadonlyArray<{ method: string; path: string; why:
   { method: "POST", path: "/client/loyalty/adjustments", why: "a member never adjusts their own balance" },
   { method: "POST", path: "/hod/appointments/abc123/checkout/loyalty-reward", why: "a shop reward is taken at the till, by staff" },
   { method: "POST", path: "/hod/settings/loyalty/launch-placement/apply", why: "launch placement is Super Admin work" },
+  { method: "GET", path: "/hod/clients/abc123/loyalty/comfort", why: "the staff twin of the member's room comfort" },
 ];
 
 /** Normalise a proxy sub-path: strip query/hash, collapse to a leading-slash path. */

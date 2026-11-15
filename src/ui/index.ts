@@ -95,6 +95,27 @@ export {
   circlePrefsHTML,
   circlePrefsSlotHTML,
 } from "./circle.js";
+// W4 (loyaltyCircleW41115): the member's Circle profile in Details (backend B4).
+export {
+  COMFORT_KEYS,
+  COMFORT_LABELS,
+  MONTHS,
+  WHATSAPP_UPDATES_SENTENCE,
+  readCircleComfort,
+  readCircleBirthday,
+  readCircleWhatsapp,
+  birthdayText,
+  calendarDayText,
+  profileErrorText,
+  profileMissingText,
+  comfortHTML,
+  birthdayHTML,
+  whatsappUpdatesHTML,
+  circleDetailsHTML,
+  profileSectionHTML,
+  profileMissingInDetails,
+} from "./circleProfile.js";
+export type { CircleComfort, CircleBirthday, CircleWhatsapp, ComfortKey, CircleDetailsInput, ProfileMsg, ProfileSection } from "./circleProfile.js";
 export type {
   CircleModel,
   CircleLevelView,
@@ -256,6 +277,12 @@ export {
   circleLeaveCall,
   circleRejoinCall,
   circleOffersCall,
+  circleComfortReadCall,
+  circleBirthdayReadCall,
+  circleWhatsappReadCall,
+  circleComfortCall,
+  circleBirthdayCall,
+  circleWhatsappCall,
   readCancellationPreview,
   cancelQuestion,
   cancelSummary,

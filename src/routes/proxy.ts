@@ -5,8 +5,12 @@ import { COOKIES, parseCookies } from "./cookies.js";
 import { isAllowed, normalizePath } from "./allowlist.js";
 import { originAllowed, json } from "./http.js";
 
-/** The member's "Offers and reminders" consent door (Carisma Circle W3). */
-const CONSENT_PATH = "/client/loyalty/preferences";
+/**
+ * The member's consent doors: "Offers and reminders" (Carisma Circle W3,
+ * marketing) and WhatsApp booking updates (W4, service). The backend records
+ * each consent with its user agent, so the member's own browser travels with it.
+ */
+const CONSENT_DOORS = new Set(["PATCH /client/loyalty/preferences", "PUT /client/loyalty/whatsapp-updates"]);
 
 /**
  * POST|GET|PATCH|DELETE /api/auth/proxy/[...path]
@@ -50,7 +54,7 @@ export function makeProxy(cfg: ResolvedConfig) {
     // A consent write records its proof (wording, time, user agent) at the
     // backend: send the member's own browser, not this server's fetch client.
     // Only on the one consent door; every other call is unchanged.
-    if (method === "PATCH" && sub === CONSENT_PATH) {
+    if (CONSENT_DOORS.has(`${method} ${sub}`)) {
       const ua = req.headers.get("user-agent");
       if (ua) headers["user-agent"] = ua.slice(0, 512);
     }
