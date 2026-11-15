@@ -116,8 +116,8 @@ export declare const staffCall: (opts: {
 export declare const circleComfortReadCall: () => ProxyCall;
 export declare const circleBirthdayReadCall: () => ProxyCall;
 export declare const circleWhatsappReadCall: () => ProxyCall;
-/** One comfort choice per PUT (a key left out is unchanged on the server). */
-export declare const circleComfortCall: (key: "pressure" | "oils" | "music" | "roomTemperature", value: string) => ProxyCall;
+/** The changed comfort choices only (a key left out is unchanged on the server). */
+export declare const circleComfortCall: (changes: Partial<Record<"pressure" | "oils" | "music" | "roomTemperature", string>>) => ProxyCall;
 /** Day + month only: a year is never sent (the server refuses one). */
 export declare const circleBirthdayCall: (day: number, month: number) => ProxyCall;
 /** The WhatsApp booking-updates SERVICE opt-in (never marketing consent). */

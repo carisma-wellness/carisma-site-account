@@ -26,7 +26,7 @@ const routes = createAccountRoutes({
   allowedOrigins: ["https://www.carismaspa.com"],
 });
 // app/api/auth/session/route.ts       -> export const GET = routes.session
-// app/api/auth/proxy/[...path]/route.ts-> export const { GET, POST, PATCH, DELETE } = wrap(routes.proxy)
+// app/api/auth/proxy/[...path]/route.ts-> export const { GET, POST, PATCH, PUT, DELETE } = wrap(routes.proxy)   // PUT: Carisma Circle W4 (comfort, birthday, WhatsApp updates)
 // app/api/auth/start/route.ts         -> export const GET = routes.start
 // app/api/auth/callback/route.ts      -> export const GET = routes.callback
 // app/api/auth/logout/route.ts        -> export const POST = routes.logout

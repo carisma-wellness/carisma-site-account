@@ -27,6 +27,8 @@ import {
   mountAccountPortal,
   accountPortalHTML,
   buildPortalModel,
+  CIRCLE_QC,
+  ACCOUNT_DETAILS_HREF,
 } from "../dist/index.js";
 import { PORTAL_RULES_CSS } from "../dist/ui/styles/index.js";
 
@@ -89,7 +91,7 @@ test("comfort: 'So we can prepare your room', the server's choices only, no free
   assert.match(html, /value="medium" data-cw-comfort="pressure" checked>/);
   assert.equal((html.match(/\schecked/g) || []).length, 1, "only what is on file is checked");
   assert.doesNotMatch(html, /allerg|pregnan|condition|health/i, "never health data");
-  assert.deepEqual(circleComfortCall("pressure", "firm"), { path: "/api/auth/proxy/client/loyalty/comfort", method: "PUT", body: { pressure: "firm" } });
+  assert.deepEqual(circleComfortCall({ pressure: "firm" }), { path: "/api/auth/proxy/client/loyalty/comfort", method: "PUT", body: { pressure: "firm" } });
 });
 
 /* ── Birthday: day + month, never the year ─────────────────────────────── */
@@ -158,6 +160,10 @@ test("ways to earn: 'Complete your profile' says what is missing and where to fi
   assert.equal(profileMissingText(["something_new"]), "", "an unknown item is never shown as a raw code");
   const page = circleViewHTML({ me: readCircle(MARIA), activity: null, rewards: null });
   assert.match(page, /Complete your profile<span class="cw-circle-earn__missing" data-cw-circle-missing>Still to do: Verify your email address · add your birthday · <a class="cw-link" href="\/account\/details">Finish in your details<\/a><\/span>/);
+  // Only a verified email missing: Details cannot do that, so no link there.
+  const emailOnly = circleViewHTML({ me: readCircle({ ...MARIA, actions: [{ ...MARIA.actions[0], missing: ["email_verified"] }] }), activity: null, rewards: null });
+  assert.match(emailOnly, /Still to do: Verify your email address<\/span>/);
+  assert.doesNotMatch(emailOnly, /Finish in your details/);
   const done = circleViewHTML({ me: readCircle({ ...MARIA, actions: [{ ...MARIA.actions[0], done: true, missing: [] }] }), activity: null, rewards: null });
   assert.doesNotMatch(done, /data-cw-circle-missing/);
   assert.doesNotMatch(circleViewHTML({ me: readCircle({ ...MARIA, actions: [{ key: "whatsapp", label: "x", points: 40, done: false, missing: ["birthday"] }] }), activity: null, rewards: null }), /data-cw-circle-missing/, "only the profile row");
@@ -181,27 +187,51 @@ test("Details draws only an EMPTY, HIDDEN Circle slot (and none when the site di
 
 /* ── The browser: Details end to end ───────────────────────────────────── */
 
+/**
+ * A fake DOM deep enough to SEE what the mount does: the Details slot, one slot
+ * per section (each redraw is recorded), each section's live region, the
+ * birthday selects, and one stub per radio actually drawn.
+ */
 function harness({ comfort = COMFORT, birthday = BDAY_EMPTY, wa = WA, put = {} } = {}) {
   const state = { comfort, birthday, wa };
   const calls = [];
   const handlers = [];
   const selects = { day: { value: "" }, month: { value: "" } };
-  const el = (extra = {}) => ({ innerHTML: "", attrs: {}, setAttribute(n, v) { this.attrs[n] = v; }, getAttribute(n) { return this.attrs[n] ?? null; }, removeAttribute(n) { delete this.attrs[n]; }, focus() {}, ...extra });
-  const slotInputs = [el(), el(), el()];
-  const slot = el({
-    querySelector(sel) {
+  const el = (extra = {}) => ({ innerHTML: "", attrs: {}, setAttribute(n, v) { this.attrs[n] = v; }, getAttribute(n) { return this.attrs[n] ?? null; }, removeAttribute(n) { delete this.attrs[n]; }, focus() { focused.push(this.name || "?"); }, ...extra });
+  const focused = [];
+  const outer = el({ name: "outer" });
+  outer.attrs.hidden = "";
+  const sections = {};
+  for (const name of ["comfort", "birthday", "whatsapp"]) {
+    const sec = el({ name, draws: 0, radios: [] });
+    let html = "";
+    Object.defineProperty(sec, "innerHTML", { get() { return html; }, set(v) { html = v; sec.draws++; sec.msg = el({ name: `${name}-msg` }); sec.radios = []; } });
+    sec.msg = el({ name: `${name}-msg` });
+    sec.querySelector = (sel) => {
+      if (sel === "[data-cw-profile-msg]") return sec.msg;
       if (sel === "[data-cw-bday-day]") return selects.day;
       if (sel === "[data-cw-bday-month]") return selects.month;
+      if (sel.startsWith("input[data-cw-comfort") || sel === "#cw-wa-updates" || sel === "[data-cw-bday-save]") {
+        return (sec.innerHTML || outer.innerHTML).includes(sel.includes("comfort") ? "data-cw-comfort" : sel.includes("wa") ? "data-cw-wa-updates" : "data-cw-bday-save") ? el({ name: sel }) : null;
+      }
+      if (sel === ".cw-section__title") return el({ name: `${name}-title` });
       return null;
-    },
-    querySelectorAll(sel) { return sel === "input[data-cw-comfort]" ? slotInputs : []; },
-  });
-  slot.attrs.hidden = "";
+    };
+    sec.querySelectorAll = (sel) => {
+      if (sel !== "input[data-cw-comfort]") return [];
+      const n = ((sec.innerHTML || outer.innerHTML).match(/data-cw-comfort="/g) || []).length;
+      while (sec.radios.length < n) sec.radios.push(el({ name: "radio" }));
+      return sec.radios;
+    };
+    sections[name] = sec;
+  }
   const mount = {
     innerHTML: "", setAttribute() {}, getAttribute() { return null; },
     addEventListener(t, h) { if (t === "click") handlers.push(h); },
     querySelector(sel) {
-      if (sel === '[data-cw-circle-slot="details"]') return mount.innerHTML.includes('data-cw-circle-slot="details"') ? slot : null;
+      if (sel === '[data-cw-circle-slot="details"]') return mount.innerHTML.includes('data-cw-circle-slot="details"') ? outer : null;
+      const m = /^\[data-cw-profile-slot="(\w+)"\]$/.exec(sel);
+      if (m) return outer.innerHTML.includes(`data-cw-profile-slot="${m[1]}"`) ? sections[m[1]] : null;
       return null;
     },
     querySelectorAll() { return []; },
@@ -218,7 +248,10 @@ function harness({ comfort = COMFORT, birthday = BDAY_EMPTY, wa = WA, put = {} }
     calls.push({ method, url, body: init.body ? JSON.parse(init.body) : undefined });
     if (url.startsWith("/api/auth/session")) return res(200, { signedIn: true, profile: { firstName: "Maria" } });
     const door = url.replace("/api/auth/proxy/client/loyalty/", "");
-    if (method === "PUT" && put[door]) return res(put[door].status, put[door].body);
+    if (method === "PUT" && put[door]) {
+      const a = typeof put[door] === "function" ? put[door](state) : put[door];
+      return res(a.status, a.body);
+    }
     if (door === "comfort") {
       if (method === "PUT") state.comfort = { ...state.comfort, comfort: { ...state.comfort.comfort, ...JSON.parse(init.body) } };
       return typeof state.comfort === "number" ? res(state.comfort, {}) : res(200, { success: true, data: state.comfort });
@@ -245,25 +278,28 @@ function harness({ comfort = COMFORT, birthday = BDAY_EMPTY, wa = WA, put = {} }
     return t;
   };
   const click = (t) => handlers.forEach((h) => h({ target: t, preventDefault() {}, stopPropagation() {} }));
-  return { doc, mount, slot, selects, slotInputs, calls, fetchImpl, target, click, state };
+  const puts = () => calls.filter((c) => c.method === "PUT").map((c) => [c.url.replace("/api/auth/proxy/client/loyalty/", ""), c.body]);
+  return { doc, mount, outer, sections, selects, calls, puts, fetchImpl, target, click, state, focused };
 }
-const settle = () => new Promise((r) => setTimeout(r, 40));
+const settle = (ms = 40) => new Promise((r) => setTimeout(r, ms));
+const SETTLED = 700; // > the 600 ms comfort settle
 const mountDetails = (h, circle = true) => mountAccountPortal(h.doc, { view: "details", fetchImpl: h.fetchImpl, navigate() {}, circle });
 
-test("Details: B4 off / 404 = the slot stays hidden and empty; live = the three sections; not opted in = no B4 read", async () => {
+test("Details: B4 off / 404 = the slot stays hidden and empty; live = three sections in their own slots; not opted in = no B4 read", async () => {
   for (const off of [{ enabled: false }, 404]) {
     const h = harness({ comfort: off, birthday: off, wa: off });
     mountDetails(h);
     await settle();
-    assert.equal(h.slot.innerHTML, "", JSON.stringify(off));
-    assert.ok("hidden" in h.slot.attrs);
+    assert.equal(h.outer.innerHTML, "", JSON.stringify(off));
+    assert.ok("hidden" in h.outer.attrs);
     assert.equal(h.calls.filter((c) => c.method !== "GET").length, 0);
   }
   const live = harness();
   mountDetails(live);
   await settle();
-  assert.ok(!("hidden" in live.slot.attrs));
-  for (const k of ["comfort", "birthday", "whatsapp-updates"]) assert.match(live.slot.innerHTML, new RegExp(`data-cw-circle="${k}"`));
+  assert.ok(!("hidden" in live.outer.attrs));
+  for (const k of ["comfort", "birthday", "whatsapp"]) assert.match(live.outer.innerHTML, new RegExp(`data-cw-profile-slot="${k}"`));
+  assert.match(live.outer.innerHTML, new RegExp(`data-cw-qc="${CIRCLE_QC}"`));
   assert.equal(live.calls.filter((c) => c.method !== "GET").length, 0, "a prefill is never saved by itself");
   const notOpted = harness();
   mountDetails(notOpted, false);
@@ -271,20 +307,52 @@ test("Details: B4 off / 404 = the slot stays hidden and empty; live = the three 
   assert.equal(notOpted.calls.some((c) => c.url.includes("/loyalty/")), false);
 });
 
-test("Details: a comfort tap PUTs that ONE key; the same choice again sends nothing", async () => {
+test("comfort: a keyboard sweep (Light → Medium → Firm) settles into ONE save of 'firm'; the drawn choices are held while it flies", async () => {
   const h = harness();
   mountDetails(h);
   await settle();
-  h.click(h.target("data-cw-comfort", "pressure", { value: "medium" })); // already on file
-  h.click(h.target("data-cw-comfort", "pressure", { value: "firm" }));
-  assert.ok(h.slotInputs.every((i) => "disabled" in i.attrs), "the choices are held while saving");
+  for (const v of ["light", "medium", "firm"]) h.click(h.target("data-cw-comfort", "pressure", { value: v }));
   await settle();
-  assert.deepEqual(h.calls.filter((c) => c.method === "PUT").map((c) => [c.url, c.body]), [["/api/auth/proxy/client/loyalty/comfort", { pressure: "firm" }]]);
-  assert.match(h.slot.innerHTML, /value="firm" data-cw-comfort="pressure" checked>/);
-  assert.match(h.slot.innerHTML, /data-cw-profile-msg="comfort">Saved\.</);
+  assert.deepEqual(h.puts(), [], "nothing is sent while the choice is still moving");
+  await settle(SETTLED);
+  assert.deepEqual(h.puts(), [["comfort", { pressure: "firm" }]]);
+  assert.equal(h.sections.comfort.radios.length, 0, "redrawn after the answer");
+  assert.match(h.sections.comfort.innerHTML, /value="firm" data-cw-comfort="pressure" checked>/);
+  assert.equal(h.sections.comfort.msg.innerHTML, "Saved.");
+  assert.equal(h.sections.birthday.draws, 0, "the other sections are never redrawn");
+  assert.equal(h.sections.whatsapp.draws, 0);
 });
 
-test("Details: birthday saves {day, month} on the tap; a lock answers with the date it opens", async () => {
+test("comfort: two groups changed together go in one PUT; going back to what is on file sends nothing", async () => {
+  const h = harness();
+  mountDetails(h);
+  await settle();
+  h.click(h.target("data-cw-comfort", "oils", { value: "aromatic" }));
+  h.click(h.target("data-cw-comfort", "music", { value: "calm" }));
+  await settle(SETTLED);
+  assert.deepEqual(h.puts(), [["comfort", { oils: "aromatic", music: "calm" }]]);
+  const same = harness();
+  mountDetails(same);
+  await settle();
+  same.click(same.target("data-cw-comfort", "pressure", { value: "firm" }));
+  same.click(same.target("data-cw-comfort", "pressure", { value: "medium" })); // back to what is on file
+  await settle(SETTLED);
+  assert.deepEqual(same.puts(), []);
+});
+
+test("comfort: a refusal redraws what is ON FILE (the old choice checked) and says why", async () => {
+  const h = harness({ put: { comfort: { status: 400, body: { error: "x", code: "LOYALTY_COMFORT_INVALID" } } } });
+  mountDetails(h);
+  await settle();
+  h.click(h.target("data-cw-comfort", "pressure", { value: "firm" }));
+  await settle(SETTLED);
+  assert.match(h.sections.comfort.innerHTML, /value="medium" data-cw-comfort="pressure" checked>/);
+  assert.doesNotMatch(h.sections.comfort.innerHTML, /value="firm" data-cw-comfort="pressure" checked>/);
+  assert.match(h.sections.comfort.msg.innerHTML, /isn(&#39;|')t available any more/);
+  assert.equal(h.sections.comfort.msg.attrs.class, "cw-circle-prefs__msg cw-circle-prefs__msg--bad");
+});
+
+test("birthday: saves {day, month} on the tap and shows the locked day; other sections untouched", async () => {
   const h = harness();
   mountDetails(h);
   await settle();
@@ -292,53 +360,90 @@ test("Details: birthday saves {day, month} on the tap; a lock answers with the d
   h.selects.month.value = "3";
   h.click(h.target("data-cw-bday-save"));
   await settle();
-  assert.deepEqual(h.calls.filter((c) => c.method === "PUT").map((c) => c.body), [{ day: 15, month: 3 }]);
-  assert.match(h.slot.innerHTML, /You can change it again from 15 November 2027\./);
+  assert.deepEqual(h.puts(), [["birthday", { day: 15, month: 3 }]]);
+  assert.match(h.sections.birthday.innerHTML, /You can change it again from 15 November 2027\./);
+  assert.equal(h.sections.birthday.msg.innerHTML, "Saved.");
+  assert.equal(h.sections.comfort.draws, 0);
+});
 
-  const locked = harness({ put: { birthday: { status: 409, body: { error: "x", code: "LOYALTY_BIRTHDAY_LOCKED", data: { unlocksAt: "2027-11-15" } } } } });
-  mountDetails(locked);
+test("birthday: a refusal KEEPS the member's picks (only the message changes); nothing chosen sends nothing", async () => {
+  const h = harness({ put: { birthday: { status: 400, body: { error: "x", code: "LOYALTY_BIRTHDAY_INVALID" } } } });
+  mountDetails(h);
   await settle();
-  locked.selects.day.value = "16";
-  locked.selects.month.value = "3";
-  locked.click(locked.target("data-cw-bday-save"));
+  h.selects.day.value = "31";
+  h.selects.month.value = "2";
+  h.click(h.target("data-cw-bday-save"));
   await settle();
-  assert.match(locked.slot.innerHTML, /Your birthday is saved\. You can change it again from 15 November 2027\./);
-  // Nothing chosen: no request, a plain line.
+  assert.equal(h.sections.birthday.draws, 0, "the form is not redrawn, so 31 / February stay picked");
+  assert.match(h.sections.birthday.msg.innerHTML, /isn(&#39;|')t in the calendar/);
   const empty = harness({ birthday: { ...BDAY_EMPTY, prefill: null } });
   mountDetails(empty);
   await settle();
   empty.click(empty.target("data-cw-bday-save"));
   await settle();
-  assert.equal(empty.calls.filter((c) => c.method === "PUT").length, 0);
-  assert.match(empty.slot.innerHTML, /Choose a day and a month\./);
+  assert.deepEqual(empty.puts(), []);
+  assert.equal(empty.sections.birthday.msg.innerHTML, "Choose a day and a month.");
 });
 
-test("Details: WhatsApp updates opt in / out with one PUT; no phone = plain words; a member who left can still opt out", async () => {
+test("birthday: a 409 lock re-reads the saved day and shows the date it opens (either error envelope)", async () => {
+  for (const body of [
+    { error: "x", code: "LOYALTY_BIRTHDAY_LOCKED", data: { unlocksAt: "2027-11-15" } },
+    { success: false, code: "LOYALTY_BIRTHDAY_LOCKED", error: { code: "LOYALTY_BIRTHDAY_LOCKED", data: { unlocksAt: "2027-11-15" } } },
+  ]) {
+    const h = harness({ put: { birthday: (st) => { st.birthday = BDAY_LOCKED; return { status: 409, body }; } } });
+    mountDetails(h);
+    await settle();
+    h.selects.day.value = "16";
+    h.selects.month.value = "3";
+    h.click(h.target("data-cw-bday-save"));
+    await settle();
+    assert.match(h.sections.birthday.innerHTML, /15 March/);
+    assert.doesNotMatch(h.sections.birthday.innerHTML, /<select/, "the locked view, not the form");
+    assert.equal(h.sections.birthday.msg.innerHTML, "Your birthday is saved. You can change it again from 15 November 2027.");
+    assert.ok(h.focused.includes("birthday-title"), "focus lands on the section, not the page");
+  }
+});
+
+test("WhatsApp updates: opt in / out with one PUT; no phone = plain words; a left member can opt out; an off-switch opt-out still saves", async () => {
   const h = harness();
   mountDetails(h);
   await settle();
   h.click(h.target("data-cw-wa-updates", "", { checked: true }));
   await settle();
-  assert.deepEqual(h.calls.filter((c) => c.method === "PUT").map((c) => [c.url, c.body]), [["/api/auth/proxy/client/loyalty/whatsapp-updates", { optedIn: true }]]);
-  assert.match(h.slot.innerHTML, /data-cw-wa-updates checked/);
-  assert.match(h.slot.innerHTML, /Saved\. Your booking updates will come on WhatsApp\./);
+  assert.deepEqual(h.puts(), [["whatsapp-updates", { optedIn: true }]]);
+  assert.match(h.sections.whatsapp.innerHTML, /data-cw-wa-updates checked/);
+  assert.equal(h.sections.whatsapp.msg.innerHTML, "Saved. Your booking updates will come on WhatsApp.");
 
   const noPhone = harness({ wa: { ...WA, hasPhone: false, phoneLast4: null }, put: { "whatsapp-updates": { status: 400, body: { error: "x", code: "LOYALTY_NO_PHONE" } } } });
   mountDetails(noPhone);
   await settle();
   noPhone.click(noPhone.target("data-cw-wa-updates", "", { checked: true }));
   await settle();
-  assert.match(noPhone.slot.innerHTML, /We don(&#39;|')t have a mobile number for you yet/);
-  assert.doesNotMatch(noPhone.slot.innerHTML, /data-cw-wa-updates checked/, "never shown as opted in");
+  assert.match(noPhone.sections.whatsapp.msg.innerHTML, /We don(&#39;|')t have a mobile number for you yet/);
+  assert.doesNotMatch(noPhone.sections.whatsapp.innerHTML, /data-cw-wa-updates checked/, "never shown as opted in");
 
   const left = harness({ comfort: LEFT_ONLY, birthday: LEFT_ONLY, wa: { ...WA, left: true, optedIn: true } });
   mountDetails(left);
   await settle();
-  assert.doesNotMatch(left.slot.innerHTML, /data-cw-circle="comfort"|data-cw-circle="birthday"/, "a left member cannot save these");
+  assert.doesNotMatch(left.outer.innerHTML, /data-cw-circle="comfort"|data-cw-circle="birthday"/, "a left member cannot save these");
   left.click(left.target("data-cw-wa-updates", "", { checked: false }));
   await settle();
-  assert.deepEqual(left.calls.filter((c) => c.method === "PUT").map((c) => c.body), [{ optedIn: false }]);
-  assert.match(left.slot.innerHTML, /Saved\. No more booking updates on WhatsApp\./);
+  assert.deepEqual(left.puts(), [["whatsapp-updates", { optedIn: false }]]);
+  assert.equal(left.sections.whatsapp.msg.innerHTML, "Saved. No more booking updates on WhatsApp.");
+
+  const offOut = harness({ wa: { ...WA, optedIn: true }, put: { "whatsapp-updates": { status: 200, body: { success: true, data: { enabled: false, optedIn: false } } } } });
+  mountDetails(offOut);
+  await settle();
+  offOut.click(offOut.target("data-cw-wa-updates", "", { checked: false }));
+  await settle();
+  assert.doesNotMatch(offOut.sections.whatsapp.innerHTML, /data-cw-wa-updates checked/);
+  assert.equal(offOut.sections.whatsapp.msg.innerHTML, "Saved. No more booking updates on WhatsApp.");
+});
+
+test("the copies of shared constants have not drifted (QC marker, the Details address)", () => {
+  assert.match(circleDetailsHTML({ comfort: readCircleComfort(COMFORT), birthday: null, whatsapp: null }), new RegExp(`data-cw-qc="${CIRCLE_QC}"`));
+  const page = circleViewHTML({ me: readCircle({ ...MARIA, actions: [{ ...MARIA.actions[0], missing: ["birthday"] }] }), activity: null, rewards: null });
+  assert.ok(page.includes(`href="${ACCOUNT_DETAILS_HREF}">Finish in your details`));
 });
 
 /* ── The proxy: exactly six new literal doors ──────────────────────────── */

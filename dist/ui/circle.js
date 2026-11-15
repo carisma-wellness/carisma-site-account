@@ -24,7 +24,7 @@
 import { escapeHtml } from "./html.js";
 import { eur } from "./money.js";
 import { unwrapEnvelope } from "./appointments.js";
-import { profileMissingText } from "./circleProfile.js";
+import { profileMissingInDetails, profileMissingText } from "./circleProfile.js";
 /** Same literal as panel.ts ACCOUNT_DETAILS_HREF (not imported: panel.ts imports this module). */
 const ACCOUNT_DETAILS_PATH = "/account/details";
 export const CIRCLE_QC = "carisma-circle-20261115";
@@ -562,7 +562,9 @@ function profileMissingHTML(a) {
     if (!text)
         return "";
     return (`<span class="cw-circle-earn__missing" data-cw-circle-missing>${escapeHtml(text)}` +
-        ` · <a class="cw-link" href="${ACCOUNT_DETAILS_PATH}">Finish in your details</a></span>`);
+        // Only when Details can finish it (verifying an email is done from the email itself).
+        (profileMissingInDetails(a.missing) ? ` · <a class="cw-link" href="${ACCOUNT_DETAILS_PATH}">Finish in your details</a>` : "") +
+        `</span>`);
 }
 function passportHTML(m) {
     const p = m.passport;

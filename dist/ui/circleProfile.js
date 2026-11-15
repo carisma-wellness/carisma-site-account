@@ -136,7 +136,7 @@ function msgHTML(key, msg) {
     return (`<p class="cw-circle-prefs__msg${msg ? ` cw-circle-prefs__msg--${msg.tone}` : ""}" role="status" aria-live="polite" data-cw-profile-msg="${key}">` +
         `${msg ? escapeHtml(msg.text) : ""}</p>`);
 }
-export function comfortHTML(c, msg, busy = false) {
+export function comfortHTML(c, msg) {
     if (!c)
         return "";
     const groups = COMFORT_KEYS.map((k) => {
@@ -146,7 +146,6 @@ export function comfortHTML(c, msg, busy = false) {
             return (`<span class="cw-comfort__opt">` +
                 `<input type="radio" class="cw-comfort__radio" id="${escapeHtml(id)}" name="cw-comfort-${k}" value="${escapeHtml(ch.value)}" data-cw-comfort="${k}"` +
                 (c.values[k] === ch.value ? " checked" : "") +
-                (busy ? " disabled" : "") +
                 `>` +
                 `<label class="cw-comfort__chip" for="${escapeHtml(id)}">${escapeHtml(ch.label)}</label>` +
                 `</span>`);
@@ -156,18 +155,18 @@ export function comfortHTML(c, msg, busy = false) {
             `<div class="cw-comfort__opts">${opts}</div></fieldset>`);
     }).join("");
     return (`<section class="cw-section cw-rise cw-circle-comfort" aria-labelledby="cw-circle-comfort-title" data-cw-circle="comfort">` +
-        `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-comfort-title">So we can prepare your room</h2></div>` +
+        `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-comfort-title" tabindex="-1">So we can prepare your room</h2></div>` +
         `<div class="cw-card cw-circle-profile__card">` +
         groups +
         `<p class="cw-fine">Used only to set up your room at Carisma Spa, Aesthetics and Slimming. Change them any time.</p>` +
         msgHTML("comfort", msg) +
         `</div></section>`);
 }
-export function birthdayHTML(b, msg, busy = false) {
+export function birthdayHTML(b, msg) {
     if (!b)
         return "";
     const head = `<section class="cw-section cw-rise cw-circle-bday" aria-labelledby="cw-circle-bday-title" data-cw-circle="birthday">` +
-        `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-bday-title">Your birthday</h2></div>` +
+        `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-bday-title" tabindex="-1">Your birthday</h2></div>` +
         `<div class="cw-card cw-circle-profile__card">`;
     const foot = msgHTML("birthday", msg) + `</div></section>`;
     if (b.birthday && !b.editable) {
@@ -188,24 +187,23 @@ export function birthdayHTML(b, msg, busy = false) {
         `<p class="cw-circle__rule">Day and month only, never the year. Once saved, it can be changed once a year.</p>` +
         (b.prefill && !b.birthday ? `<p class="cw-fine">Filled in from the date of birth we have for you. Check it and save.</p>` : "") +
         `<div class="cw-bday__row" ${M}>` +
-        `<label class="cw-vh" for="cw-bday-day">Day</label><select class="cw-bday__select" id="cw-bday-day" data-cw-bday-day${busy ? " disabled" : ""}>${dayOpts}</select>` +
-        `<label class="cw-vh" for="cw-bday-month">Month</label><select class="cw-bday__select" id="cw-bday-month" data-cw-bday-month${busy ? " disabled" : ""}>${monthOpts}</select>` +
-        `<button type="button" class="cw-btn cw-btn--secondary cw-btn--sm${busy ? " is-busy" : ""}" data-cw-bday-save${busy ? ' aria-disabled="true"' : ""}>${busy ? "Saving…" : b.birthday ? "Save" : "Save my birthday"}</button>` +
+        `<label class="cw-vh" for="cw-bday-day">Day</label><select class="cw-bday__select" id="cw-bday-day" data-cw-bday-day>${dayOpts}</select>` +
+        `<label class="cw-vh" for="cw-bday-month">Month</label><select class="cw-bday__select" id="cw-bday-month" data-cw-bday-month>${monthOpts}</select>` +
+        `<button type="button" class="cw-btn cw-btn--secondary cw-btn--sm" data-cw-bday-save>${b.birthday ? "Save" : "Save my birthday"}</button>` +
         `</div>` +
         (b.birthday ? `<p class="cw-fine" ${M}>${escapeHtml(`Saved as ${birthdayText(b.birthday)}.`)}</p>` : "") +
         foot);
 }
-export function whatsappUpdatesHTML(w, msg, busy = false) {
+export function whatsappUpdatesHTML(w, msg) {
     if (!w)
         return "";
     const to = w.phoneLast4 ? `To your mobile ending ${w.phoneLast4}.` : w.hasPhone ? "" : "We don't have a mobile number for you yet.";
     return (`<section class="cw-section cw-rise cw-circle-wa" aria-labelledby="cw-circle-wa-title" data-cw-circle="whatsapp-updates">` +
-        `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-wa-title">Booking updates on WhatsApp</h2></div>` +
+        `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-wa-title" tabindex="-1">Booking updates on WhatsApp</h2></div>` +
         `<div class="cw-card cw-circle-profile__card">` +
         `<div class="cw-circle-prefs__row">` +
         `<input type="checkbox" class="cw-circle-prefs__box" id="cw-wa-updates" data-cw-wa-updates` +
         (w.optedIn ? " checked" : "") +
-        (busy ? " disabled" : "") +
         `>` +
         `<label class="cw-circle-prefs__label" for="cw-wa-updates">${escapeHtml(WHATSAPP_UPDATES_SENTENCE)}</label>` +
         `</div>` +
@@ -213,16 +211,28 @@ export function whatsappUpdatesHTML(w, msg, busy = false) {
         msgHTML("whatsapp", msg) +
         `</div></section>`);
 }
-/** The Circle part of Details. "" when nothing answered live. */
+/** One section's HTML (the part browser.ts redraws after a save, leaving the other two untouched). */
+export function profileSectionHTML(section, input, msg) {
+    if (section === "comfort")
+        return comfortHTML(input.comfort, msg);
+    if (section === "birthday")
+        return birthdayHTML(input.birthday, msg);
+    return whatsappUpdatesHTML(input.whatsapp, msg);
+}
+/**
+ * The Circle part of Details: each section in its own slot, so a save in one
+ * never redraws (and never wipes the unsaved picks of) another. "" when nothing
+ * answered live.
+ */
 export function circleDetailsHTML(input) {
     const { comfort, birthday, whatsapp } = input;
     if (!comfort && !birthday && !whatsapp)
         return "";
-    const msgs = input.msgs ?? {};
+    const slot = (s) => `<div class="cw-circle-slot" data-cw-profile-slot="${s}">${profileSectionHTML(s, input)}</div>`;
     return (`<div class="cw-circle-profile" data-cw-qc="${CIRCLE_QC}" data-cw-circle="details">` +
-        comfortHTML(comfort, msgs.comfort, input.busy === "comfort") +
-        birthdayHTML(birthday, msgs.birthday, input.busy === "birthday") +
-        whatsappUpdatesHTML(whatsapp, msgs.whatsapp, input.busy === "whatsapp") +
+        slot("comfort") +
+        slot("birthday") +
+        slot("whatsapp") +
         `</div>`);
 }
 /* ── "Complete your profile": what is still missing ────────────────────── */
@@ -231,6 +241,10 @@ const MISSING_WORDS = {
     birthday: "add your birthday",
     comfort: "choose your room preferences",
 };
+/** Can Details finish it? Birthday and comfort, yes; verifying an email, no (it is done from the email itself). */
+export function profileMissingInDetails(missing) {
+    return (missing ?? []).some((m) => m === "birthday" || m === "comfort");
+}
 /** "Still to do: add your birthday · choose your room preferences". "" when nothing (known) is missing. */
 export function profileMissingText(missing) {
     const words = (missing ?? []).map((m) => MISSING_WORDS[m]).filter(Boolean);

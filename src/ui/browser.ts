@@ -40,15 +40,18 @@ import {
 import {
   circleDetailsHTML,
   profileErrorText,
+  profileSectionHTML,
   readCircleBirthday,
   readCircleComfort,
   readCircleWhatsapp,
-  type CircleBirthday,
-  type CircleComfort,
-  type CircleWhatsapp,
+  type CircleDetailsInput,
   type ComfortKey,
   type ProfileMsg,
+  type ProfileSection,
 } from "./circleProfile.js";
+
+/** How long comfort choices settle before ONE save (a keyboard sweep through a radio group is one change). */
+const COMFORT_SETTLE_MS = 600;
 import {
   accountPortalHTML,
   buildPortalModel,
@@ -1932,20 +1935,27 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
 
   /* ── Carisma Circle profile in Details (W4, backend B4) ───────────────── */
 
-  let profileNow: { comfort: CircleComfort | null; birthday: CircleBirthday | null; whatsapp: CircleWhatsapp | null } = {
-    comfort: null,
-    birthday: null,
-    whatsapp: null,
-  };
+  let profileNow: CircleDetailsInput = { comfort: null, birthday: null, whatsapp: null };
   const profileSlot = () => qs(mount, '[data-cw-circle-slot="details"]');
-  const drawProfile = (msgs?: { comfort?: ProfileMsg; birthday?: ProfileMsg; whatsapp?: ProfileMsg }, focusSel?: string) => {
-    const slot = profileSlot();
+  const sectionSlot = (s: ProfileSection) => qs(mount, `[data-cw-profile-slot="${s}"]`);
+  /** Write a message into a section's live region AFTER it exists, so a screen reader announces it. */
+  const say = (s: ProfileSection, msg: ProfileMsg) => {
+    const el = qs(sectionSlot(s), "[data-cw-profile-msg]");
+    if (!el || !msg) return;
+    el.setAttribute("class", `cw-circle-prefs__msg cw-circle-prefs__msg--${msg.tone}`);
+    el.innerHTML = escapeHtml(msg.text);
+  };
+  /**
+   * Redraw ONE section from what the server last said (the other two, and any
+   * day/month the member picked there, are left alone). Focus goes back to the
+   * control, or to the section's title when that control is gone.
+   */
+  const drawSection = (s: ProfileSection, msg?: ProfileMsg, focusSel?: string) => {
+    const slot = sectionSlot(s);
     if (!slot) return;
-    const html = circleDetailsHTML({ ...profileNow, msgs });
-    slot.innerHTML = html;
-    if (html) slot.removeAttribute?.("hidden");
-    else slot.setAttribute("hidden", "");
-    if (focusSel) qs(slot, focusSel)?.focus?.();
+    slot.innerHTML = profileSectionHTML(s, profileNow);
+    if (focusSel) (qs(slot, focusSel) ?? qs(slot, ".cw-section__title"))?.focus?.();
+    if (msg) say(s, msg);
   };
   /** The three B4 reads, side by side; each one that is off / 404 / failed simply draws nothing. */
   const readCircleProfile = (): void => {
@@ -1956,7 +1966,11 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
           birthday: b.state === "failed" ? null : readCircleBirthday(b.body),
           whatsapp: w.state === "failed" ? null : readCircleWhatsapp(w.body),
         };
-        drawProfile();
+        const slot = profileSlot();
+        if (!slot) return;
+        const html = circleDetailsHTML(profileNow);
+        slot.innerHTML = html;
+        if (html) slot.removeAttribute?.("hidden");
       },
     );
   };
@@ -1965,29 +1979,58 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
     tone: "bad",
   });
 
-  /** One comfort choice = one PUT; the group redraws from the server's answer (a refusal redraws what is on file). */
+  /**
+   * Comfort: the choices settle for a moment before one PUT carries every
+   * changed key (arrow keys walk a radio group one click per step — Light →
+   * Medium → Firm must be ONE save of "firm", not three). The group redraws from
+   * the server's answer; a refusal redraws what is on file.
+   */
+  const comfortPending = new Map<ComfortKey, string>();
+  let comfortTimer: ReturnType<typeof setTimeout> | null = null;
+  let comfortInFlight = false;
+  let comfortLastKey: ComfortKey | null = null;
+  const flushComfort = (): void => {
+    comfortTimer = null;
+    const now = profileNow.comfort;
+    if (!now) return;
+    if (comfortInFlight) {
+      comfortTimer = setTimeout(flushComfort, COMFORT_SETTLE_MS);
+      return;
+    }
+    const changes: Partial<Record<ComfortKey, string>> = {};
+    for (const [k, v] of comfortPending) if (now.values[k] !== v) changes[k] = v;
+    comfortPending.clear();
+    if (!Object.keys(changes).length) return;
+    comfortInFlight = true;
+    qsa(sectionSlot("comfort"), "input[data-cw-comfort]").forEach((i) => i.setAttribute("disabled", ""));
+    void postJson(fetchImpl, circleComfortCall(changes)).then((r) => {
+      comfortInFlight = false;
+      if (r.status === 401) return signIn();
+      const next = r.ok ? readCircleComfort(r.body) : null;
+      if (next) profileNow.comfort = next;
+      const k = comfortLastKey;
+      drawSection("comfort", next ? { text: "Saved.", tone: "ok" } : refused(r), k ? `input[data-cw-comfort="${k}"]:checked` : undefined);
+    });
+  };
   const saveComfort = (input: LiveEl): void => {
     const now = profileNow.comfort;
     const key = (input.getAttribute("data-cw-comfort") || "") as ComfortKey;
     const value = (input as unknown as { value?: string }).value || "";
-    if (!now || !(key in now.values) || !value || now.values[key] === value) return;
-    qsa(profileSlot(), "input[data-cw-comfort]").forEach((i) => i.setAttribute("disabled", ""));
-    void postJson(fetchImpl, circleComfortCall(key, value)).then((r) => {
-      if (r.status === 401) return signIn();
-      const next = r.ok ? readCircleComfort(r.body) : null;
-      if (next) profileNow.comfort = next;
-      drawProfile({ comfort: next ? { text: "Saved.", tone: "ok" } : refused(r) }, `input[data-cw-comfort="${key}"]:checked`);
-    });
+    if (!now || !(key in now.values) || !value) return;
+    comfortPending.set(key, value);
+    comfortLastKey = key;
+    if (comfortTimer) clearTimeout(comfortTimer);
+    comfortTimer = setTimeout(flushComfort, COMFORT_SETTLE_MS);
   };
 
   /** Day + month, saved only on the member's tap (a prefill from the date of birth is never saved by itself). */
   const saveBirthday = (btn: LiveEl): void => {
     if (!profileNow.birthday || btn.getAttribute("aria-disabled") === "true") return;
-    const slot = profileSlot();
+    const slot = sectionSlot("birthday");
     const day = Number(qs(slot, "[data-cw-bday-day]")?.value || "");
     const month = Number(qs(slot, "[data-cw-bday-month]")?.value || "");
     if (!day || !month) {
-      drawProfile({ birthday: { text: "Choose a day and a month.", tone: "bad" } });
+      say("birthday", { text: "Choose a day and a month.", tone: "bad" });
       return;
     }
     const restore = setBusy(btn, "Saving…");
@@ -1996,11 +2039,27 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
       const next = r.ok ? readCircleBirthday(r.body) : null;
       if (next) {
         profileNow.birthday = next;
-        drawProfile({ birthday: { text: "Saved.", tone: "ok" } });
+        drawSection("birthday", { text: "Saved.", tone: "ok" }, "[data-cw-bday-save]");
         return;
       }
+      if (errorCodeOf(r.body) === "LOYALTY_BIRTHDAY_LOCKED") {
+        // Already saved and locked: show it as it is on file, with the date it opens.
+        void readT(circleBirthdayReadCall().path).then((g) => {
+          const fresh = g.state === "failed" ? null : readCircleBirthday(g.body);
+          if (fresh) {
+            profileNow.birthday = fresh;
+            drawSection("birthday", refused(r), ".cw-section__title");
+          } else {
+            restore();
+            say("birthday", refused(r));
+          }
+        });
+        return;
+      }
+      // Any other refusal keeps the member's picks on screen; only the message changes.
       restore();
-      drawProfile({ birthday: refused(r) });
+      say("birthday", refused(r));
+      btn.focus?.();
     });
   };
 
@@ -2017,13 +2076,14 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
       if (next || (r.ok && !want)) {
         profileNow.whatsapp = next ?? { ...now, optedIn: false };
         const on = profileNow.whatsapp.optedIn;
-        drawProfile(
-          { whatsapp: { text: on ? "Saved. Your booking updates will come on WhatsApp." : "Saved. No more booking updates on WhatsApp.", tone: "ok" } },
+        drawSection(
+          "whatsapp",
+          { text: on ? "Saved. Your booking updates will come on WhatsApp." : "Saved. No more booking updates on WhatsApp.", tone: "ok" },
           "#cw-wa-updates",
         );
         return;
       }
-      drawProfile({ whatsapp: refused(r) }, "#cw-wa-updates");
+      drawSection("whatsapp", refused(r), "#cw-wa-updates");
     });
   };
 

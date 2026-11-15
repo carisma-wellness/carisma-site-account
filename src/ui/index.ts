@@ -112,8 +112,10 @@ export {
   birthdayHTML,
   whatsappUpdatesHTML,
   circleDetailsHTML,
+  profileSectionHTML,
+  profileMissingInDetails,
 } from "./circleProfile.js";
-export type { CircleComfort, CircleBirthday, CircleWhatsapp, ComfortKey, CircleDetailsInput, ProfileMsg } from "./circleProfile.js";
+export type { CircleComfort, CircleBirthday, CircleWhatsapp, ComfortKey, CircleDetailsInput, ProfileMsg, ProfileSection } from "./circleProfile.js";
 export type {
   CircleModel,
   CircleLevelView,

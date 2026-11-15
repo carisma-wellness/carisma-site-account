@@ -211,11 +211,11 @@ export const staffCall = (opts) => {
 export const circleComfortReadCall = () => ({ path: `${PROXY}/client/loyalty/comfort`, method: "GET" });
 export const circleBirthdayReadCall = () => ({ path: `${PROXY}/client/loyalty/birthday`, method: "GET" });
 export const circleWhatsappReadCall = () => ({ path: `${PROXY}/client/loyalty/whatsapp-updates`, method: "GET" });
-/** One comfort choice per PUT (a key left out is unchanged on the server). */
-export const circleComfortCall = (key, value) => ({
+/** The changed comfort choices only (a key left out is unchanged on the server). */
+export const circleComfortCall = (changes) => ({
     path: `${PROXY}/client/loyalty/comfort`,
     method: "PUT",
-    body: { [key]: value },
+    body: { ...changes },
 });
 /** Day + month only: a year is never sent (the server refuses one). */
 export const circleBirthdayCall = (day, month) => ({

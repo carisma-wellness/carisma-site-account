@@ -55,22 +55,25 @@ export type ProfileMsg = {
     text: string;
     tone: "ok" | "bad";
 } | null | undefined;
-export declare function comfortHTML(c: CircleComfort | null, msg?: ProfileMsg, busy?: boolean): string;
-export declare function birthdayHTML(b: CircleBirthday | null, msg?: ProfileMsg, busy?: boolean): string;
-export declare function whatsappUpdatesHTML(w: CircleWhatsapp | null, msg?: ProfileMsg, busy?: boolean): string;
+export declare function comfortHTML(c: CircleComfort | null, msg?: ProfileMsg): string;
+export declare function birthdayHTML(b: CircleBirthday | null, msg?: ProfileMsg): string;
+export declare function whatsappUpdatesHTML(w: CircleWhatsapp | null, msg?: ProfileMsg): string;
 export interface CircleDetailsInput {
     comfort: CircleComfort | null;
     birthday: CircleBirthday | null;
     whatsapp: CircleWhatsapp | null;
-    msgs?: {
-        comfort?: ProfileMsg;
-        birthday?: ProfileMsg;
-        whatsapp?: ProfileMsg;
-    };
-    busy?: "comfort" | "birthday" | "whatsapp" | null;
 }
-/** The Circle part of Details. "" when nothing answered live. */
+export type ProfileSection = "comfort" | "birthday" | "whatsapp";
+/** One section's HTML (the part browser.ts redraws after a save, leaving the other two untouched). */
+export declare function profileSectionHTML(section: ProfileSection, input: CircleDetailsInput, msg?: ProfileMsg): string;
+/**
+ * The Circle part of Details: each section in its own slot, so a save in one
+ * never redraws (and never wipes the unsaved picks of) another. "" when nothing
+ * answered live.
+ */
 export declare function circleDetailsHTML(input: CircleDetailsInput): string;
+/** Can Details finish it? Birthday and comfort, yes; verifying an email, no (it is done from the email itself). */
+export declare function profileMissingInDetails(missing: readonly string[] | undefined): boolean;
 /** "Still to do: add your birthday · choose your room preferences". "" when nothing (known) is missing. */
 export declare function profileMissingText(missing: readonly string[] | undefined): string;
 //# sourceMappingURL=circleProfile.d.ts.map
