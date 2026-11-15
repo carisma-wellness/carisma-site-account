@@ -553,9 +553,9 @@ test("proxy: the five W3 doors are exact literals; siblings, the till and placem
   ];
   for (const [m, p] of refused) assert.equal(isAllowed(m, p), false, `${m} ${p}`);
   for (const f of FORBIDDEN_PATHS) assert.equal(isAllowed(f.method, f.path), false, `${f.method} ${f.path}`);
-  // Exactly eleven loyalty doors in all: /me, W1's five, W3's five. Never anything wider.
+  // Loyalty doors in all: /me, W1's five, W3's five, W4's six (test/circle-w4.test.mjs). Never anything wider.
   const loyaltyRules = PROXY_ALLOWLIST.filter((r) => /loyalty|Carisma Circle/i.test(r.label));
-  assert.equal(loyaltyRules.length, 11, loyaltyRules.map((r) => `${r.method} ${r.label}`).join(", "));
+  assert.equal(loyaltyRules.length, 17, loyaltyRules.map((r) => `${r.method} ${r.label}`).join(", "));
 });
 
 const RP = "carisma-spa";

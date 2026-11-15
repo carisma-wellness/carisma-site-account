@@ -148,6 +148,32 @@ export const PORTAL_CIRCLE_CSS = `
 .carisma-portal .cw-circle-leave { display: grid; gap: 6px; justify-items: start; padding-top: 24px; border-top: 1px solid var(--cw-account-line); }
 .carisma-portal .cw-circle-leave__btn { color: var(--cw-account-bad-text); }
 
+/* ── Circle profile in Details (W4): comfort, birthday, WhatsApp updates ── */
+.carisma-portal .cw-circle-profile { display: grid; gap: 40px; margin-top: 40px; }
+.carisma-portal .cw-circle-profile__card { display: grid; gap: 16px; }
+.carisma-portal .cw-comfort__group { display: grid; gap: 8px; border: 0; margin: 0; padding: 0; min-width: 0; }
+.carisma-portal .cw-comfort__opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.carisma-portal .cw-comfort__opt { position: relative; display: inline-flex; }
+.carisma-portal .cw-comfort__radio { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.carisma-portal .cw-comfort__chip {
+  display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px;
+  border: 1px solid var(--cw-account-line-strong); border-radius: 999px;
+  font-size: 14px; line-height: 20px; color: var(--cw-account-ink); background: var(--cw-account-surface);
+  cursor: pointer;
+}
+.carisma-portal .cw-comfort__radio:checked + .cw-comfort__chip {
+  background: var(--cw-account-accent-fill); color: var(--cw-account-accent-ink); border-color: transparent;
+}
+.carisma-portal .cw-comfort__radio:focus-visible + .cw-comfort__chip { outline: 2px solid var(--cw-account-focus); outline-offset: 2px; }
+.carisma-portal .cw-comfort__radio[disabled] + .cw-comfort__chip { cursor: progress; opacity: 0.6; }
+.carisma-portal .cw-bday__row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.carisma-portal .cw-bday__select {
+  min-height: 44px; padding: 0 12px; border: 1px solid var(--cw-account-line-strong); border-radius: var(--cw-account-radius-control);
+  background: var(--cw-account-surface); color: var(--cw-account-ink); font: inherit; font-size: 15px;
+}
+.carisma-portal .cw-bday__select:focus-visible { outline: 2px solid var(--cw-account-focus); outline-offset: 2px; }
+.carisma-portal .cw-circle-earn__missing { display: block; margin-top: 2px; font-size: 13px; line-height: 18px; color: var(--cw-account-muted); }
+
 /* ── Wallet line ─────────────────────────────────────────────────────── */
 .carisma-portal .cw-strip__note { font-size: 13px; line-height: 18px; color: var(--cw-account-muted); }
 

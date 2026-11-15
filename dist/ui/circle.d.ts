@@ -36,6 +36,8 @@ export interface CircleAction {
     points: number;
     cents: number;
     done: boolean;
+    /** W4 (B4): for `profile`, what is still missing ('email_verified' | 'birthday' | 'comfort'). */
+    missing?: string[];
 }
 export interface CircleModel {
     creditCents: number;

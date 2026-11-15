@@ -38,6 +38,18 @@ import {
   type LeavePreview,
 } from "./circle.js";
 import {
+  circleDetailsHTML,
+  profileErrorText,
+  readCircleBirthday,
+  readCircleComfort,
+  readCircleWhatsapp,
+  type CircleBirthday,
+  type CircleComfort,
+  type CircleWhatsapp,
+  type ComfortKey,
+  type ProfileMsg,
+} from "./circleProfile.js";
+import {
   accountPortalHTML,
   buildPortalModel,
   errorBlockHTML,
@@ -66,6 +78,12 @@ import { buildSlotsModel, venueDateString, venueLocalToUtcIso, type SlotsModel }
 import {
   cancelCall,
   cancelSummary,
+  circleBirthdayCall,
+  circleBirthdayReadCall,
+  circleComfortCall,
+  circleComfortReadCall,
+  circleWhatsappCall,
+  circleWhatsappReadCall,
   circleLeaveCall,
   circleLeavePreviewCall,
   circleOffersCall,
@@ -1029,6 +1047,9 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
 
         if (view === "details") {
           paint(accountPortalHTML(buildPortalModel(session, view, extras)));
+          // Carisma Circle W4: the member's own comfort / birthday / WhatsApp
+          // updates, read AFTER the page is on screen and drawn only when live.
+          if (circleRail) readCircleProfile();
           return undefined;
         }
 
@@ -1909,6 +1930,103 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
     });
   };
 
+  /* ── Carisma Circle profile in Details (W4, backend B4) ───────────────── */
+
+  let profileNow: { comfort: CircleComfort | null; birthday: CircleBirthday | null; whatsapp: CircleWhatsapp | null } = {
+    comfort: null,
+    birthday: null,
+    whatsapp: null,
+  };
+  const profileSlot = () => qs(mount, '[data-cw-circle-slot="details"]');
+  const drawProfile = (msgs?: { comfort?: ProfileMsg; birthday?: ProfileMsg; whatsapp?: ProfileMsg }, focusSel?: string) => {
+    const slot = profileSlot();
+    if (!slot) return;
+    const html = circleDetailsHTML({ ...profileNow, msgs });
+    slot.innerHTML = html;
+    if (html) slot.removeAttribute?.("hidden");
+    else slot.setAttribute("hidden", "");
+    if (focusSel) qs(slot, focusSel)?.focus?.();
+  };
+  /** The three B4 reads, side by side; each one that is off / 404 / failed simply draws nothing. */
+  const readCircleProfile = (): void => {
+    void Promise.all([circleComfortReadCall(), circleBirthdayReadCall(), circleWhatsappReadCall()].map((c) => readT(c.path))).then(
+      ([c, b, w]) => {
+        profileNow = {
+          comfort: c.state === "failed" ? null : readCircleComfort(c.body),
+          birthday: b.state === "failed" ? null : readCircleBirthday(b.body),
+          whatsapp: w.state === "failed" ? null : readCircleWhatsapp(w.body),
+        };
+        drawProfile();
+      },
+    );
+  };
+  const refused = (r: { status: number; body: unknown }): ProfileMsg => ({
+    text: profileErrorText(errorCodeOf(r.body), r.body),
+    tone: "bad",
+  });
+
+  /** One comfort choice = one PUT; the group redraws from the server's answer (a refusal redraws what is on file). */
+  const saveComfort = (input: LiveEl): void => {
+    const now = profileNow.comfort;
+    const key = (input.getAttribute("data-cw-comfort") || "") as ComfortKey;
+    const value = (input as unknown as { value?: string }).value || "";
+    if (!now || !(key in now.values) || !value || now.values[key] === value) return;
+    qsa(profileSlot(), "input[data-cw-comfort]").forEach((i) => i.setAttribute("disabled", ""));
+    void postJson(fetchImpl, circleComfortCall(key, value)).then((r) => {
+      if (r.status === 401) return signIn();
+      const next = r.ok ? readCircleComfort(r.body) : null;
+      if (next) profileNow.comfort = next;
+      drawProfile({ comfort: next ? { text: "Saved.", tone: "ok" } : refused(r) }, `input[data-cw-comfort="${key}"]:checked`);
+    });
+  };
+
+  /** Day + month, saved only on the member's tap (a prefill from the date of birth is never saved by itself). */
+  const saveBirthday = (btn: LiveEl): void => {
+    if (!profileNow.birthday || btn.getAttribute("aria-disabled") === "true") return;
+    const slot = profileSlot();
+    const day = Number(qs(slot, "[data-cw-bday-day]")?.value || "");
+    const month = Number(qs(slot, "[data-cw-bday-month]")?.value || "");
+    if (!day || !month) {
+      drawProfile({ birthday: { text: "Choose a day and a month.", tone: "bad" } });
+      return;
+    }
+    const restore = setBusy(btn, "Saving…");
+    void postJson(fetchImpl, circleBirthdayCall(day, month)).then((r) => {
+      if (r.status === 401) return signIn();
+      const next = r.ok ? readCircleBirthday(r.body) : null;
+      if (next) {
+        profileNow.birthday = next;
+        drawProfile({ birthday: { text: "Saved.", tone: "ok" } });
+        return;
+      }
+      restore();
+      drawProfile({ birthday: refused(r) });
+    });
+  };
+
+  /** The SERVICE opt-in. Opt-out always goes through, a member who left included. */
+  const saveWhatsapp = (input: LiveEl): void => {
+    const now = profileNow.whatsapp;
+    if (!now) return;
+    const want = (input as unknown as { checked?: boolean }).checked === true;
+    input.setAttribute("disabled", "");
+    void postJson(fetchImpl, circleWhatsappCall(want)).then((r) => {
+      if (r.status === 401) return signIn();
+      const next = r.ok ? readCircleWhatsapp(r.body) : null;
+      // An opt-out while the programme is off answers {enabled:false, optedIn:false}: still saved.
+      if (next || (r.ok && !want)) {
+        profileNow.whatsapp = next ?? { ...now, optedIn: false };
+        const on = profileNow.whatsapp.optedIn;
+        drawProfile(
+          { whatsapp: { text: on ? "Saved. Your booking updates will come on WhatsApp." : "Saved. No more booking updates on WhatsApp.", tone: "ok" } },
+          "#cw-wa-updates",
+        );
+        return;
+      }
+      drawProfile({ whatsapp: refused(r) }, "#cw-wa-updates");
+    });
+  };
+
   /* ── One delegated listener for every view ────────────────────────────── */
 
   if (!portalListBound.has(mount)) {
@@ -1962,6 +2080,23 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
         return;
       }
       if (circleRail) {
+        // W4 (Details): the tick / the choice IS the request — never preventDefault.
+        const comfort = closestOf(t, "input[data-cw-comfort]");
+        if (comfort) {
+          saveComfort(comfort);
+          return;
+        }
+        const wa = closestOf(t, "input[data-cw-wa-updates]");
+        if (wa) {
+          saveWhatsapp(wa);
+          return;
+        }
+        const bday = closestOf(t, "[data-cw-bday-save]");
+        if (bday) {
+          ev.preventDefault?.();
+          saveBirthday(bday);
+          return;
+        }
         const pref = closestOf(t, "input[data-cw-circle-pref]");
         if (pref) {
           // Never preventDefault here: the tick IS the request.

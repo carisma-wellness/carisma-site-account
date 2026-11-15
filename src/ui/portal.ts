@@ -771,7 +771,7 @@ function walletStripHTML(w: WalletModel | null): string {
  * that browser.ts fills only when the member read says enabled:true. Absent
  * altogether unless the site opted in.
  */
-export function circleSlotHTML(m: { circleRail: boolean }, where: "home" | "wallet"): string {
+export function circleSlotHTML(m: { circleRail: boolean }, where: "home" | "wallet" | "details"): string {
   return m.circleRail ? `<div class="cw-circle-slot" data-cw-circle-slot="${where}" hidden></div>` : "";
 }
 
@@ -848,7 +848,10 @@ export function detailsBodyHTML(m: PortalModel): string {
     fact("Email", m.emailMasked) +
     `</dl>` +
     `<p class="cw-fine cw-prose cw-details__note">To change these, ask the team at the desk — this page is your record, not a form.</p>` +
-    `</section>`
+    `</section>` +
+    // Carisma Circle (W4): comfort, birthday, WhatsApp booking updates — hidden and
+    // empty until the member's own B4 reads answer live (browser.ts fills it).
+    circleSlotHTML(m, "details")
   );
 }
 
