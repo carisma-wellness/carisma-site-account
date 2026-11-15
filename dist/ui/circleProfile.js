@@ -197,7 +197,8 @@ export function birthdayHTML(b, msg) {
 export function whatsappUpdatesHTML(w, msg) {
     if (!w)
         return "";
-    const to = w.phoneLast4 ? `To your mobile ending ${w.phoneLast4}.` : w.hasPhone ? "" : "We don't have a mobile number for you yet.";
+    // With no number on file, a tick answers LOYALTY_NO_PHONE in full words (one sentence, never two).
+    const to = w.phoneLast4 ? `To your mobile ending ${w.phoneLast4}.` : "";
     return (`<section class="cw-section cw-rise cw-circle-wa" aria-labelledby="cw-circle-wa-title" data-cw-circle="whatsapp-updates">` +
         `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-wa-title" tabindex="-1">Booking updates on WhatsApp</h2></div>` +
         `<div class="cw-card cw-circle-profile__card">` +

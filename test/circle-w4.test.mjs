@@ -420,6 +420,7 @@ test("WhatsApp updates: opt in / out with one PUT; no phone = plain words; a lef
   noPhone.click(noPhone.target("data-cw-wa-updates", "", { checked: true }));
   await settle();
   assert.match(noPhone.sections.whatsapp.msg.innerHTML, /We don(&#39;|')t have a mobile number for you yet/);
+  assert.equal((noPhone.sections.whatsapp.innerHTML.match(/mobile number/g) || []).length, 0, "the sentence is said once, in the message");
   assert.doesNotMatch(noPhone.sections.whatsapp.innerHTML, /data-cw-wa-updates checked/, "never shown as opted in");
 
   const left = harness({ comfort: LEFT_ONLY, birthday: LEFT_ONLY, wa: { ...WA, left: true, optedIn: true } });
