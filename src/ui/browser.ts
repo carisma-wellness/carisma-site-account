@@ -917,20 +917,27 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
       (i as unknown as { indeterminate?: boolean }).indeterminate = true;
     });
   };
-  const readCircleOnce = (): void => {
-    if (!circleRail || circleNow !== undefined || !fetchImpl) return;
+  /** The one member read in flight (or answered), so Details can wait for it (W4). */
+  let circleOnce: Promise<CircleState | null> | null = null;
+  const readCircleOnce = (): Promise<CircleState | null> => {
+    if (!circleRail || !fetchImpl) return Promise.resolve(null);
+    if (circleOnce) return circleOnce;
+    if (circleNow !== undefined) return Promise.resolve(circleNow);
     circleNow = null; // in flight: a second load() never starts a second read
-    fetchImpl("/api/auth/proxy/client/loyalty/me", { credentials: "same-origin" })
+    circleOnce = fetchImpl("/api/auth/proxy/client/loyalty/me", { credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : null))
       .then(
         (body) => {
           circleNow = readCircleState(body);
           fillCircle();
+          return circleNow;
         },
         () => {
           circleNow = null;
+          return null;
         },
       );
+    return circleOnce;
   };
 
   const paint = (html: string) => {
@@ -1052,7 +1059,14 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
           paint(accountPortalHTML(buildPortalModel(session, view, extras)));
           // Carisma Circle W4: the member's own comfort / birthday / WhatsApp
           // updates, read AFTER the page is on screen and drawn only when live.
-          if (circleRail) readCircleProfile();
+          // Only once the member read says Carisma Circle is live (or the member
+          // left: a WhatsApp opt-out must stay possible). Off — today's
+          // production — makes no B4 request at all.
+          if (circleRail) {
+            void readCircleOnce().then((state) => {
+              if (state) readCircleProfile();
+            });
+          }
           return undefined;
         }
 
@@ -1841,6 +1855,7 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
         // Already out (another tab, the app): show the page as it now is.
         dlg.close?.();
         circleNow = undefined;
+        circleOnce = null;
         void load(undefined, true);
         return;
       }
@@ -1869,6 +1884,7 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
           // (Escape, the backdrop) while the leave was in flight.
           if (alive) dlg.close?.();
           circleNow = undefined;
+          circleOnce = null;
           void load(() => announce(mount, "You have left Carisma Circle.", "ok"), true);
           return;
         }
@@ -1894,6 +1910,7 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
     void postJson(fetchImpl, circleRejoinCall()).then((r) => {
       if (r.ok && readRejoined(r.body)) {
         circleNow = undefined;
+        circleOnce = null;
         void load(() => announce(mount, "Welcome back to Carisma Circle.", "ok"), true);
         return;
       }
