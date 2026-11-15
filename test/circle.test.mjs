@@ -182,6 +182,17 @@ test("the credit moment: hero only when the bill gave credit, balance ≥ €5.0
   assert.equal(creditMoment({ earnedCents: 495, balanceCents: 9000, hasExcludedLine: true }).kind, "none", "an excluded line never gets the hero");
   assert.equal(creditMoment({ earnedCents: 0, balanceCents: 9000, hasExcludedLine: false }).kind, "none");
   assert.equal(creditMoment(null).kind, "none");
+  // A guest page is never given a balance: the bill's own figure, "You can use
+  // it already" only when the bill alone reaches €5.00, never a "€X more" sum.
+  const guest = creditMoment({ earnedCents: 1545, balanceCents: null, hasExcludedLine: false, useBy: null });
+  assert.equal(guest.kind, "received");
+  assert.equal(guest.hero, "€15.45");
+  assert.doesNotMatch(guest.hero, /ready to use/);
+  assert.match(guest.sentence, /You can use it already\.$/);
+  const guestSmall = creditMoment({ earnedCents: 325, balanceCents: null, hasExcludedLine: false });
+  assert.equal(guestSmall.kind, "quiet");
+  assert.equal(guestSmall.quiet, "€3.25 added to your Carisma credit.");
+  assert.equal(creditMoment({ earnedCents: 1545, balanceCents: null, hasExcludedLine: true }).kind, "none");
   assert.equal(
     PAY_STEP_DISCLOSURE,
     "If you cancel, the credit this booking gives you is removed; if you've already used it, its value comes off your refund.",

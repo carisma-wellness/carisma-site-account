@@ -549,22 +549,27 @@ const NONE = { kind: "none", hero: "", sentence: "", conditions: [], quiet: "" }
 /**
  * The Bible's render rule (storeCredit.renderRule), in one place for every
  * site: the hero and "You can use it already" only when this bill gave credit,
- * the spendable balance after it is at least €5.00 and there is no excluded
- * line; otherwise the one quiet line; an excluded line shows nothing here.
+ * the spendable balance is at least €5.00 and there is no excluded line;
+ * otherwise the one quiet line; an excluded line shows nothing here. With the
+ * balance unknown, "You can use it already" is said only when THIS bill alone
+ * reaches the minimum (then the balance does too), and the figure is the
+ * bill's — never a balance we were not given.
  */
 export function creditMoment(input) {
     if (!input)
         return NONE;
     const earned = Math.round(Number(input.earnedCents) || 0);
-    const balance = Math.round(Number(input.balanceCents) || 0);
     if (earned <= 0 || input.hasExcludedLine === true)
         return NONE;
+    const known = typeof input.balanceCents === "number" && Number.isFinite(input.balanceCents);
+    const balance = known ? Math.round(input.balanceCents) : null;
     const min = input.minRedeemCents ?? DEFAULT_MIN_REDEEM_POINTS * CENTS_PER_POINT;
-    if (balance >= min) {
+    const ready = balance !== null ? balance >= min : earned >= min;
+    if (ready) {
         const d = input.useBy && input.useBy.cents > 0 ? maltaShort(input.useBy.date) : "";
         return {
-            kind: "hero",
-            hero: `${creditText(balance)} ready to use`,
+            kind: balance !== null ? "hero" : "received",
+            hero: balance !== null ? `${creditText(balance)} ready to use` : creditText(earned),
             sentence: `You've just received ${creditText(earned)} in Carisma credit, usable at ${CIRCLE_BRANDS}. You can use it already.`,
             conditions: [
                 "On up to half of any other booking",
@@ -579,7 +584,9 @@ export function creditMoment(input) {
         hero: "",
         sentence: "",
         conditions: [],
-        quiet: `${creditText(earned)} added to your Carisma credit · ${creditText(Math.max(0, min - balance))} more and you can use it.`,
+        quiet: balance !== null
+            ? `${creditText(earned)} added to your Carisma credit · ${creditText(Math.max(0, min - balance))} more and you can use it.`
+            : `${creditText(earned)} added to your Carisma credit.`,
     };
 }
 /** The pay-step disclosure (Bible storeCredit.payStepDisclosure), word for word. */

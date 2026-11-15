@@ -165,11 +165,16 @@ export declare function circleViewHTML(input: CircleViewInput | null): string;
 export interface CreditMomentInput {
     /** What THIS bill gave, in cents. */
     earnedCents: number;
-    /** The spendable balance after this bill, in cents. */
-    balanceCents: number;
+    /**
+     * The spendable balance after this bill, in cents — ONLY from the signed-in
+     * member's own read. `null` when unknown: a guest page never carries a
+     * balance (a guest checkout can name anyone's email, so the guest-session
+     * answer leaves the balance and the account state out on purpose).
+     */
+    balanceCents: number | null;
     /** The booking has a line that never earns (a medical / excluded treatment). */
     hasExcludedLine: boolean;
-    /** The soonest use-by part of the balance, when there is one. */
+    /** The soonest use-by part of the credit, when there is one. */
     useBy?: {
         cents: number;
         date: string;
@@ -178,12 +183,16 @@ export interface CreditMomentInput {
 }
 export interface CreditMoment {
     /**
-     * `hero`  — "€62.00 ready to use" + the CEO sentence + the conditions line;
-     * `quiet` — one line ("€3.25 added … €1.75 more and you can use it.");
-     * `none`  — nothing on this page (no credit, or an excluded line: that visit
-     *           is a quiet ledger entry in the account, never a thank-you hero).
+     * `hero`     — balance known: "€62.00 ready to use" + the CEO sentence + the conditions line;
+     * `received` — balance NOT known (a guest) and this bill alone reaches the minimum:
+     *              the bill's figure + the CEO sentence + the conditions line;
+     * `quiet`    — one line ("€3.25 added … €1.75 more and you can use it.", or,
+     *              balance unknown, just "€3.25 added to your Carisma credit.");
+     * `none`     — nothing on this page (no credit, or an excluded line: that visit
+     *              is a quiet ledger entry in the account, never a thank-you hero).
      */
-    kind: "hero" | "quiet" | "none";
+    kind: "hero" | "received" | "quiet" | "none";
+    /** The big figure: "€62.00 ready to use" (hero) or "€15.45" (received). */
     hero: string;
     sentence: string;
     /** The conditions line, without "Terms" (the page links its own terms). */
@@ -193,8 +202,11 @@ export interface CreditMoment {
 /**
  * The Bible's render rule (storeCredit.renderRule), in one place for every
  * site: the hero and "You can use it already" only when this bill gave credit,
- * the spendable balance after it is at least €5.00 and there is no excluded
- * line; otherwise the one quiet line; an excluded line shows nothing here.
+ * the spendable balance is at least €5.00 and there is no excluded line;
+ * otherwise the one quiet line; an excluded line shows nothing here. With the
+ * balance unknown, "You can use it already" is said only when THIS bill alone
+ * reaches the minimum (then the balance does too), and the figure is the
+ * bill's — never a balance we were not given.
  */
 export declare function creditMoment(input: CreditMomentInput | null | undefined): CreditMoment;
 /** The pay-step disclosure (Bible storeCredit.payStepDisclosure), word for word. */
