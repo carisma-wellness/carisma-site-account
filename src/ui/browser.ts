@@ -19,8 +19,19 @@ import {
   CIRCLE_HREF,
   circleAllowedOn,
   circleActivityRowsHTML,
+  circleNowRowHTML,
   circleOverviewHTML,
   circleOverviewLeftHTML,
+  circleOverviewMinorHTML,
+  circleActivityHTML,
+  circleRewardsHTML,
+  nextPerksOf,
+  ownPerksOf,
+  readCircle,
+  readCircleRewards,
+  unlockLineText,
+  unlocksList,
+  type PanelCircleExtras,
   circlePrefsHTML,
   circleWalletLineHTML,
   leaveSheetBodyHTML,
@@ -119,6 +130,7 @@ import {
   staffCall,
   walletAvailabilityCall,
   walletPassCall,
+  circleInstagramCall,
   type CancelSummary,
   type ProxyCall,
 } from "./portalActions.js";
@@ -154,6 +166,147 @@ import type { MinimalDocument, MinimalElement, MinimalMouseEvent } from "./dom.j
 let currentAvatarUrl: string | null = null;
 
 const panelBound = new WeakSet<object>();
+
+/* ── Carisma Circle v2: live jewels, the menu's extras, the Instagram tap ── */
+
+type JewelModule = { hydrateJewels(root: unknown): () => void };
+const jewelLoads = new WeakMap<object, Promise<JewelModule | null>>();
+const jewelDisposers = new WeakMap<object, () => void>();
+
+type IOLike = new (
+  cb: (entries: Array<{ isIntersecting: boolean }>) => void,
+  o?: { rootMargin?: string },
+) => { observe(t: unknown): void; disconnect(): void };
+
+/** Stop every live jewel this kit mounted under `root` (before its HTML is replaced). */
+function disposeCircleJewels(root: unknown): void {
+  if (!root || typeof root !== "object") return;
+  const d = jewelDisposers.get(root);
+  if (!d) return;
+  jewelDisposers.delete(root);
+  try {
+    d();
+  } catch {
+    /* nothing left to free */
+  }
+}
+
+/**
+ * Mount live jewels in `root`'s slots: only when the site handed the kit a
+ * loader, and only once a slot comes within 120 px of the viewport. The loader
+ * runs once per page; a failure keeps every flat mark.
+ */
+function hydrateCircleJewels(root: unknown, opts: HydrateOptions): void {
+  const load = opts.circleJewel;
+  const el = live(root);
+  if (!load || !el || !qs(el, "[data-cw-jewel]")) return;
+  const run = () => {
+    let p = jewelLoads.get(load);
+    if (!p) {
+      p = Promise.resolve()
+        .then(load)
+        .then(
+          (m) => (m && typeof m.hydrateJewels === "function" ? m : null),
+          () => null,
+        );
+      jewelLoads.set(load, p);
+    }
+    void p.then((m) => {
+      if (!m) return;
+      try {
+        const prev = jewelDisposers.get(el);
+        const d = m.hydrateJewels(el);
+        jewelDisposers.set(el, () => {
+          prev?.();
+          d();
+        });
+      } catch {
+        /* the marks stay */
+      }
+    });
+  };
+  const IO = (globalThis as { IntersectionObserver?: IOLike }).IntersectionObserver;
+  if (!IO) {
+    run();
+    return;
+  }
+  const io = new IO(
+    (entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        io.disconnect();
+        run();
+      }
+    },
+    { rootMargin: "120px" },
+  );
+  qsa(el, "[data-cw-jewel]").forEach((slot) => io.observe(slot));
+}
+
+const panelExtrasOnce = new WeakMap<object, Promise<PanelCircleExtras>>();
+
+function readJsonOrNull(fetchImpl: FetchLike, url: string): Promise<unknown> {
+  return fetchImpl(url, { credentials: "same-origin" })
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+}
+
+/**
+ * What the menu's Circle block adds once it is open and live: the one-line
+ * unlock (from the member read's perks) and the "Yours now" row (the featured
+ * read). Read once per page; either read failing costs only its own line.
+ */
+function readPanelCircleExtras(doc: object, fetchImpl: FetchLike): Promise<PanelCircleExtras> {
+  let p = panelExtrasOnce.get(doc);
+  if (p) return p;
+  p = Promise.all([
+    readJsonOrNull(fetchImpl, "/api/auth/proxy/client/loyalty/me"),
+    readJsonOrNull(fetchImpl, "/api/auth/proxy/client/loyalty/rewards"),
+  ]).then(([me, rewards]) => {
+    const m = readCircle(me);
+    const unlockLine =
+      m && m.nextLevel ? unlockLineText(m.nextLevel.label, unlocksList(ownPerksOf(m), nextPerksOf(m), m.pointsPerEuro)) : "";
+    return { unlockLine, rewards: readCircleRewards(rewards) };
+  });
+  panelExtrasOnce.set(doc, p);
+  return p;
+}
+
+const igBound = new WeakSet<object>();
+const igSent = new Set<string>();
+
+/**
+ * The Instagram follow rows (signed in, live): the tap opens the brand's
+ * profile by itself (a plain link, new tab); the award rides along ONCE per
+ * brand per page, fire-and-forget (`keepalive`), and never holds the link up.
+ * The server is idempotent anyway (ALREADY_DONE).
+ */
+function bindCircleInstagram(doc: MinimalDocument, fetchImpl: FetchLike | undefined): void {
+  if (!fetchImpl || igBound.has(doc)) return;
+  igBound.add(doc);
+  doc.addEventListener(
+    "click",
+    (e: MinimalMouseEvent) => {
+      const a = closestOf(e.target, "[data-cw-circle-ig]");
+      if (!a) return;
+      const brandId = a.getAttribute("data-cw-circle-ig") || "";
+      if (!brandId || igSent.has(brandId)) return;
+      igSent.add(brandId);
+      const call = circleInstagramCall(brandId);
+      void Promise.resolve()
+        .then(() =>
+          fetchImpl(call.path, {
+            method: call.method,
+            credentials: "same-origin",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(call.body),
+            keepalive: true,
+          }),
+        )
+        .catch(() => undefined);
+    },
+    false,
+  );
+}
 
 /** The photo the marks are currently painted with (exported for tests/hosts). */
 export function accountMarkPhotoUrl(): string | null {
@@ -265,6 +418,7 @@ export interface FetchLike {
       headers?: Record<string, string> | { get?(name: string): string | null };
       body?: string;
       redirect?: string;
+      keepalive?: boolean;
     },
   ): Promise<{
     ok: boolean;
@@ -291,6 +445,17 @@ export interface HydrateOptions {
    * Never on Carisma Medical (the site brand decides).
    */
   circle?: boolean;
+  /**
+   * Circle v2 (carisma-circle-v2-20261117): the live jewel's loader, e.g.
+   * `() => import("@carisma/site-account/jewel")`. The kit never imports the
+   * jewel itself (three.js stays out of every page that does not show one);
+   * without a loader every jewel slot keeps its flat mark.
+   */
+  circleJewel?: () => Promise<{ hydrateJewels(root: unknown): () => void }>;
+  /** Circle v2: photos and booking links per featured service id (the menu's "Yours now", the reward cards). */
+  circleArt?: Record<string, { img?: string; href?: string } | undefined>;
+  /** Circle v2: poster stills for jewel slots, by gem and kind. */
+  circlePoster?: (gem: string, kind: "small" | "full" | "icon") => string;
 }
 
 const BACKDROP_ID = "carisma-account-backdrop";
@@ -418,8 +583,23 @@ export function mountAccountPanel(doc: MinimalDocument, opts: HydrateOptions = {
   const openPanel = (body: unknown) => {
     const mount = ensureMounts(doc, mountId);
     if (!mount) return;
-    mount.innerHTML = accountPanelHTML(buildPanelModel(body));
+    const model = buildPanelModel(body);
+    disposeCircleJewels(mount);
+    mount.innerHTML = accountPanelHTML(model, { art: opts.circleArt, poster: opts.circlePoster ?? null });
     setOpen(doc, mountId, true);
+    if (!model.circle) return;
+    hydrateCircleJewels(mount, opts);
+    if (!fetchImpl) return;
+    void readPanelCircleExtras(doc, fetchImpl).then((x) => {
+      const card = qs(mount, '[data-cw-circle="panel"]');
+      if (!card) return;
+      const track = qs(card, ".cc-menu__sec .cc-track");
+      if (x.unlockLine && track && !qs(track, ".cc-track-line")) {
+        track.insertAdjacentHTML?.("beforeend", `<p class="cc-track-line">${escapeHtml(x.unlockLine)}</p>`);
+      }
+      const now = qs(card, '[data-cw-circle-slot="menu-now"]');
+      if (now && !now.innerHTML) now.innerHTML = circleNowRowHTML(x.rewards ?? null, opts.circleArt);
+    });
   };
 
   doc.addEventListener("click", (e: MinimalMouseEvent) => {
@@ -492,6 +672,8 @@ export function mountAccountPanel(doc: MinimalDocument, opts: HydrateOptions = {
     },
     false,
   );
+  // Circle v2: the Instagram rows' award (only on a site that opted in to Circle).
+  if (opts.circle === true) bindCircleInstagram(doc, fetchImpl);
 }
 
 /**
@@ -894,15 +1076,44 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
   let circleNow: CircleState | null | undefined = circleRail ? undefined : null;
   /** "Offers and reminders" as the server last answered it (Credit & rewards only). */
   let prefsNow: CirclePrefs | null = null;
+  /** Overview's reward cards and three activity rows, read once per mount after the member read says live. */
+  let overviewExtrasOnce: Promise<{ rewards: unknown; activity: unknown }> | null = null;
+  const fillOverviewExtras = (model: Extract<CircleState, { kind: "live" }>["model"]) => {
+    if (!fetchImpl) return;
+    overviewExtrasOnce ??= Promise.all([
+      readJsonOrNull(fetchImpl, "/api/auth/proxy/client/loyalty/rewards"),
+      readJsonOrNull(fetchImpl, "/api/auth/proxy/client/loyalty/activity?limit=3"),
+    ]).then(([rewards, activity]) => ({ rewards, activity }));
+    void overviewExtrasOnce.then(({ rewards, activity }) => {
+      const r = qs(mount, '[data-cw-circle-slot="ov-rewards"]');
+      if (r && !r.innerHTML) {
+        r.innerHTML = circleRewardsHTML(readCircleRewards(rewards), model.points, { art: opts.circleArt, pointsPerEuro: model.pointsPerEuro });
+      }
+      const a = qs(mount, '[data-cw-circle-slot="ov-activity"]');
+      if (a && !a.innerHTML) {
+        a.innerHTML = circleActivityHTML(model, readCircleActivity(activity), { limit: 3, moreHref: CIRCLE_HREF });
+      }
+    });
+  };
   const fillCircle = () => {
     if (!circleNow) return;
-    // Live or left, the member has a Credit & rewards page to reach.
-    qsa(mount, "[data-cw-circle-rail]").forEach((a) => a.removeAttribute?.("hidden"));
+    // Live or left, the member has a Credit & rewards page to reach (under the minimum age: the one line only).
+    if (circleNow.kind !== "minor") qsa(mount, "[data-cw-circle-rail]").forEach((a) => a.removeAttribute?.("hidden"));
     const home = qs(mount, '[data-cw-circle-slot="home"]');
     if (home && !home.innerHTML) {
-      // A member who left sees the date and Rejoin, never a figure.
-      home.innerHTML = circleNow.kind === "live" ? circleOverviewHTML(circleNow.model) : circleOverviewLeftHTML(circleNow.left);
+      // A member who left sees the date and Rejoin, never a figure; a minor sees one line.
+      home.innerHTML =
+        circleNow.kind === "live"
+          ? circleOverviewHTML(circleNow.model, { art: opts.circleArt, poster: opts.circlePoster ?? null, bookHref: opts.bookHref })
+          : circleNow.kind === "left"
+            ? circleOverviewLeftHTML(circleNow.left)
+            : circleOverviewMinorHTML(circleNow);
       home.removeAttribute?.("hidden");
+      if (circleNow.kind === "live") {
+        hydrateCircleJewels(home, opts);
+        fillOverviewExtras(circleNow.model);
+        bindCircleInstagram(doc, fetchImpl);
+      }
     }
     if (circleNow.kind !== "live") return;
     const wallet = qs(mount, '[data-cw-circle-slot="wallet"]');
@@ -941,10 +1152,16 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
   };
 
   const paint = (html: string) => {
+    disposeCircleJewels(mount);
     mount.innerHTML = html;
     revealCurrentTab(mount);
     fillCircle();
     markMixed();
+    // The Credit & rewards page draws its own jewels (Hero, track, ladder) and its Instagram rows.
+    if (view === "rewards" && circleNow && circleNow.kind === "live") {
+      hydrateCircleJewels(mount, opts);
+      bindCircleInstagram(doc, fetchImpl);
+    }
   };
   const focusTitle = () => qs(mount, ".cw-title")?.focus?.({ preventScroll: false });
 

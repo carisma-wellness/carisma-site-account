@@ -12,11 +12,17 @@ import type { RefreshResult } from "./refresh.js";
  *  - Backend answers 200                  -> {signedIn:true, initials, profile[, upcoming][, loyalty]}.
  *
  * `include` is a comma list: `upcoming` (the panel's visits) and `loyalty`
- * (Carisma Circle). `loyalty` is folded in ONLY when the member read answers
+ * (Carisma Circle: the summary read). `loyalty` is folded in ONLY when that read answers
  * 200 with `enabled: true`; off, 404, 5xx or a timeout leave the field out and
  * never touch the rest of the answer (the panel then draws what it always did).
  */
 /** The most the panel waits for Carisma Circle before opening without it. */
 export declare const LOYALTY_READ_BUDGET_MS = 2500;
+/**
+ * Circle v2 (carisma-circle-v2-20261117): the panel folds the member's nav
+ * SUMMARY (BE-1 §9.2: the read-model row, no ledger replay), never the full
+ * `/client/loyalty/me` (the account pages read that themselves).
+ */
+export declare const LOYALTY_SUMMARY_PATH = "/client/loyalty/summary";
 export declare function makeSession(cfg: ResolvedConfig, refresh: (sid: string, rt: string) => Promise<RefreshResult>): (req: Request) => Promise<Response>;
 //# sourceMappingURL=session.d.ts.map

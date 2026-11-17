@@ -33,6 +33,17 @@ export interface RecordsContext {
     circleSlot?: boolean;
     /** Where "book" goes on this brand (the Credit & rewards page's one button). */
     bookHref?: string;
+    /**
+     * Circle v2: photos and booking links per featured service id, the jewel
+     * posters, and where "Book it" goes for a free Spa day (all optional; the
+     * Circle page draws words only without them).
+     */
+    circleArt?: Record<string, {
+        img?: string;
+        href?: string;
+    } | undefined>;
+    circlePoster?: ((gem: string, kind: "small" | "full" | "icon") => string) | null;
+    spaDayHref?: string | null;
 }
 /** "September 2026" + a sortable "2026-09" key, on the Malta clock. */
 export declare function monthOf(raw: string): {

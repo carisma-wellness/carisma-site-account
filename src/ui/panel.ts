@@ -11,12 +11,12 @@ import { escapeHtml } from "./html.js";
 import { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
 import {
   CIRCLE_HREF,
-  circlePanelLeftHTML,
-  circlePanelRowHTML,
-  readCircle,
-  readCircleLeft,
+  circlePanelStateHTML,
+  readCircleSummaryState,
   type CircleLeftModel,
-  type CircleModel,
+  type CircleSummary,
+  type CircleSummaryState,
+  type PanelCircleExtras,
 } from "./circle.js";
 
 export const ACCOUNT_HOME_HREF = "/account";
@@ -40,13 +40,24 @@ export interface PanelModel {
   hub: { home: string; appointments: string; details: string };
   state: "settled" | "empty";
   /**
-   * Carisma Circle, when the session read carried `loyalty` (asked for with
-   * `include=upcoming,loyalty`) AND it said enabled:true. Null otherwise —
-   * and a null draws nothing, so the panel is exactly what it was.
+   * Carisma Circle v2, when the session read carried `loyalty` (asked for with
+   * `include=upcoming,loyalty`; the session folds `/client/loyalty/summary`, the
+   * read-model row) AND it said enabled:true. Null otherwise — and a null
+   * draws nothing, so the panel is exactly what it was.
    */
-  circle: CircleModel | null;
+  circle: CircleSummary | null;
   /** A member who left Carisma Circle (B3b): the date and Rejoin only. Null otherwise. */
   circleLeft: CircleLeftModel | null;
+  /** Under the minimum age (R5.4): one line only. Null otherwise. */
+  circleMinor: { minAge: number | null } | null;
+}
+
+/** The panel model's Circle part as one state (null = nothing to draw). */
+export function panelCircleState(model: PanelModel): CircleSummaryState | null {
+  if (model.circle) return { kind: "live", summary: model.circle };
+  if (model.circleLeft) return { kind: "left", left: model.circleLeft };
+  if (model.circleMinor) return { kind: "minor", minAge: model.circleMinor.minAge };
+  return null;
 }
 
 /** The panel's one read. With Circle on, the session route folds the member's loyalty answer in (no second call). */
@@ -101,6 +112,15 @@ function upcomingFrom(session: Record<string, unknown>): Array<Record<string, un
   return extractAppointmentList(session.upcoming);
 }
 
+function circleOf(loyalty: unknown): Pick<PanelModel, "circle" | "circleLeft" | "circleMinor"> {
+  const st = readCircleSummaryState(loyalty);
+  return {
+    circle: st?.kind === "live" ? st.summary : null,
+    circleLeft: st?.kind === "left" ? st.left : null,
+    circleMinor: st?.kind === "minor" ? { minAge: st.minAge } : null,
+  };
+}
+
 /** Map the /api/auth/session?include=upcoming body to the panel view model. */
 export function buildPanelModel(session: unknown): PanelModel {
   const s = (session && typeof session === "object" ? session : {}) as Record<string, unknown>;
@@ -127,15 +147,18 @@ export function buildPanelModel(session: unknown): PanelModel {
       details: ACCOUNT_DETAILS_HREF,
     },
     state: visits.length ? "settled" : "empty",
-    circle: readCircle(s.loyalty),
-    circleLeft: readCircleLeft(s.loyalty),
+    ...circleOf(s.loyalty),
   };
 }
 
 const M = 'data-clarity-mask="True"';
 
-/** Render the settled panel. Every personal string carries the recorder mask. */
-export function accountPanelHTML(model: PanelModel): string {
+/**
+ * Render the settled panel. Every personal string carries the recorder mask.
+ * `circle` = what the menu's Circle block may add once the member read and the
+ * featured read answer (the unlock line, the "Yours now" row, posters).
+ */
+export function accountPanelHTML(model: PanelModel, circle: PanelCircleExtras = {}): string {
   const header =
     `<header class="carisma-panel__header">` +
     `<span class="carisma-panel__initials" ${M} aria-hidden="true">${escapeHtml(model.initials)}</span>` +
@@ -177,6 +200,12 @@ export function accountPanelHTML(model: PanelModel): string {
 
   return (
     `<section class="carisma-panel" role="dialog" aria-modal="true" aria-label="Your account" data-cw-qc="${PANEL_QC}">` +
-    `${header}${circlePanelRowHTML(model.circle)}${circlePanelLeftHTML(model.circleLeft)}<div class="carisma-panel__visits">${rows}</div>${links}${footer}</section>`
+    `${header}${panelCircleSlotHTML(model, circle)}<div class="carisma-panel__visits">${rows}</div>${links}${footer}</section>`
   );
+}
+
+/** The menu's Circle block in its own slot, so browser.ts can redraw it when the extra reads answer. "" when off. */
+export function panelCircleSlotHTML(model: PanelModel, circle: PanelCircleExtras = {}): string {
+  const html = circlePanelStateHTML(panelCircleState(model), circle);
+  return html ? `<div class="carisma-panel__circle-slot" data-cw-circle-slot="menu">${html}</div>` : "";
 }

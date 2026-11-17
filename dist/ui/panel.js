@@ -9,11 +9,21 @@
  */
 import { escapeHtml } from "./html.js";
 import { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
-import { CIRCLE_HREF, circlePanelLeftHTML, circlePanelRowHTML, readCircle, readCircleLeft, } from "./circle.js";
+import { CIRCLE_HREF, circlePanelStateHTML, readCircleSummaryState, } from "./circle.js";
 export const ACCOUNT_HOME_HREF = "/account";
 export const ACCOUNT_BOOKINGS_HREF = "/account/bookings";
 export const ACCOUNT_DETAILS_HREF = "/account/details";
 export const PANEL_QC = "account-panel-20260917";
+/** The panel model's Circle part as one state (null = nothing to draw). */
+export function panelCircleState(model) {
+    if (model.circle)
+        return { kind: "live", summary: model.circle };
+    if (model.circleLeft)
+        return { kind: "left", left: model.circleLeft };
+    if (model.circleMinor)
+        return { kind: "minor", minAge: model.circleMinor.minAge };
+    return null;
+}
 /** The panel's one read. With Circle on, the session route folds the member's loyalty answer in (no second call). */
 export const PANEL_SESSION_URL = "/api/auth/session?include=upcoming";
 export const PANEL_SESSION_URL_CIRCLE = "/api/auth/session?include=upcoming,loyalty";
@@ -63,6 +73,14 @@ function upcomingFrom(session) {
         return session.upcoming;
     return extractAppointmentList(session.upcoming);
 }
+function circleOf(loyalty) {
+    const st = readCircleSummaryState(loyalty);
+    return {
+        circle: st?.kind === "live" ? st.summary : null,
+        circleLeft: st?.kind === "left" ? st.left : null,
+        circleMinor: st?.kind === "minor" ? { minAge: st.minAge } : null,
+    };
+}
 /** Map the /api/auth/session?include=upcoming body to the panel view model. */
 export function buildPanelModel(session) {
     const s = (session && typeof session === "object" ? session : {});
@@ -87,13 +105,16 @@ export function buildPanelModel(session) {
             details: ACCOUNT_DETAILS_HREF,
         },
         state: visits.length ? "settled" : "empty",
-        circle: readCircle(s.loyalty),
-        circleLeft: readCircleLeft(s.loyalty),
+        ...circleOf(s.loyalty),
     };
 }
 const M = 'data-clarity-mask="True"';
-/** Render the settled panel. Every personal string carries the recorder mask. */
-export function accountPanelHTML(model) {
+/**
+ * Render the settled panel. Every personal string carries the recorder mask.
+ * `circle` = what the menu's Circle block may add once the member read and the
+ * featured read answer (the unlock line, the "Yours now" row, posters).
+ */
+export function accountPanelHTML(model, circle = {}) {
     const header = `<header class="carisma-panel__header">` +
         `<span class="carisma-panel__initials" ${M} aria-hidden="true">${escapeHtml(model.initials)}</span>` +
         `<span class="carisma-panel__name" ${M}>${escapeHtml(model.name || "Your account")}</span>` +
@@ -123,6 +144,11 @@ export function accountPanelHTML(model) {
         `<button type="button" data-carisma-signout-all>Sign out of every Carisma site</button>` +
         `</footer>`;
     return (`<section class="carisma-panel" role="dialog" aria-modal="true" aria-label="Your account" data-cw-qc="${PANEL_QC}">` +
-        `${header}${circlePanelRowHTML(model.circle)}${circlePanelLeftHTML(model.circleLeft)}<div class="carisma-panel__visits">${rows}</div>${links}${footer}</section>`);
+        `${header}${panelCircleSlotHTML(model, circle)}<div class="carisma-panel__visits">${rows}</div>${links}${footer}</section>`);
+}
+/** The menu's Circle block in its own slot, so browser.ts can redraw it when the extra reads answer. "" when off. */
+export function panelCircleSlotHTML(model, circle = {}) {
+    const html = circlePanelStateHTML(panelCircleState(model), circle);
+    return html ? `<div class="carisma-panel__circle-slot" data-cw-circle-slot="menu">${html}</div>` : "";
 }
 //# sourceMappingURL=panel.js.map

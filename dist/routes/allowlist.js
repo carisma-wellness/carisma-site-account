@@ -117,6 +117,19 @@ export const PROXY_ALLOWLIST = [
     { method: "PUT", label: "loyalty birthday update", match: (p) => p === "/client/loyalty/birthday" },
     { method: "GET", label: "loyalty whatsapp booking updates", match: (p) => p === "/client/loyalty/whatsapp-updates" },
     { method: "PUT", label: "loyalty whatsapp booking updates change", match: (p) => p === "/client/loyalty/whatsapp-updates" },
+    // Carisma Circle v2 (2026-11-17, backend BE-1/BE-2). Exact literals: the
+    // member's nav summary (the read-model row the panel folds), the Instagram
+    // follow award (the member's own tap, once per brand; the server is
+    // idempotent), the member's own perks and a free Spa day claim, and the
+    // points-paid bookings (the cancel sheet's line). Pay with points keeps the
+    // three redeem doors above (v2 bodies on the same paths). The HOD twins
+    // (the staff summary, the till's points door) stay forbidden below.
+    // Marker: carisma-circle-v2-20261117
+    { method: "GET", label: "loyalty summary", match: (p) => p === "/client/loyalty/summary" },
+    { method: "POST", label: "loyalty instagram follow", match: (p) => p === "/client/loyalty/actions/instagram" },
+    { method: "GET", label: "loyalty perks", match: (p) => p === "/client/loyalty/perks" },
+    { method: "POST", label: "loyalty free spa day", match: (p) => p === "/client/loyalty/perks/spa-day" },
+    { method: "GET", label: "loyalty points bookings", match: (p) => p === "/client/loyalty/points-bookings" },
     { method: "GET", label: "visits awaiting a rating", match: (p) => p === "/client/ratings/pending" },
     // `/pending` is the listing, not an appointment id — excluded so the rule
     // cannot be read as "POST anything under /ratings".
@@ -203,6 +216,14 @@ export const FORBIDDEN_PATHS = [
     { method: "POST", path: "/hod/appointments/abc123/checkout/loyalty-reward", why: "a shop reward is taken at the till, by staff" },
     { method: "POST", path: "/hod/settings/loyalty/launch-placement/apply", why: "launch placement is Super Admin work" },
     { method: "GET", path: "/hod/clients/abc123/loyalty/comfort", why: "the staff twin of the member's room comfort" },
+    // Circle v2: the staff twins of the new member doors.
+    { method: "GET", path: "/hod/clients/abc123/loyalty/summary", why: "the staff twin of the member's Circle summary" },
+    { method: "POST", path: "/hod/appointments/abc123/checkout/loyalty-points", why: "paying a line with points at the till is staff work" },
+    { method: "GET", path: "/hod/appointments/abc123/checkout/loyalty-points", why: "the till's points read is staff work" },
+    { method: "GET", path: "/hod/clients/abc123/loyalty/perks", why: "the staff twin of the member's perks" },
+    { method: "POST", path: "/client/loyalty/perks", why: "a member never writes their perks" },
+    { method: "POST", path: "/client/loyalty/summary", why: "the member's Circle summary is read-only" },
+    { method: "GET", path: "/client/loyalty/actions/instagram", why: "the Instagram award is a tap, never a read" },
 ];
 /** Normalise a proxy sub-path: strip query/hash, collapse to a leading-slash path. */
 export function normalizePath(path) {

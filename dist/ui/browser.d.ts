@@ -32,6 +32,7 @@ export interface FetchLike {
         };
         body?: string;
         redirect?: string;
+        keepalive?: boolean;
     }): Promise<{
         ok: boolean;
         status: number;
@@ -58,6 +59,22 @@ export interface HydrateOptions {
      * Never on Carisma Medical (the site brand decides).
      */
     circle?: boolean;
+    /**
+     * Circle v2 (carisma-circle-v2-20261117): the live jewel's loader, e.g.
+     * `() => import("@carisma/site-account/jewel")`. The kit never imports the
+     * jewel itself (three.js stays out of every page that does not show one);
+     * without a loader every jewel slot keeps its flat mark.
+     */
+    circleJewel?: () => Promise<{
+        hydrateJewels(root: unknown): () => void;
+    }>;
+    /** Circle v2: photos and booking links per featured service id (the menu's "Yours now", the reward cards). */
+    circleArt?: Record<string, {
+        img?: string;
+        href?: string;
+    } | undefined>;
+    /** Circle v2: poster stills for jewel slots, by gem and kind. */
+    circlePoster?: (gem: string, kind: "small" | "full" | "icon") => string;
 }
 /**
  * Mount the panel: on a click of a signed-in mark, make the ONE authenticated read

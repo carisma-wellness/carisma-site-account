@@ -52,6 +52,16 @@ export const PORTAL_TOKENS_CSS = `
   --cw-account-radius-control: 12px;
   --cw-account-button-radius: 999px;
   --cw-account-shadow: 0 1px 2px rgba(28, 25, 23, 0.06);
+  /* Carisma Circle v2 (carisma-circle-v2-20261117): the Spa ground behind a jewel, the bar's track and gold,
+     the ink pill and the Circle link. A site overrides them like every other token. */
+  --cw-account-circle-ground-a: #fdf8ef;
+  --cw-account-circle-ground-b: #f8e8e0;
+  --cw-account-circle-track: #e6ddcc;
+  --cw-account-circle-gold-a: #c9a456;
+  --cw-account-circle-gold-b: #9a7629;
+  --cw-account-circle-btn: #1f1c19;
+  --cw-account-circle-btn-ink: #ffffff;
+  --cw-account-circle-link: #7a5c14;
 }
 `;
 const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";

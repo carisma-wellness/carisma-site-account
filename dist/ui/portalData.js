@@ -1,5 +1,5 @@
 import { buildWalletModel, walletHTML, buildStatementModel, statementHTML, buildDocumentsModel, documentsHTML, buildMembershipModel, membershipHTML, buildReferModel, referHTML, } from "./records.js";
-import { circleLeftViewHTML, circleViewHTML, readCircleActivity, readCirclePrefs, readCircleRewards, readCircleState, } from "./circle.js";
+import { circleLeftViewHTML, circleMinorViewHTML, circleViewHTML, readCircleActivity, readCirclePerks, readCirclePrefs, readCircleRewards, readCircleState, } from "./circle.js";
 const PROXY = "/api/auth/proxy";
 /** The proxy reads a section needs, in a fixed order `bodyFor` relies on. */
 export function requestsFor(view) {
@@ -23,6 +23,8 @@ export function requestsFor(view) {
                 `${PROXY}/client/loyalty/activity?limit=20`,
                 `${PROXY}/client/loyalty/rewards`,
                 `${PROXY}/client/loyalty/preferences`,
+                // Circle v2: free Spa days, early access, no deposit (BE-2). Optional like the rest.
+                `${PROXY}/client/loyalty/perks`,
             ];
         case "bookings":
             return [
@@ -145,11 +147,18 @@ export function bodyFor(view, answers, ctx = {}) {
                 return "";
             if (state.kind === "left")
                 return circleLeftViewHTML({ left: state.left, prefs });
+            // R5.4: under the minimum age, one line and nothing else (no prefs, no leave).
+            if (state.kind === "minor")
+                return circleMinorViewHTML(state);
             return circleViewHTML({
                 me: state.model,
                 activity: readCircleActivity(answers[1]),
                 rewards: readCircleRewards(answers[2]),
+                perks: readCirclePerks(answers[4]),
                 bookHref: ctx.bookHref,
+                art: ctx.circleArt,
+                poster: ctx.circlePoster ?? null,
+                spaDayHref: ctx.spaDayHref ?? null,
                 prefs,
             });
         }

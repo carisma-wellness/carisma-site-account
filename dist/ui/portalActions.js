@@ -234,8 +234,10 @@ export const circleWhatsappCall = (optedIn) => ({
 export const circleLeavePreviewCall = () => ({ path: `${PROXY}/client/loyalty/leave`, method: "GET" });
 /** Leave Carisma Circle. Only ever sent from the sheet's explicit confirm. */
 export const circleLeaveCall = () => ({ path: `${PROXY}/client/loyalty/leave`, method: "POST", body: { confirm: true } });
-/** Rejoin: a fresh start at I First Light (nothing forfeited comes back). */
+/** Rejoin: a fresh start at the first level (nothing forfeited comes back). */
 export const circleRejoinCall = () => ({ path: `${PROXY}/client/loyalty/rejoin`, method: "POST", body: {} });
+/** Circle v2: the Instagram follow award, fired on the tap that opens the brand's profile (BE-1 §9.7). */
+export const circleInstagramCall = (brandId) => ({ path: `${PROXY}/client/loyalty/actions/instagram`, method: "POST", body: { brandId } });
 /**
  * One "Offers and reminders" box = all three brands: `brandId` is left out on
  * purpose (B3b: omitted = Carisma Spa, Aesthetics and Slimming together).

@@ -11,9 +11,11 @@ import {
   readCircleRewards,
   readCircleWhatsapp,
   circleViewHTML,
-  circleShopHTML,
+  circleRewardsHTML,
+  rejoinNoteText,
   whatsappUpdatesHTML,
 } from "../dist/index.js";
+import { MARIA, REWARDS as REWARDS_V2 } from "./fixtures/circle-v2.mjs";
 
 /**
  * Carisma Circle terms v1.0 (counsel, 15 Nov 2026; legal/carisma-circle-terms.md in the point-system pack) and
@@ -38,11 +40,13 @@ test("row 6: the pay-step disclosure never takes spent credit from a refund (§1
   assert.doesNotMatch(PAY_STEP_DISCLOSURE, /comes off your refund/);
 });
 
-test("row 8: beside Rejoin, a balance below zero comes back too unless written off (§13)", () => {
+test("row 8: beside Rejoin, a balance below zero comes back too unless written off (§13); the level is the API's (R5.1)", () => {
   assert.equal(
     REJOIN_NOTE,
-    "If you rejoin, you start again at I First Light with no credit. The credit you gave up when you left does not come back. If your balance was below zero when you left, that comes back too, unless it has been written off.",
+    "If you rejoin, you start again at the first level with no credit. The credit you gave up when you left does not come back. If your balance was below zero when you left, that comes back too, unless it has been written off.",
   );
+  assert.match(rejoinNoteText("Level 1 · Pearl"), /^If you rejoin, you start again at Level 1 · Pearl with no credit\./);
+  assert.doesNotMatch(REJOIN_NOTE, /First Light|\bI\b /);
 });
 
 test("row 55 (kit part): the WhatsApp service consent no longer promises credit receipts, and the OLD wording is never drawn", () => {
@@ -59,41 +63,22 @@ test("row 55 (kit part): the WhatsApp service consent no longer promises credit 
   assert.ok(whatsappUpdatesHTML(readCircleWhatsapp({ ...base, wording: WHATSAPP_UPDATES_SENTENCE })).includes(WHATSAPP_UPDATES_SENTENCE));
 });
 
-// Maria Borg, the Bible's demo member (same shape as circle.test.mjs).
-const ME = {
-  enabled: true,
-  level: { key: "golden_hour", name: "Golden Hour", numeral: "III", multiplier: 1.5, heldUntil: "2027-12-31" },
-  nextLevel: { key: "moonlight", name: "Moonlight", numeral: "IV", thresholdCents: 125000 },
-  spendThisYearCents: 121000,
-  headStartCents: 0,
-  toNextLevelCents: 4000,
-  credit: { points: 1240, cents: 6200, display: "€62.00" },
-  pending: { points: 0, cents: 0 },
-  expiring: null,
-  passport: { spa: true, aesthetics: true, slimming: false, count: 2 },
-  actions: [
-    { key: "profile", label: "Complete your profile", points: 100, done: true },
-    { key: "app", label: "Sign in on the Carisma app", points: 40, done: false },
-  ],
-  actionsSummary: { done: 1, of: 2, leftPoints: 40, leftCents: 200 },
-  nextVisitCredit: null,
-  rules: { pointsPerEuro: 20, minRedeemPoints: 100, maxSharePct: 50 },
-};
-const REWARDS = { enabled: true, items: [{ id: "r1", name: "Glass of Prosecco", points: 100, valueCents: 500, affordable: true }] };
+// Maria Borg, v2 (fixtures/circle-v2.mjs).
+const ME = MARIA;
 
-test("same defect as row 26: the shop says to show the card in the Carisma app at the desk (§10), never 'tell the desk'", () => {
+test("same defect as row 26: how points pay at the desk is the card in the Carisma app (§10), never 'tell the desk'", () => {
   const m = readCircle(ME);
   assert.ok(m, "precondition: the demo member reads live");
-  const shop = circleShopHTML(readCircleRewards(REWARDS), m);
-  assert.ok(shop.length > 0, "precondition: the shop rendered");
-  assert.match(shop, /Rewards are paid in full with credit: show your card in the Carisma app at the desk\. Prices include VAT\./);
-  assert.doesNotMatch(shop, /tell the desk/);
+  const cards = circleRewardsHTML(readCircleRewards(REWARDS_V2), m.points);
+  assert.ok(cards.length > 0, "precondition: the reward cards rendered");
+  assert.match(cards, /at reception with your card in the Carisma app\. Prices include VAT\./);
+  assert.doesNotMatch(cards, /tell the desk/);
 });
 
 test("same defect as rows 18/21: the Ways to earn line says 'on eligible treatments'", () => {
   const m = readCircle(ME);
   const html = circleViewHTML({ me: m, activity: null, rewards: null });
-  assert.ok(html.includes(`Every €1 you pay on eligible treatments at Carisma Spa, Aesthetics and Slimming earns credit too. ${EARN_TERMS_LINE}`));
+  assert.ok(html.includes(`Every €1 you pay on eligible treatments at Carisma Spa earns credit too. ${EARN_TERMS_LINE}`));
   assert.ok(html.includes(PROMISE_QUALIFIER.replace(/'/g, "&#39;")) || html.includes(PROMISE_QUALIFIER), "row 33: the qualifier sits in the same view");
 });
 
@@ -108,6 +93,9 @@ test("no shipped kit file still carries a sentence counsel struck", () => {
     /tell the desk/,
     /credit receipts on WhatsApp/,
     /prescribed or performed by a doctor/,
+    // v2: the retired spend rules and level names never come back.
+    /up to half/i,
+    /First Light|Golden Hour|Moonlight|Starlight/,
   ]) {
     assert.doesNotMatch(all, struck, String(struck));
   }

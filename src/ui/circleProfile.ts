@@ -15,8 +15,8 @@ import { escapeHtml } from "./html.js";
 import { unwrapEnvelope } from "./appointments.js";
 
 const M = 'data-clarity-mask="True"';
-/** Same value as circle.ts CIRCLE_QC (not imported: circle.ts imports this module). */
-const CIRCLE_QC = "carisma-circle-20261115";
+/** Same value as circleCore.ts CIRCLE_QC (a copy kept in step by test/circle-w4.test.mjs's drift test). */
+const CIRCLE_QC = "carisma-circle-v2-20261117";
 
 function obj(v: unknown): Record<string, unknown> | null {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
