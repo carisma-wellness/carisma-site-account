@@ -29,6 +29,9 @@ export { venueLocalToUtcIso, venueDateString, buildSlotsModel, reschedulePickerH
 export { confirmCall, cancelCall, cancellationPreviewCall, rescheduleCall, payBalanceCall, packagePayCall, packageBookCall, packagePayConfirmCall, packageReturnFrom, invoicePayCall, invoicePayConfirmCall, invoiceReturnFrom, statementPayFailureMessage, readCheckoutUrl, readBookedAppointmentId, packageBookFailureMessage, isTakenTimeRefusal, slotsCall, membershipCall, circleLeavePreviewCall, circleLeaveCall, circleRejoinCall, circleOffersCall, circleComfortReadCall, circleBirthdayReadCall, circleWhatsappReadCall, circleComfortCall, circleBirthdayCall, circleWhatsappCall, readCancellationPreview, cancelQuestion, cancelSummary, needsPreview, messageFromError, walletAvailabilityCall, walletPassCall, readWalletAvailability, } from "./portalActions.js";
 export { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
 export { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";
+// Circle v2: the parts CSS under any scope, so a site's own Circle blocks (pay step, thank-you, programme page) draw
+// the same parts as the account (token-only; the tokens arrive with ACCOUNT_CHROME_CSS or the site's own sheet).
+export { circlePartsCSS } from "./styles/circle.js";
 export { resolveBrandLink, installBrandLinkInterceptor } from "./linkInterceptor.js";
 export { hydrateAccountMark, hydrateAccountMarks, mountAccountPanel, mountAccountPortal, hydrateAll, loadAccountMarkPhoto, accountMarkPhotoUrl, paymentReturnNote, } from "./browser.js";
 export { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, sanitizeAvatarUrl, avatarUrlFromSession, accountMarkPhotoHTML, } from "./avatar.js";

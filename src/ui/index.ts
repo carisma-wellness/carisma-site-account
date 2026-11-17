@@ -360,6 +360,9 @@ export type { ProxyCall, CancellationPreview, PortalActionName, CancelSummary } 
 
 export { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
 export { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";
+// Circle v2: the parts CSS under any scope, so a site's own Circle blocks (pay step, thank-you, programme page) draw
+// the same parts as the account (token-only; the tokens arrive with ACCOUNT_CHROME_CSS or the site's own sheet).
+export { circlePartsCSS } from "./styles/circle.js";
 
 export { resolveBrandLink, installBrandLinkInterceptor } from "./linkInterceptor.js";
 export type { BrandLinkInput, InterceptorOptions } from "./linkInterceptor.js";

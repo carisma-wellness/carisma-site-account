@@ -37,6 +37,7 @@ export { confirmCall, cancelCall, cancellationPreviewCall, rescheduleCall, payBa
 export type { ProxyCall, CancellationPreview, PortalActionName, CancelSummary } from "./portalActions.js";
 export { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
 export { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";
+export { circlePartsCSS } from "./styles/circle.js";
 export { resolveBrandLink, installBrandLinkInterceptor } from "./linkInterceptor.js";
 export type { BrandLinkInput, InterceptorOptions } from "./linkInterceptor.js";
 export { hydrateAccountMark, hydrateAccountMarks, mountAccountPanel, mountAccountPortal, hydrateAll, loadAccountMarkPhoto, accountMarkPhotoUrl, paymentReturnNote, } from "./browser.js";
