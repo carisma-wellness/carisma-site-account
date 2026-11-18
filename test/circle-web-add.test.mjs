@@ -278,6 +278,12 @@ test("X2: the account's track says the server's 'takes you to' sentence and '€
     assert.match(html, /<span>€710 of €1,000 paid this year<\/span><span>€290 to go<\/span>/, "the right end says what is left");
   }
   assert.match(circleHeroHTML(m), /<p class="cc-next"[^>]*>Your visit on Fri 20 Nov takes you to Level 4 · Sapphire<\/p>/);
+  // One block, one next step: the Overview panel and Credit and rewards' top say it in the track head only.
+  for (const html of [circleOverviewHTML(m), circleViewHTML({ me: m, activity: null, rewards: null })]) {
+    assert.doesNotMatch(html, /class="cc-next"/, "no Hero next step beside a track");
+    assert.equal(html.split("takes you to Level").length - 1, 1, "the sentence once");
+  }
+  assert.doesNotMatch(circleOverviewHTML(readCircle(MARIA)), /class="cc-next"/, "the gap only in the track head");
   // Absent (BE-2 sends nothing on the summary): the gap and the next level's name.
   const gap = circleOverviewHTML(readCircle(MARIA));
   assert.match(gap, /<p class="cc-track-h"[^>]*>€290 more this year to reach Level 4 · Sapphire<\/p>/);

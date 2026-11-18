@@ -567,7 +567,8 @@ export function circleOverviewHTML(
     `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-ov-title">Carisma Circle</h2>` +
     `<a class="cw-section__more" href="${CIRCLE_HREF}">Credit &amp; rewards${ARROW}</a></div>` +
     `<div class="cc-dash__panel" data-cw-jewel-hover>` +
-    circleHeroHTML(m, x) +
+    // The track beside it says the next step (X2: one track per block, never the same sentence twice).
+    circleHeroHTML(m, { ...x, say: "" }) +
     `<div class="cc-dash__level">` +
     `<p class="cc-eyebrow">${top ? "Your level" : "Your next level"}</p>` +
     circleTrackHTML(
@@ -678,7 +679,8 @@ export function circleViewHTML(input: CircleViewInput | null): string {
   return (
     `<div class="cw-rec cw-circle" data-cw-qc="${CIRCLE_V2_QC}">` +
     `<section class="cw-rise cc-view__top" aria-label="Carisma Circle" data-cw-circle="balance" data-cw-jewel-hover>` +
-    circleHeroHTML(m, input) +
+    // The track under it says the next step (X2: never the same sentence twice in one block).
+    circleHeroHTML(m, { ...input, say: "" }) +
     `<div class="cc-view__track">${circleTrackHTML({ ...m, onItsWay: m.levelOnItsWay }, { unlocks, poster: input.poster })}</div>` +
     `</section>` +
     `<div id="rewards">${circleRewardsHTML(input.rewards, m.points, { art: input.art, photo: input.photo, pointsPerEuro: m.pointsPerEuro })}</div>` +
