@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import assert from "node:assert/strict";
+import assert from "./fixtures/plain-assert.mjs";
 import {
   createAccountRoutes,
   seal,
@@ -396,7 +396,8 @@ test("the menu: circlePlaces.menu false keeps the Card out (the Credit & rewards
   card.doc.click(card.mark);
   await settle(40);
   assert.match(panelOf(card), /data-cw-circle="panel"/, "precondition: the default draws the Card");
-  assert.match(panelOf(card), /href="\/account\/rewards">Credit &amp; rewards/);
+  // KIT-1: under her live Card the menu carries board 11's rows ("Credit and rewards" with its subtitle).
+  assert.match(panelOf(card), /href="\/account\/rewards"><b>Credit and rewards<\/b>/);
 
   const noCard = panelHarness();
   mountAccountPanel(noCard.doc, { fetchImpl: noCard.fetchImpl, circle: true, circlePlaces: { menu: false } });

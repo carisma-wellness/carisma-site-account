@@ -33,6 +33,9 @@ export {
   PANEL_QC,
   PANEL_SESSION_URL,
   PANEL_SESSION_URL_CIRCLE,
+  // ADDENDUM KIT-1: board 11's account rows under her Circle Card.
+  panelCircleRowsHTML,
+  panelRewardsSubText,
 } from "./panel.js";
 
 // Carisma Circle v2 (carisma-circle-v2-20261117): the model, the words and the HTML; the jewel lives in `./jewel`.
@@ -48,6 +51,22 @@ export {
   ON_HOLD_TEXT,
   PAY_STEP_DISCLOSURE,
   CONDITIONS_EARNED,
+  // ADDENDUM X8 / X11: the design's no-break spaces, the Terms joiner, the figure pair, the short credit moment.
+  NB,
+  TERMS_JOIN,
+  nbWords,
+  creditPointsText,
+  ENDING_SOON_DAYS,
+  maltaDaysUntil,
+  // ADDENDUM BE-c / BE-j / BE-k readers and the member line (KIT-2), the chip's spoken label.
+  levelOnItsWayFrom,
+  referralFrom,
+  rebookNextFrom,
+  circleOnItsWayText,
+  circleMemberLineText,
+  circleMemberLineHTML,
+  circleChipLabel,
+  rewardPriceText,
   circleAllowedOn,
   // ADDENDUM X2 / BE-i: which level perks are switched on.
   PERKS_NOT_LIVE,
@@ -210,6 +229,9 @@ export type {
   OffersChannel,
   TrackInput,
   TrackOptions,
+  CircleLevelOnItsWay,
+  CircleReferral,
+  CircleRebookNext,
 } from "./circle.js";
 export type { PanelModel, PanelVisit } from "./panel.js";
 

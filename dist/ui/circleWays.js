@@ -14,13 +14,13 @@
  * points are awarded on the tap that opens the profile).
  */
 import { escapeHtml } from "./html.js";
-import { M, REVIEWS_FOOTNOTE, brandsLine, creditText, pointsText, } from "./circleCore.js";
+import { M, REVIEWS_FOOTNOTE, brandsLine, countWord, creditPointsText, creditText, pointsText, } from "./circleCore.js";
 const TICK = '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
     'stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>';
 const BRAND_BONUS_KEYS = new Set(["first_house", "second_house", "full_circle"]);
-/** "+€2.50 · 50 points". */
+/** "+€2.50 · 50 points" — one figure, euro first, never broken inside (board 10's `fig`). */
 export function actionValueText(a) {
-    return `+${creditText(a.cents)} · ${pointsText(a.points)}`;
+    return `+${creditPointsText(a.cents, a.points)}`;
 }
 /** "3 of 6 done · €30.00 more to earn". "" when the server sent no actions. */
 export function waysSummaryText(m) {
@@ -73,29 +73,92 @@ export function circleWaysHTML(m, opts = {}) {
         `<p class="cw-fine">${escapeHtml(`Every €1 you pay on eligible treatments${line ? ` at ${line}` : ""} earns credit too. ${REVIEWS_FOOTNOTE}`)}</p>` +
         `</section>`);
 }
+/** "Friday" for a visit's start, in Malta; "" when unreadable. */
+function maltaWeekday(iso) {
+    const ms = Date.parse(iso);
+    if (!Number.isFinite(ms))
+        return "";
+    try {
+        return new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Malta", weekday: "long" }).format(new Date(ms));
+    }
+    catch {
+        return "";
+    }
+}
+function earnCardHTML(c) {
+    return (`<li class="cc-earn-card${c.wide ? " wide" : ""}" data-cw-circle-way="${escapeHtml(c.id)}">` +
+        `<p class="cc-earn-card__t">${escapeHtml(c.title)}</p>` +
+        `<p class="cc-earn-card__fig" ${M}>${escapeHtml(c.figure)}</p>` +
+        (c.sub ? `<p class="cc-earn-card__s" ${M}>${escapeHtml(c.sub)}</p>` : "") +
+        (c.action ?? "") +
+        `</li>`);
+}
 /**
- * The account overview's "More ways to earn": one card per open action, ONE
- * figure each (board 10), Instagram cards carry the Follow link. "" when
- * everything is done or nothing was sent.
+ * The account overview's "More ways to earn" (ADDENDUM KIT-2, board 10): a card each, ONE figure each, every figure
+ * the server's. In the board's order: "Book your next visit before you leave" (only from `/me.rebookNext`, BE-k),
+ * "Spa products" (only with the public status's retail boost and Carisma Spa switched on), the brand bonuses
+ * (Full Circle; X10 drops them while one house is on), "Refer a friend" (only while `/me.referral` pays her in
+ * points, X8/BE-j: never a typed 2,000), "Follow … on Instagram" (from `/me.actions`), then any other open action.
+ * "" when there is nothing to earn.
  */
-export function circleWaysCardsHTML(m) {
+export function circleWaysCardsHTML(m, opts = {}) {
     if (!m)
         return "";
+    const cards = [];
+    if (m.rebookNext) {
+        const day = maltaWeekday(m.rebookNext.startAt);
+        cards.push({
+            id: "rebook",
+            title: "Book your next visit before you leave",
+            figure: `+${creditPointsText(m.rebookNext.cents, m.rebookNext.points)}`,
+            sub: day ? `on ${day}’s visit` : "",
+        });
+    }
+    const spa = m.brands.find((b) => b.house === "spa");
+    const boost = Math.round(Number(opts.retailBoostPct) || 0);
+    if (spa && boost > 0) {
+        cards.push({ id: "retail", title: "Spa products", figure: `${boost}% more points`, sub: `on the products you buy at ${spa.name}` });
+    }
     const open = m.actions.filter((a) => !a.done);
-    if (!open.length)
+    const bonus = open.filter((a) => BRAND_BONUS_KEYS.has(a.key));
+    const insta = open.filter((a) => a.key === "instagram");
+    const rest = open.filter((a) => !BRAND_BONUS_KEYS.has(a.key) && a.key !== "instagram");
+    for (const a of bonus) {
+        const passport = (a.key === "second_house" || a.key === "full_circle") && m.brands.length >= 2
+            ? `Full Circle: ${m.passport.count} of ${m.brands.length} Carisma brands`
+            : "";
+        cards.push({ id: a.id, title: a.label, figure: actionValueText(a), sub: passport || hintFor(a, m) });
+    }
+    if (m.referral) {
+        const r = m.referral;
+        cards.push({
+            id: "referral",
+            title: "Refer a friend",
+            figure: `Up to ${creditPointsText(r.upToCents, r.upToPoints)}`,
+            sub: `for your first ${countWord(r.ladder.length)} friend${r.ladder.length === 1 ? "" : "s"}`,
+            wide: true,
+            action: r.link ? `<button type="button" class="cc-ig" data-cw-circle-copy="${escapeHtml(r.link)}">Copy my link</button>` : "",
+        });
+    }
+    for (const a of insta) {
+        cards.push({
+            id: a.id,
+            title: a.label,
+            figure: actionValueText(a),
+            sub: "when you tap Follow, once for each Carisma brand",
+            wide: true,
+            action: instagramLinkHTML(a),
+        });
+    }
+    for (const a of rest)
+        cards.push({ id: a.id, title: a.label, figure: actionValueText(a), sub: hintFor(a, m) });
+    if (!cards.length)
         return "";
-    const cards = open
-        .map((a) => `<li class="cc-earn-card" data-cw-circle-way="${escapeHtml(a.id)}">` +
-        `<p class="cc-earn-card__fig" ${M}>${escapeHtml(`+${creditText(a.cents)}`)}</p>` +
-        `<p class="cc-earn-card__t">${escapeHtml(a.label)}</p>` +
-        `<p class="cc-earn-card__s" ${M}>${escapeHtml(pointsText(a.points))}${hintFor(a, m) ? ` · ${escapeHtml(hintFor(a, m))}` : ""}</p>` +
-        (a.key === "instagram" ? instagramLinkHTML(a) : "") +
-        `</li>`)
-        .join("");
     return (`<section class="cw-section cw-rise cc-earn" aria-labelledby="cw-circle-more-title" data-cw-circle="earn-cards">` +
         `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-more-title">More ways to earn</h2></div>` +
-        `<ul class="cc-earn__grid" role="list">${cards}</ul>` +
+        `<ul class="cc-earn__grid" role="list">${cards.map(earnCardHTML).join("")}</ul>` +
         `<p class="cw-fine">${escapeHtml(REVIEWS_FOOTNOTE)}</p>` +
+        `<p class="cw-circle-prefs__msg" role="status" aria-live="polite" data-cw-circle-copy-msg></p>` +
         `</section>`);
 }
 //# sourceMappingURL=circleWays.js.map

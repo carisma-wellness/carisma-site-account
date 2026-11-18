@@ -106,6 +106,7 @@ export function buildApptCard(row, bucket, siteBrand = "") {
         upcoming: bucket === "upcoming",
         actions,
         due,
+        circleEligible: row.circleEligible === true,
     };
 }
 /**
@@ -338,7 +339,9 @@ export function portalShellHTML(opts) {
         `<div class="cw-shell">` +
         `<aside class="cw-rail">${member}${nav(opts.view, opts.siteBrand, opts.referRail === true, opts.circleRail === true)}<div class="cw-rail__foot">${signOutLinks()}</div></aside>` +
         `<div class="cw-main">` +
-        `<header class="cw-head"><h1 class="cw-title" tabindex="-1" ${M}>${escapeHtml(opts.title)}</h1>${lede}</header>` +
+        `<header class="cw-head"><h1 class="cw-title" tabindex="-1" ${M}>${escapeHtml(opts.title)}</h1>${lede}` +
+        (opts.circleLine ? `<div class="cw-circle-slot" data-cw-circle-slot="greet" hidden></div>` : "") +
+        `</header>` +
         `<div class="cw-body"${opts.busy ? ' aria-busy="true"' : ""}>${opts.body}</div>` +
         `<footer class="cw-foot">${signOutLinks()}</footer>` +
         `</div></div>` +
@@ -646,6 +649,7 @@ export function accountPortalHTML(model) {
         siteBrand: model.siteBrand,
         referRail: model.referRail,
         circleRail: model.circleRail && model.circleRewardsRail !== false,
+        circleLine: view === "home" && model.circleRail && model.circleOverview !== false,
     });
 }
 //# sourceMappingURL=portal.js.map

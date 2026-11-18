@@ -11,9 +11,15 @@ export { MEMBER_HREF, PANEL_HREF, ACCOUNT_MARK_ATTR, ACCOUNT_MARK_QC, accountMar
 export { HINT_SIGNED_IN, HINT_INITIALS, readSignedInHint, readInitialsHint } from "./hint.js";
 export { GUEST_GLYPH_SVG, SIGNED_GLYPH_SVG, escapeHtml } from "./html.js";
 export { memberDoor, memberFallbackHTML } from "./memberDoor.js";
-export { buildPanelModel, accountPanelHTML, ACCOUNT_HOME_HREF, ACCOUNT_BOOKINGS_HREF, ACCOUNT_DETAILS_HREF, PANEL_QC, PANEL_SESSION_URL, PANEL_SESSION_URL_CIRCLE, } from "./panel.js";
+export { buildPanelModel, accountPanelHTML, ACCOUNT_HOME_HREF, ACCOUNT_BOOKINGS_HREF, ACCOUNT_DETAILS_HREF, PANEL_QC, PANEL_SESSION_URL, PANEL_SESSION_URL_CIRCLE, 
+// ADDENDUM KIT-1: board 11's account rows under her Circle Card.
+panelCircleRowsHTML, panelRewardsSubText, } from "./panel.js";
 // Carisma Circle v2 (carisma-circle-v2-20261117): the model, the words and the HTML; the jewel lives in `./jewel`.
-export { CIRCLE_V2_QC, CIRCLE_QC, CIRCLE_HREF, CIRCLE_TERMS_HREF, CENTS_PER_POINT, PROMISE_QUALIFIER, REVIEWS_FOOTNOTE, EARN_TERMS_LINE, ON_HOLD_TEXT, PAY_STEP_DISCLOSURE, CONDITIONS_EARNED, circleAllowedOn, 
+export { CIRCLE_V2_QC, CIRCLE_QC, CIRCLE_HREF, CIRCLE_TERMS_HREF, CENTS_PER_POINT, PROMISE_QUALIFIER, REVIEWS_FOOTNOTE, EARN_TERMS_LINE, ON_HOLD_TEXT, PAY_STEP_DISCLOSURE, CONDITIONS_EARNED, 
+// ADDENDUM X8 / X11: the design's no-break spaces, the Terms joiner, the figure pair, the short credit moment.
+NB, TERMS_JOIN, nbWords, creditPointsText, ENDING_SOON_DAYS, maltaDaysUntil, 
+// ADDENDUM BE-c / BE-j / BE-k readers and the member line (KIT-2), the chip's spoken label.
+levelOnItsWayFrom, referralFrom, rebookNextFrom, circleOnItsWayText, circleMemberLineText, circleMemberLineHTML, circleChipLabel, rewardPriceText, circleAllowedOn, 
 // ADDENDUM X2 / BE-i: which level perks are switched on.
 PERKS_NOT_LIVE, perksLiveFrom, readCircle, readCircleState, readCircleLeft, readCircleSummary, readCircleSummaryState, readCircleStatus, readCircleActivity, readCircleRewards, readCirclePerks, circleSummaryOf, creditText, pointsText, pointsEuroText, wholeEuroUp, wholeEuroDown, rateText, memberRate, brandsLine, conditionsText, readingText, levelSentenceText, endsText, datedText, expiringText, countWord, maltaDayWeek, pausedText, minorText, ageLineText, gainText, onTheWayText, paidWithPointsText, earnsText, actionText, rejoinNoteText, signInLineText, maltaDayShort, maltaDayLong, maltaWhen, termsLinkHTML, withTermsHTML, asGemKey, circleMarkSVG, jewelSlotHTML, progressFraction, CIRCLE_GEM_KEYS, circleTrackHTML, paidLineText, unlocksList, benefitsList, unlockLineText, nextPerksOf, ownPerksOf, circleWaysHTML, circleWaysCardsHTML, instagramLinkHTML, actionValueText, waysSummaryText, circlePerksHTML, spaDaysText, circleRewardsHTML, circleNowRowHTML, nextRewardText, rewardGroups, rewardTitle, circleChipHTML, circlePanelRowHTML, circlePanelStateHTML, circlePanelMinorHTML, circleHeroHTML, circleLadderHTML, circleOverviewHTML, circleOverviewMinorHTML, circleWalletLineHTML, 
 // Circle v2 (ADDENDUM KIT-4): the Circle card in Apple / Google Wallet.

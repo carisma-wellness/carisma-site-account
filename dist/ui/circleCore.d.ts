@@ -27,6 +27,19 @@ export declare const ON_HOLD_TEXT = "Paying with points is on hold while we revi
  */
 export declare const PAY_STEP_DISCLOSURE = "If you cancel, the credit this booking gives you is removed. If you've already used it, your balance can go below zero. We never take it from your refund.";
 export declare const M = "data-clarity-mask=\"True\"";
+/**
+ * The no-break space the design of record writes (`kit.js` NB): "Level 3 · Ruby" never breaks before its number,
+ * "1,448 points" never leaves its figure, "Mon 7 Dec" stays one piece, " · Terms" never starts a line.
+ */
+export declare const NB = "\u00A0";
+/**
+ * The design's no-break rules applied to a sentence the API wrote (BE-1 sends plain spaces until BE-m): idempotent,
+ * so a sentence that already carries them comes back unchanged.
+ *  - "Level 4 · Sapphire" → "Level 4 · Sapphire" (it breaks only before the gem name);
+ *  - "Fri 20 Nov" → "Fri 20 Nov"; "kept until 31 Dec 2027" → "kept until 31 Dec 2027";
+ *  - "1,448 points" → "1,448 points".
+ */
+export declare function nbWords(s: string): string;
 export interface CircleLevelView {
     /** The stone: the API's `level.key`. */
     key: CircleGemKey;
@@ -84,6 +97,37 @@ export interface CircleMember {
     emailVerified: boolean;
     /** ISO instant while an email change pauses spending (48 h), else "". */
     spendPausedUntil: string;
+    /** ADDENDUM BE-e: the Malta day her Circle history starts (YYYY-MM-DD), "" when the API does not send it. */
+    since: string;
+}
+/**
+ * ADDENDUM BE-c (BE-2 sends it on `/me`): a booked visit this year that takes her to the next level. The sentence is
+ * the server's ("Your visit on Fri 20 Nov takes you to Level 4 · Sapphire"), never one the kit writes.
+ */
+export interface CircleLevelOnItsWay {
+    level: CircleLevelView;
+    appointmentId: string;
+    startAt: string;
+    sentence: string;
+}
+/** ADDENDUM BE-j (BE-3): the friends ladder in points, present only while Circle pays THIS member in points. */
+export interface CircleReferral {
+    ladder: Array<{
+        friend: number;
+        points: number;
+        cents: number;
+    }>;
+    upToPoints: number;
+    upToCents: number;
+    /** Her share link, "" when the server has none for her. */
+    link: string;
+}
+/** ADDENDUM BE-k: what booking her next visit before she leaves would add, at the server's own figure. */
+export interface CircleRebookNext {
+    appointmentId: string;
+    startAt: string;
+    points: number;
+    cents: number;
 }
 export interface CircleModel {
     /** May be below zero (a refund of points already spent): never charged, recovered from future points. */
@@ -143,6 +187,14 @@ export interface CircleModel {
     actionsOf: number;
     actionsLeftPoints: number;
     member: CircleMember;
+    /** ADDENDUM BE-c: a booked visit that takes her up a level (the server's sentence), or null. */
+    levelOnItsWay: CircleLevelOnItsWay | null;
+    /** ADDENDUM BE-e: what points paid for this calendar year, in cents; null when the API does not send it. */
+    savedThisYearCents: number | null;
+    /** ADDENDUM BE-j: the friends ladder, only while the server says it pays her in points; null otherwise. */
+    referral: CircleReferral | null;
+    /** ADDENDUM BE-k: the rebook figure for her next visit, or null (BE-2 does not send it yet). */
+    rebookNext: CircleRebookNext | null;
 }
 export interface CircleLeftModel {
     /** ISO instant, or "" when the server did not say. */
@@ -193,6 +245,8 @@ export interface CircleSummary {
     spendThisYearCents: number | null;
     perks: CirclePerkSet | null;
     nextLevelPerks: CirclePerkSet | null;
+    /** ADDENDUM BE-c on the summary, only when the server sends it there (BE-2 sends it on `/me` only). */
+    levelOnItsWay: CircleLevelOnItsWay | null;
 }
 export type CircleSummaryState = {
     kind: "live";
@@ -244,6 +298,15 @@ export declare function circleAllowedOn(siteBrand?: string): boolean;
 /** A level from the wire, or null (no gem key = a v1 or unknown level: never guessed). */
 export declare function levelFrom(raw: unknown): CircleLevelView | null;
 /**
+ * ADDENDUM BE-c: `{level, appointmentId, startAt, sentence}` → the model, or null for anything less (the sentence
+ * is the server's own, so without one nothing is drawn; never a sentence the kit makes up).
+ */
+export declare function levelOnItsWayFrom(raw: unknown): CircleLevelOnItsWay | null;
+/** ADDENDUM BE-j: `/me.referral` → the ladder, only while `payInPoints` is literally true and it carries a top. */
+export declare function referralFrom(raw: unknown): CircleReferral | null;
+/** ADDENDUM BE-k: `/me.rebookNext` → the figure, or null (the server's own figure only). */
+export declare function rebookNextFrom(raw: unknown): CircleRebookNext | null;
+/**
  * A place's own `live` block (`{spaDays, earlyAccess, noDeposit}`), else its `perks.live` (a `levels[]` step may
  * nest it), or null when the place sent none. Only a literal `true` switches a perk on.
  */
@@ -269,8 +332,10 @@ export declare function summaryOf(m: CircleModel): CircleSummary;
 export declare function readCircleStatus(body: unknown): CircleStatus | null;
 /** "€62.00" — credit is always two decimals; below zero "−€3.50". */
 export declare function creditText(cents: number): string;
-/** "1,240 points" / "1 point". */
+/** "1,240 points" / "1 point" — the figure and its word never part (a no-break space, the design's `CK.S.points`). */
 export declare function pointsText(points: number): string;
+/** One figure, euro first: "€65.00 · 1,300 points", never broken inside (the design's reward and earn figures). */
+export declare function creditPointsText(cents: number, points: number): string;
 /** "€40" — level-spend euros are whole and rounded UP (never undersell a gap). */
 export declare function wholeEuroUp(cents: number): string;
 /** "€960" — paid this year, whole euros rounded DOWN (never oversell progress). */
@@ -300,12 +365,17 @@ export declare function maltaWhen(iso: string): string;
 export declare function brandsLine(brands: ReadonlyArray<{
     name: string;
 }>): string;
-/** "For one whole treatment at Carisma Spa" (the conditions line, without its Terms link). */
+/**
+ * "For one whole treatment at Carisma Spa" (the conditions line, without its Terms link). In this line each brand's
+ * full name keeps "Carisma" and its word together ("Carisma Spa, Aesthetics and Slimming"), as `CK.S.cond`.
+ */
 export declare function conditionsText(brands: ReadonlyArray<{
     name: string;
 }>): string;
-/** On an earned moment: "For one whole treatment · Comes off if this booking is cancelled". */
-export declare const CONDITIONS_EARNED = "For one whole treatment \u00B7 Comes off if this booking is cancelled";
+/** On an earned moment: "For one whole treatment · Comes off if this booking is cancelled" (`CK.S.condEarned`). */
+export declare const CONDITIONS_EARNED = "For one whole treatment\u00A0\u00B7\u00A0Comes off if this booking is cancelled";
+/** The joiner before a sentence's Terms link: " · " held to the words around it (`CK.S`'s NB·NB). */
+export declare const TERMS_JOIN = "\u00A0\u00B7\u00A0";
 /** "Terms" as a link, or "" when the site has no terms page to point at. */
 export declare function termsLinkHTML(href: string | null | undefined, label?: string): string;
 /** A sentence with " · Terms" at its end (escaped). */
@@ -333,8 +403,17 @@ export declare function datedText(d: {
     points: number;
 } | null | undefined, pointsPerEuro: number): string;
 /**
- * ADDENDUM X5 (the rollout's `CK.S.expiring`), the next step while her birthday credit is the part that ends
- * first: "Your €20.00 birthday credit ends Mon 7 Dec. Use it on a treatment before then." "" otherwise.
+ * When the ending-soon sentence takes over from the dated part: inside the LAST expiry notice before the day (the
+ * programme sends them at 60 and 14 days, BE-1 `expiry.noticeDaysBefore`). The design draws it a week before
+ * (Mon 30 Nov for a lot ending Mon 7 Dec) and the dated part 17 to 23 days before; a 14-day window agrees with every
+ * state it draws, a 60-day one does not (ADD-V1 README "Expiry"). The public status sends the notice days
+ * (`expiry.noticeDaysBefore`): a caller that has them passes the smallest; this is the fallback only.
+ */
+export declare const ENDING_SOON_DAYS = 14;
+/**
+ * ADDENDUM X5 (the rollout's `CK.S.expiring`): "Your €20.00 birthday credit ends Mon 7 Dec. Use it on a treatment
+ * before then." — only while her birthday credit is the part that ends first AND it ends within `withinDays` Malta
+ * days of `now`; "" otherwise (then the dated part under the balance says it, X4).
  */
 export declare function expiringText(m: {
     pointsExpireKind: string;
@@ -343,7 +422,9 @@ export declare function expiringText(m: {
         points: number;
     } | null;
     pointsPerEuro: number;
-}): string;
+}, now?: number, withinDays?: number): string;
+/** Whole Malta calendar days from `now` to a day (YYYY-MM-DD) or an instant; null when unreadable. */
+export declare function maltaDaysUntil(iso: string, now?: number): number | null;
 /** R5.4 + R1.14: the line under the balance that says what ends first. "" when nothing is close. */
 export declare function endsText(m: CircleModel): string;
 /** "Paying with points is paused until Thu 19 Nov, 20:15" (an email change pauses spending 48 h). */
@@ -352,7 +433,7 @@ export declare function pausedText(untilIso: string): string;
 export declare function minorText(minAge: number | null): string;
 /** R5.5: "Carisma Circle is for people aged 18 and over" (+ Terms where drawn). */
 export declare function ageLineText(minAge: number | null): string;
-/** The CEO's sentence for an earned moment (R5.2, R5.4). */
+/** The CEO's sentence for an earned moment (R5.2, R5.4; `CK.S.gainLong`, the curly apostrophe included). */
 export declare function gainText(earnedCents: number, brands: ReadonlyArray<{
     name: string;
 }>, affordable: boolean): string;

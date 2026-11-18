@@ -15,7 +15,7 @@
  */
 import { escapeHtml } from "./html.js";
 import { unwrapEnvelope } from "./appointments.js";
-import { M, creditText, int, obj, pointsEuroText, pointsText, str } from "./circleCore.js";
+import { M, NB, creditPointsText, int, obj, pointsEuroText, str } from "./circleCore.js";
 /**
  * Under the reward cards: counsel's corrected sentence (surface-consistency row 26), word for word, as the v1
  * kit shipped it under its old name. Still true in v2: a reward is one whole treatment, paid in full, and at
@@ -67,11 +67,13 @@ export function readCircleRewards(body) {
     })
         .filter((r) => r.fromPoints > 0);
 }
-/** "Anti-Stress Massage, 55 min" (the duration only when the name does not already say it). */
+/**
+ * "Anti-Stress Massage, 55 min" (the duration only when the name does not already say it). The design's `tname`:
+ * "Short & Sweet" and "30 min" never break inside ("Japanese Short & Sweet, 30 min").
+ */
 export function rewardTitle(r) {
-    if (!r.durationMinutes || /\bmin/i.test(r.name))
-        return r.name;
-    return `${r.name}, ${r.durationMinutes} min`;
+    const base = !r.durationMinutes || /\bmin/i.test(r.name) ? r.name : `${r.name}, ${r.durationMinutes} min`;
+    return base.replace(/ & /g, `${NB}&${NB}`).replace(/(\d)[  ]+(mins?)\b/g, `$1${NB}$2`);
 }
 /**
  * Yours now (the best her points pay for today: the server's `affordable`),
@@ -96,9 +98,11 @@ export function nextRewardText(items, balancePoints, pointsPerEuro) {
     const gap = next.fromPoints - Math.max(0, balancePoints);
     return gap > 0 ? `${pointsEuroText(gap, pointsPerEuro)} more and your points pay for ${rewardTitle(next)}` : "";
 }
-function priceLine(r) {
-    return `${creditText(r.fromCents)} · ${pointsText(r.fromPoints)}`;
+/** "€65.00 · 1,300 points" (one figure, never broken inside). */
+export function rewardPriceText(r) {
+    return creditPointsText(r.fromCents, r.fromPoints);
 }
+const priceLine = rewardPriceText;
 function cardHTML(eyebrow, r, line, on, art, photo) {
     const a = art?.[r.serviceId];
     const tag = a?.href ? "a" : "div";

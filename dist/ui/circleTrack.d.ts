@@ -10,6 +10,15 @@ export interface TrackInput {
     heldUntil?: string;
     /** Paid this year (the member read sends it; the summary does not, so it is derived from the gap). */
     spendThisYearCents?: number | null;
+    /**
+     * ADDENDUM X2 / BE-c: a booked visit that takes her to the next level — the head is then the SERVER's sentence
+     * ("Your visit on Fri 20 Nov takes you to Level 4 · Sapphire") and the caption's right end says what is left
+     * ("€40 to go"). Absent or null: the gap sentence and the next level's name. Never made up from local maths.
+     * The pay step passes the earn preview's `levelAfterVisit` here (this visit), never `/me`'s booked visit.
+     */
+    onItsWay?: {
+        sentence: string;
+    } | null;
 }
 export interface TrackOptions {
     /** 44 px jewels and no list (the menu, the pay step). Default 56 px. */

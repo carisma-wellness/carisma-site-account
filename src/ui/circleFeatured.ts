@@ -15,7 +15,7 @@
  */
 import { escapeHtml } from "./html.js";
 import { unwrapEnvelope } from "./appointments.js";
-import { M, creditText, int, obj, pointsEuroText, pointsText, str } from "./circleCore.js";
+import { M, NB, creditPointsText, int, obj, pointsEuroText, str } from "./circleCore.js";
 
 export interface CircleReward {
   brandName: string;
@@ -93,10 +93,13 @@ export function readCircleRewards(body: unknown): CircleReward[] | null {
     .filter((r) => r.fromPoints > 0);
 }
 
-/** "Anti-Stress Massage, 55 min" (the duration only when the name does not already say it). */
+/**
+ * "Anti-Stress Massage, 55 min" (the duration only when the name does not already say it). The design's `tname`:
+ * "Short & Sweet" and "30 min" never break inside ("Japanese Short & Sweet, 30 min").
+ */
 export function rewardTitle(r: CircleReward): string {
-  if (!r.durationMinutes || /\bmin/i.test(r.name)) return r.name;
-  return `${r.name}, ${r.durationMinutes} min`;
+  const base = !r.durationMinutes || /\bmin/i.test(r.name) ? r.name : `${r.name}, ${r.durationMinutes} min`;
+  return base.replace(/ & /g, `${NB}&${NB}`).replace(/(\d)[  ]+(mins?)\b/g, `$1${NB}$2`);
 }
 
 /**
@@ -126,9 +129,11 @@ export function nextRewardText(items: CircleReward[] | null, balancePoints: numb
   return gap > 0 ? `${pointsEuroText(gap, pointsPerEuro)} more and your points pay for ${rewardTitle(next)}` : "";
 }
 
-function priceLine(r: CircleReward): string {
-  return `${creditText(r.fromCents)} · ${pointsText(r.fromPoints)}`;
+/** "€65.00 · 1,300 points" (one figure, never broken inside). */
+export function rewardPriceText(r: CircleReward): string {
+  return creditPointsText(r.fromCents, r.fromPoints);
 }
+const priceLine = rewardPriceText;
 
 function cardHTML(
   eyebrow: string,

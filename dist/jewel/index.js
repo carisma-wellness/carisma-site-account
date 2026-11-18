@@ -124,4 +124,30 @@ export function updateJewelSlot(slot, next) {
         patch.variant = variantOf(next.kind);
     m.handle.update(patch);
 }
+const hostDisposers = new WeakMap();
+/**
+ * ADDENDUM KIT-6 (should): the jewel's host interface. A site hands it to the kit as `jewelHost` (or calls it for
+ * its own Circle blocks): `hydrate(root)` mounts a live jewel in every slot under `root` that has none yet;
+ * `release(root)` frees what `hydrate` mounted under that root (call it before replacing the root's HTML).
+ * Hydrating the same root twice keeps both sets until one release.
+ */
+export const jewelHost = {
+    hydrate(root) {
+        if (!root || typeof root !== "object")
+            return;
+        const d = hydrateJewels(root);
+        const prev = hostDisposers.get(root);
+        hostDisposers.set(root, () => {
+            prev?.();
+            d();
+        });
+    },
+    release(root) {
+        if (!root || typeof root !== "object")
+            return;
+        const d = hostDisposers.get(root);
+        hostDisposers.delete(root);
+        d?.();
+    },
+};
 //# sourceMappingURL=index.js.map

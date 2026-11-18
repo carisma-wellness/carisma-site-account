@@ -41,6 +41,8 @@ export interface ApptCard {
     /** The server's block, all-false when the row carried none. */
     actions: BookingActions;
     due: number;
+    /** ADDENDUM BE-g / KIT-6 strict listing: the server marked every line of this booking as earning (missing = false). */
+    circleEligible: boolean;
 }
 /** "+35627802062" → "+356 2780 2062"; anything else unchanged. */
 export declare function formatPhone(raw: string): string;
@@ -162,6 +164,11 @@ export declare function portalShellHTML(opts: {
     referRail?: boolean;
     /** Draw the (hidden until live) Carisma Circle rail row. */
     circleRail?: boolean;
+    /**
+     * ADDENDUM KIT-2: an empty, hidden slot under the greeting for her Circle line ("Level 3 · Ruby · Member since
+     * 2024 · CC 0042 1187"); browser.ts fills it only when the member read says live. Absent unless asked.
+     */
+    circleLine?: boolean;
 }): string;
 /** The failed-read block. Never the empty state: "you have no bookings" is a lie when we could not ask. */
 export declare function errorBlockHTML(what: string, phone?: string): string;

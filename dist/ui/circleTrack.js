@@ -11,7 +11,7 @@
  */
 import { escapeHtml } from "./html.js";
 import { jewelSlotHTML } from "./circleMark.js";
-import { M, PERKS_NOT_LIVE, creditText, levelSentenceText, rateText, wholeEuroDown, wholeEuroUp, } from "./circleCore.js";
+import { M, PERKS_NOT_LIVE, countWord, creditText, levelSentenceText, nbWords, rateText, wholeEuroDown, wholeEuroUp, } from "./circleCore.js";
 const ORDINAL = ["", "", "second", "third", "fourth", "fifth"];
 function paidThisYear(t) {
     if (typeof t.spendThisYearCents === "number" && t.spendThisYearCents >= 0)
@@ -89,7 +89,9 @@ export function benefitsList(p, pointsPerEuro, earnPerEuro = 1) {
     if (p.birthdayCreditCents > 0)
         out.push(`${creditText(p.birthdayCreditCents)} birthday credit`);
     if (p.freeSpaDaysPerYear > 0 && p.live?.spaDays === true) {
-        out.push(p.freeSpaDaysPerYear === 1 ? "A free Spa day every year" : `${p.freeSpaDaysPerYear} free Spa days every year`);
+        // `CK.benefits`: "Two free Spa days every year" (the count in words, as the design writes it).
+        const n = countWord(p.freeSpaDaysPerYear);
+        out.push(p.freeSpaDaysPerYear === 1 ? "A free Spa day every year" : `${n.charAt(0).toUpperCase()}${n.slice(1)} free Spa days every year`);
     }
     if (p.noDeposit && p.live?.noDeposit === true)
         out.push("No deposit when you book by phone or at the desk");
@@ -124,7 +126,11 @@ export function circleTrackHTML(t, opts = {}) {
     const h = opts.compact ? 44 : 56;
     const pct = top ? 100 : Math.max(0, Math.min(100, Math.round(t.progressBp / 100)));
     const paid = paidLineText(t);
-    const sentence = levelSentenceText(t);
+    // X2: a level on its way first (the server's sentence), else the gap. Never the same figure twice: the caption's
+    // right end is "€40 to go" only under a head that names a visit, otherwise the next level's name.
+    const onItsWay = !top && t.onItsWay && t.onItsWay.sentence ? nbWords(t.onItsWay.sentence) : "";
+    const sentence = onItsWay || levelSentenceText(t);
+    const capRight = onItsWay && opts.head !== false && t.toNextLevelCents > 0 ? `${wholeEuroUp(t.toNextLevelCents)} to go` : t.nextLevel?.label ?? "";
     const poster = opts.poster ?? null;
     const slot = (gem, p) => jewelSlotHTML({ gem: gem, progress: p, height: h, kind: "small", poster: poster ? poster(gem, "small") : undefined });
     const aria = top ? t.level.label : paid || `${pct}% of the way to ${t.nextLevel?.label ?? ""}`;
@@ -133,7 +139,7 @@ export function circleTrackHTML(t, opts = {}) {
     const head = opts.head === false || !sentence ? "" : `<p class="cc-track-h" ${M}>${escapeHtml(sentence)}</p>`;
     const cap = top || !paid
         ? ""
-        : `<p class="cc-track-cap" ${M}><span>${escapeHtml(paid)}</span><span>${escapeHtml(t.nextLevel?.label ?? "")}</span></p>`;
+        : `<p class="cc-track-cap" ${M}><span>${escapeHtml(paid)}</span><span>${escapeHtml(capRight)}</span></p>`;
     const list = !top && opts.unlocks && opts.unlocks.length
         ? `<div class="cc-unlocks"><p class="cc-eyebrow">${escapeHtml(`${t.nextLevel?.label ?? ""} unlocks`)}</p>` +
             `<ul>${opts.unlocks.map((u) => `<li>${escapeHtml(u)}</li>`).join("")}</ul></div>`

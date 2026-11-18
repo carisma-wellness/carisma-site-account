@@ -1,4 +1,4 @@
-import { type CircleRewardPhoto } from "./circle.js";
+import { type CircleRewardPhoto, type CircleStatus } from "./circle.js";
 import { type LoadState, type PortalView } from "./portal.js";
 import type { MinimalDocument, MinimalElement } from "./dom.js";
 /** The photo the marks are currently painted with (exported for tests/hosts). */
@@ -112,6 +112,27 @@ export interface HydrateOptions {
      * Slimming passes false: its WhatsApp number is locked by Meta.
      */
     circleWhatsappPref?: boolean;
+    /**
+     * ADDENDUM KIT-6 (should): `"any"` (default, today's rule) or `"strict"`: the menu's Circle Card and the Overview's
+     * Circle block show only when EVERY visit listed there carries the server's `circleEligible === true` (BE-g; a
+     * missing flag is not eligible), so a clinic never shows the Circle beside a booking that never earns.
+     */
+    circleListing?: "any" | "strict";
+    /**
+     * ADDENDUM KIT-6 (should): the jewel's host interface (`@carisma/site-account/jewel`'s `jewelHost`): the kit calls
+     * `hydrate(root)` for the slots it drew and `release(root)` before it replaces them. Used when `circleJewel`
+     * is not given (a site that already loaded the jewel, or wraps its own lazy import).
+     */
+    jewelHost?: {
+        hydrate(root: unknown): void;
+        release(root: unknown): void;
+    };
+    /**
+     * The public status (`/public/loyalty/status`, as the site reads it), asked only once the member read says the
+     * Circle is live for her: the level count on the menu's "Credit and rewards" row ("all five levels"), the retail
+     * boost on the Overview's "Spa products" card, the ending-soon window. Never typed: without it those parts wait.
+     */
+    circleStatus?: () => Promise<CircleStatus | null | undefined>;
 }
 /**
  * ADDENDUM KIT-6: is the Circle on for this site right now? `circleV2`, when the host gives it, decides (read at

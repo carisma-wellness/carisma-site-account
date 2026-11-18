@@ -34,7 +34,10 @@ export type CircleRewardPhoto = (item: CircleReward) => {
 } | null | undefined;
 /** Either read → the items, or null (off, 404, garbage). Carisma Medical is dropped if it ever came. */
 export declare function readCircleRewards(body: unknown): CircleReward[] | null;
-/** "Anti-Stress Massage, 55 min" (the duration only when the name does not already say it). */
+/**
+ * "Anti-Stress Massage, 55 min" (the duration only when the name does not already say it). The design's `tname`:
+ * "Short & Sweet" and "30 min" never break inside ("Japanese Short & Sweet, 30 min").
+ */
 export declare function rewardTitle(r: CircleReward): string;
 /**
  * Yours now (the best her points pay for today: the server's `affordable`),
@@ -47,6 +50,8 @@ export declare function rewardGroups(items: CircleReward[], balancePoints: numbe
 };
 /** R5.3 on the pay step: "€38.00 more and your points pay for Anti-Stress Massage, 55 min". "" when none. */
 export declare function nextRewardText(items: CircleReward[] | null, balancePoints: number, pointsPerEuro: number): string;
+/** "€65.00 · 1,300 points" (one figure, never broken inside). */
+export declare function rewardPriceText(r: CircleReward): string;
 /**
  * The photo cards: Yours now / Next up / One day. `balancePoints` = her
  * balance (the gap lines); for a visitor pass null (public featured: each card

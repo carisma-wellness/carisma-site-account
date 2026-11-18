@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import assert from "node:assert/strict";
+import assert from "./fixtures/plain-assert.mjs";
 import { asGemKey, circleMarkSVG, jewelSlotHTML, progressFraction, CIRCLE_GEM_KEYS, circleChipHTML, readCircleSummary } from "../dist/index.js";
 import { SUMMARY } from "./fixtures/circle-v2.mjs";
 
@@ -47,7 +47,8 @@ test("the header chip is the flat mark and the balance — never a jewel slot (t
   const chip = circleChipHTML(readCircleSummary(SUMMARY));
   assert.match(chip, /<svg class="cc-mark" data-cc-gem="ruby" width="24" height="24"/);
   assert.match(chip, /<span class="cc-chip__bal">€72\.40<\/span>/);
-  assert.match(chip, /Carisma credit, Level 3 · Ruby/);
+  // ADDENDUM X11 (`CK.chip`'s aria): the spoken label carries the balance too.
+  assert.match(chip, /Carisma credit €72\.40, Level 3 · Ruby/);
   assert.doesNotMatch(chip, /data-cw-jewel/);
   assert.equal(circleChipHTML(null), "");
 });

@@ -12,6 +12,7 @@ import { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appo
 import {
   CIRCLE_HREF,
   circlePanelStateHTML,
+  countWord,
   readCircleSummaryState,
   type CircleLeftModel,
   type CircleSummary,
@@ -50,6 +51,11 @@ export interface PanelModel {
   circleLeft: CircleLeftModel | null;
   /** Under the minimum age (R5.4): one line only. Null otherwise. */
   circleMinor: { minAge: number | null } | null;
+  /**
+   * ADDENDUM KIT-6 `circleListing: "strict"` (BE-g): every visit the menu lists carries `circleEligible === true`
+   * (a missing flag is not eligible). True for an empty list. The kit's default ("any") never reads it.
+   */
+  circleEligibleAll: boolean;
 }
 
 /** The panel model's Circle part as one state (null = nothing to draw). */
@@ -131,10 +137,10 @@ export function buildPanelModel(session: unknown): PanelModel {
   const name = `${firstName} ${lastName}`.trim() || emailMasked.split("@")[0] || "";
   const initials = String(s.initials ?? profile.initials ?? "");
 
-  const visits = upcomingFrom(s)
+  const rows = upcomingFrom(s)
     .filter((r) => r && typeof r === "object" && !isMedicalAppointment(r))
-    .slice(0, 3)
-    .map(mapVisit);
+    .slice(0, 3);
+  const visits = rows.map(mapVisit);
 
   return {
     name,
@@ -148,6 +154,7 @@ export function buildPanelModel(session: unknown): PanelModel {
     },
     state: visits.length ? "settled" : "empty",
     ...circleOf(s.loyalty),
+    circleEligibleAll: rows.every((r) => (r as Record<string, unknown>).circleEligible === true),
   };
 }
 
@@ -163,10 +170,14 @@ const M = 'data-clarity-mask="True"';
 export function accountPanelHTML(
   model: PanelModel,
   circle: PanelCircleExtras = {},
-  places: { menu?: boolean; rewards?: boolean } = {},
+  places: { menu?: boolean; rewards?: boolean; listing?: "any" | "strict" } = {},
 ): string {
-  const menu = places.menu !== false;
+  // KIT-6 `circleListing: "strict"`: no Circle Card beside a listed visit the server did not mark eligible.
+  const menu = places.menu !== false && (places.listing !== "strict" || model.circleEligibleAll);
   const rewards = places.rewards !== false;
+  // ADDENDUM KIT-1 (board 11): with her live Circle Card in the menu, the menu is the board's — the Card, then the
+  // rows with their subtitles, then Sign out. Off, left, under 18 or the Card not shown here: today's panel, byte for byte.
+  const live = menu && Boolean(model.circle);
   const header =
     `<header class="carisma-panel__header">` +
     `<span class="carisma-panel__initials" ${M} aria-hidden="true">${escapeHtml(model.initials)}</span>` +
@@ -206,10 +217,44 @@ export function accountPanelHTML(
     `<button type="button" data-carisma-signout-all>Sign out of every Carisma site</button>` +
     `</footer>`;
 
+  if (live) {
+    return (
+      `<section class="carisma-panel carisma-panel--circle" role="dialog" aria-modal="true" aria-label="Your account and Carisma credit" data-cw-qc="${PANEL_QC}">` +
+      `${header}${panelCircleSlotHTML(model, circle)}${panelCircleRowsHTML(model, rewards)}${footer}</section>`
+    );
+  }
   return (
     `<section class="carisma-panel" role="dialog" aria-modal="true" aria-label="Your account" data-cw-qc="${PANEL_QC}">` +
     `${header}${menu ? panelCircleSlotHTML(model, circle) : ""}<div class="carisma-panel__visits">${rows}</div>${links}${footer}</section>`
   );
+}
+
+const CHEVRON =
+  '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" ' +
+  'stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>';
+
+/**
+ * Board 11's account rows, each with its subtitle: "Overview"; "Bookings" with her next visit ("Fri 20 Nov, 15:00");
+ * "Credit and rewards" with what it holds — "Activity, ways to earn, all five levels", the count from the API's
+ * levels (browser.ts fills it once the public status answers; never a typed "five"); "Details" kept.
+ */
+export function panelCircleRowsHTML(model: PanelModel, rewards = true): string {
+  const next = model.visits[0]?.when ?? "";
+  const row = (href: string, title: string, sub: string, attrs = "") =>
+    `<li><a href="${escapeHtml(href)}"${attrs}><b>${title}</b>${sub}${CHEVRON}</a></li>`;
+  return (
+    `<ul class="carisma-panel__rows" data-cw-circle="menu-rows">` +
+    row(model.hub.home, "Overview", "") +
+    row(model.hub.appointments, "Bookings", next ? `<small ${M}>${escapeHtml(next)}</small>` : "") +
+    (rewards ? row(CIRCLE_HREF, "Credit and rewards", `<small data-cw-circle-levels-sub hidden></small>`) : "") +
+    row(model.hub.details, "Details", "") +
+    `</ul>`
+  );
+}
+
+/** The Credit and rewards row's subtitle once the level count is known: "Activity, ways to earn, all five levels". */
+export function panelRewardsSubText(levelCount: number): string {
+  return levelCount > 0 ? `Activity, ways to earn, all ${countWord(levelCount)} levels` : "";
 }
 
 /** The menu's Circle block in its own slot, so browser.ts can redraw it when the extra reads answer. "" when off. */

@@ -6,7 +6,7 @@ export { asGemKey, circleMarkSVG, jewelSlotHTML, progressFraction, CIRCLE_GEM_KE
 export { benefitsList, circleTrackHTML, nextPerksOf, ownPerksOf, paidLineText, unlockLineText, unlocksList, type TrackInput, type TrackOptions, } from "./circleTrack.js";
 export { actionValueText, circleWaysCardsHTML, circleWaysHTML, instagramLinkHTML, waysSummaryText } from "./circleWays.js";
 export { circlePerksHTML, readCirclePerks, spaDaysText, type CirclePerks, type CirclePerkUpcoming } from "./circlePerks.js";
-export { circleNowRowHTML, circleRewardsHTML, REWARDS_FOOT, nextRewardText, readCircleRewards, rewardGroups, rewardTitle, type CircleReward, type CircleRewardArt, type CircleRewardPhoto, } from "./circleFeatured.js";
+export { circleNowRowHTML, circleRewardsHTML, REWARDS_FOOT, nextRewardText, readCircleRewards, rewardGroups, rewardPriceText, rewardTitle, type CircleReward, type CircleRewardArt, type CircleRewardPhoto, } from "./circleFeatured.js";
 /** Same literal as panel.ts ACCOUNT_DETAILS_HREF (not imported: panel.ts imports this module). */
 export declare const REJOIN_LABEL = "Rejoin Carisma Circle";
 /**
@@ -42,6 +42,8 @@ export interface CircleExtras {
  * loads on a page just because the header is there (surfaces §9 Q2 default).
  */
 export declare function circleChipHTML(s: CircleSummary | null): string;
+/** The chip's spoken label (`CK.chip`'s aria): "Carisma credit €84.30, Level 3 · Ruby" (no figure below zero). */
+export declare function circleChipLabel(s: Pick<CircleSummary, "belowZero" | "creditCents" | "level">): string;
 export interface PanelCircleExtras extends CircleExtras {
     /** "Level 4 · Sapphire unlocks …" (from the member read, filled after the menu opens). */
     unlockLine?: string;
@@ -71,6 +73,19 @@ export declare function circleOverviewLeftHTML(l: CircleLeftModel | null, firstL
 export declare function circleOverviewMinorHTML(minor: {
     minAge: number | null;
 } | null): string;
+/** The server's own sentence for a booked visit that takes her up a level, or "" (never one the kit writes). */
+export declare function circleOnItsWayText(m: {
+    levelOnItsWay: {
+        sentence: string;
+    } | null;
+    nextLevel: unknown;
+}): string;
+/**
+ * Under "Good evening, Maria": "Level 3 · Ruby · Member since 2024 · CC 0042 1187". "Member since" only from the
+ * API's `member.since` (BE-e; absent → left out), the number only when she has one. "" for null.
+ */
+export declare function circleMemberLineText(m: CircleModel | null): string;
+export declare function circleMemberLineHTML(m: CircleModel | null): string;
 /**
  * The Hero: jewel 240, level, balance, reading, what ends first, ONE next step,
  * ONE action, conditions. `say` replaces the next step (the thank-you page's
@@ -123,6 +138,8 @@ export declare function circleOverviewHTML(m: CircleModel | null, x?: CircleExtr
         items: CircleActivityItem[];
         nextCursor: string | null;
     } | null;
+    /** The public status's retail boost (the "Spa products" card); unknown → no card. */
+    retailBoostPct?: number | null;
 }): string;
 /**
  * Carisma credit as its own line in the Wallet, NOT added to "Available to

@@ -113,6 +113,10 @@ export const PORTAL_CIRCLE_CSS = `
     .carisma-portal .cw-circle__value { font-size: 34px; }
 }
 
+/* ── ADDENDUM KIT-2: her Circle line under the greeting (board 10) ───── */
+.carisma-portal .cw-head .cc-since { margin-top: 6px; }
+.carisma-portal .cw-head .cc-since b { font-weight: 600; color: var(--cw-account-ink); }
+
 /* ── Circle v2: the account dashboard and the Credit & rewards top ───── */
 .carisma-portal .cc-dash { display: grid; gap: 24px; }
 .carisma-portal .cc-dash__panel, .carisma-portal .cc-view__top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
@@ -150,27 +154,27 @@ ${S} .cc-jw[data-cw-jewel-live] > .cc-jw__mark, ${S} .cc-jw[data-cw-jewel-live] 
 ${S} .cc-mark { display: block; flex: none; }
 
 /* words under the jewel, never on it */
-${S} .cc-eyebrow { font-family: var(--cw-account-label-font); font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: var(--cw-account-label-tracking); text-transform: uppercase; color: var(--cw-account-muted); font-style: normal; }
-${S} .cc-level { font-size: 16px; line-height: 22px; font-weight: 600; color: var(--cw-account-muted); }
-${S} .cc-bal { font-family: var(--cw-account-display-font); font-weight: var(--cw-account-display-weight); color: var(--cw-account-display-ink); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; letter-spacing: 0.01em; }
-${S} .cc-read { font-size: 15px; line-height: 22px; color: var(--cw-account-muted); }
-${S} .cc-next { font-size: 16px; line-height: 24px; color: var(--cw-account-ink); }
-${S} .cc-note { font-size: 14px; line-height: 20px; color: var(--cw-account-ink); }
+${S} .cc-eyebrow { font-family: var(--cw-circle-label-font, var(--cw-account-label-font)); font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: var(--cw-account-label-tracking); text-transform: uppercase; color: var(--cw-circle-muted, var(--cw-account-muted)); font-style: normal; }
+${S} .cc-level { font-size: 16px; line-height: 22px; font-weight: 600; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
+${S} .cc-bal { font-family: var(--cw-circle-display-font, var(--cw-account-display-font)); font-weight: var(--cw-account-display-weight); color: var(--cw-circle-ink, var(--cw-account-display-ink)); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; letter-spacing: 0.01em; }
+${S} .cc-read { font-size: 15px; line-height: 22px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
+${S} .cc-next { font-size: 16px; line-height: 24px; color: var(--cw-circle-ink, var(--cw-account-ink)); }
+${S} .cc-note { font-size: 14px; line-height: 20px; color: var(--cw-circle-ink, var(--cw-account-ink)); }
 /* ADDENDUM X4: the dated part of the balance, directly under it ("€20.00 of it until Mon 7 Dec"). */
-${S} .cc-dated { font-size: 14px; line-height: 20px; color: var(--cw-account-ink); font-variant-numeric: lining-nums tabular-nums; }
-${S} .cc-cond { font-size: 13px; line-height: 18px; color: var(--cw-account-muted); max-width: 44ch; }
-${S} .cc-link, ${S} .cc-cond a, ${S} .cc-read a { color: var(--cw-account-circle-link); text-decoration: underline; text-underline-offset: 2px; }
+${S} .cc-dated { font-size: 14px; line-height: 20px; color: var(--cw-circle-ink, var(--cw-account-ink)); font-variant-numeric: lining-nums tabular-nums; }
+${S} .cc-cond { font-size: 13px; line-height: 18px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); max-width: 44ch; }
+${S} .cc-link, ${S} .cc-cond a, ${S} .cc-read a { color: var(--cw-circle-link, var(--cw-account-circle-link)); text-decoration: underline; text-underline-offset: 2px; }
 /* the ONE action: the ink pill (gold is a material, never a Circle button) */
 ${S} .cc-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 28px; border-radius: 999px; border: 0;
-  background: var(--cw-account-circle-btn); color: var(--cw-account-circle-btn-ink); font-family: var(--cw-account-label-font); font-weight: 700;
+  background: var(--cw-circle-btn, var(--cw-account-circle-btn)); color: var(--cw-circle-btn-ink, var(--cw-account-circle-btn-ink)); font-family: var(--cw-circle-label-font, var(--cw-account-label-font)); font-weight: 700;
   font-size: 13px; line-height: 1; letter-spacing: var(--cw-account-label-tracking); text-transform: uppercase; text-decoration: none; cursor: pointer; white-space: nowrap; }
 ${S} .cc-btn:hover { filter: brightness(1.18); }
 ${S} .cc-btn:focus-visible { outline: 2px solid var(--cw-account-focus); outline-offset: 3px; }
-${S} .cc-plate { display: grid; place-items: center; background: linear-gradient(170deg, var(--cw-account-circle-ground-a), var(--cw-account-circle-ground-b)); }
+${S} .cc-plate { display: grid; place-items: center; background: linear-gradient(170deg, var(--cw-circle-ground-a, var(--cw-account-circle-ground-a)), var(--cw-circle-ground-b, var(--cw-account-circle-ground-b))); }
 
 /* the Hero: jewel 240, then the words in their fixed order */
 ${S} .cc-hero { display: grid; justify-items: center; text-align: center; padding: 24px 24px 28px; border-radius: var(--cw-account-radius);
-  background: linear-gradient(170deg, var(--cw-account-circle-ground-a), var(--cw-account-circle-ground-b)); box-shadow: inset 0 0 0 1px var(--cw-account-line); }
+  background: linear-gradient(170deg, var(--cw-circle-ground-a, var(--cw-account-circle-ground-a)), var(--cw-circle-ground-b, var(--cw-account-circle-ground-b))); box-shadow: inset 0 0 0 1px var(--cw-circle-hair, var(--cw-account-line)); }
 ${S} .cc-hero > .cc-level { margin-top: 20px; }
 ${S} .cc-hero > .cc-bal { font-size: 48px; line-height: 52px; margin-top: 4px; }
 ${S} .cc-hero > .cc-read { margin-top: 4px; }
@@ -182,72 +186,82 @@ ${S} .cc-hero > .cc-cond { margin-top: 12px; }
 
 /* the level track: her jewel, the bar, the next stone */
 ${S} .cc-track { display: grid; row-gap: 10px; width: 100%; text-align: left; }
-${S} .cc-track-h { font-size: 16px; line-height: 24px; font-weight: 600; color: var(--cw-account-ink); }
+${S} .cc-track-h { font-size: 16px; line-height: 24px; font-weight: 600; color: var(--cw-circle-ink, var(--cw-account-ink)); }
 ${S} .cc-track-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 12px; align-items: center; }
 ${S} .cc-track-row.top { grid-template-columns: auto minmax(0, 1fr); }
 ${S} .cc-bar { position: relative; top: -5px; height: 8px; border-radius: 4px; background: var(--cw-account-circle-track); overflow: hidden; }
 ${S} .cc-bar > i { position: absolute; left: 0; top: 0; bottom: 0; min-width: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--cw-account-circle-gold-a), var(--cw-account-circle-gold-b)); }
-${S} .cc-track-cap { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; line-height: 18px; color: var(--cw-account-muted); }
+${S} .cc-track-cap { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; line-height: 18px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
 ${S} .cc-track-cap > span:last-child { text-align: right; white-space: nowrap; }
-${S} .cc-track-line { font-size: 14px; line-height: 20px; color: var(--cw-account-muted); }
+${S} .cc-track-line { font-size: 14px; line-height: 20px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
 ${S} .cc-track.compact { row-gap: 8px; }
 ${S} .cc-track.compact .cc-track-h { font-size: 15px; line-height: 22px; }
 ${S} .cc-unlocks, ${S} .cc-gives { display: grid; row-gap: 8px; margin-top: 6px; }
 ${S} .cc-unlocks ul, ${S} .cc-gives ul { list-style: none; margin: 0; padding: 0; display: grid; row-gap: 6px; }
-${S} .cc-unlocks li, ${S} .cc-gives li { position: relative; padding-left: 22px; font-size: 15px; line-height: 22px; color: var(--cw-account-ink); }
+${S} .cc-unlocks li, ${S} .cc-gives li { position: relative; padding-left: 22px; font-size: 15px; line-height: 22px; color: var(--cw-circle-ink, var(--cw-account-ink)); }
 ${S} .cc-unlocks li::before, ${S} .cc-gives li::before { content: ""; position: absolute; left: 3px; top: 7px; width: 8px; height: 8px; transform: rotate(45deg);
   background: linear-gradient(135deg, var(--cw-account-circle-gold-a), var(--cw-account-circle-gold-b)); }
 
 /* what her points buy: photo cards */
 ${S} .cc-rewards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; list-style: none; margin: 0; padding: 0; }
-${S} .cc-reward { border: 1px solid var(--cw-account-line); border-radius: var(--cw-account-radius); overflow: hidden; background: var(--cw-account-surface); }
+${S} .cc-reward { border: 1px solid var(--cw-circle-hair, var(--cw-account-line)); border-radius: var(--cw-account-radius); overflow: hidden; background: var(--cw-account-surface); }
 ${S} .cc-reward__in { display: grid; align-content: start; height: 100%; color: inherit; text-decoration: none; }
 ${S} .cc-reward__in > img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
 ${S} .cc-reward__t { display: grid; row-gap: 4px; padding: 14px 16px 16px; text-align: left; }
-${S} .cc-reward__t b { font-size: 16px; line-height: 22px; font-weight: 600; color: var(--cw-account-ink); }
-${S} .cc-reward__t > span:last-child { font-size: 13px; line-height: 18px; color: var(--cw-account-muted); }
-${S} .cc-reward.on .cc-eyebrow { color: var(--cw-account-circle-link); }
+${S} .cc-reward__t b { font-size: 16px; line-height: 22px; font-weight: 600; color: var(--cw-circle-ink, var(--cw-account-ink)); }
+${S} .cc-reward__t > span:last-child { font-size: 13px; line-height: 18px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
+${S} .cc-reward.on .cc-eyebrow { color: var(--cw-circle-link, var(--cw-account-circle-link)); }
 ${S} .cc-rewards.scroll { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 240px; overflow-x: auto; scroll-snap-type: x mandatory; }
 ${S} .cc-now { display: grid; grid-template-columns: 56px minmax(0, 1fr); column-gap: 14px; align-items: center; padding: 10px 12px 10px 10px;
-  border: 1px solid var(--cw-account-line); border-radius: 14px; color: var(--cw-account-ink); text-decoration: none; text-align: left; }
+  border: 1px solid var(--cw-circle-hair, var(--cw-account-line)); border-radius: 14px; color: var(--cw-circle-ink, var(--cw-account-ink)); text-decoration: none; text-align: left; }
 ${S} .cc-now > img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; }
 ${S} .cc-now > span { display: grid; grid-column: 2; }
 ${S} .cc-now b { font-size: 15px; line-height: 20px; font-weight: 600; }
-${S} .cc-now small { font-size: 13px; line-height: 18px; color: var(--cw-account-muted); }
+${S} .cc-now small { font-size: 13px; line-height: 18px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
 
 /* the ladder: all five levels */
 ${S} .cc-ladder { list-style: none; margin: 0; padding: 0; display: grid; }
-${S} .cc-rung { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; column-gap: 16px; align-items: center; min-height: 72px; padding: 0 12px; border-bottom: 1px solid var(--cw-account-line); }
+${S} .cc-rung { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; column-gap: 16px; align-items: center; min-height: 72px; padding: 0 12px; border-bottom: 1px solid var(--cw-circle-hair, var(--cw-account-line)); }
 ${S} .cc-rung:last-child { border-bottom: 0; }
-${S} .cc-rung__t b { display: block; font-size: 16px; line-height: 22px; font-weight: 600; color: var(--cw-account-ink); }
-${S} .cc-rung__t span { display: block; font-size: 13px; line-height: 18px; color: var(--cw-account-muted); }
-${S} .cc-rung.todo .cc-rung__t b { color: var(--cw-account-muted); }
-${S} .cc-rung.you { background: var(--cw-account-circle-ground-a); border-radius: 14px; border-bottom-color: transparent; }
-${S} .cc-you { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--cw-account-circle-link); }
+${S} .cc-rung__t b { display: block; font-size: 16px; line-height: 22px; font-weight: 600; color: var(--cw-circle-ink, var(--cw-account-ink)); }
+${S} .cc-rung__t span { display: block; font-size: 13px; line-height: 18px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
+${S} .cc-rung.todo .cc-rung__t b { color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
+${S} .cc-rung.you { background: var(--cw-circle-ground-a, var(--cw-account-circle-ground-a)); border-radius: 14px; border-bottom-color: transparent; }
+${S} .cc-you { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--cw-circle-link, var(--cw-account-circle-link)); }
 
 /* ways to earn, earn cards, perks, member number */
 ${S} .cc-ways__list, ${S} .cc-perks__list { list-style: none; margin: 0; padding: 0; display: grid; }
-${S} .cc-way, ${S} .cc-perk { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 10px 0; border-bottom: 1px solid var(--cw-account-line); }
+${S} .cc-way, ${S} .cc-perk { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 10px 0; border-bottom: 1px solid var(--cw-circle-hair, var(--cw-account-line)); }
 ${S} .cc-way__text { display: grid; row-gap: 2px; }
-${S} .cc-way__text b { font-size: 15px; line-height: 21px; font-weight: 600; color: var(--cw-account-ink); }
-${S} .cc-way__text span { font-size: 13px; line-height: 18px; color: var(--cw-account-muted); }
-${S} .cc-way.is-done .cc-way__text b { color: var(--cw-account-muted); }
+${S} .cc-way__text b { font-size: 15px; line-height: 21px; font-weight: 600; color: var(--cw-circle-ink, var(--cw-account-ink)); }
+${S} .cc-way__text span { font-size: 13px; line-height: 18px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
+${S} .cc-way.is-done .cc-way__text b { color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
 ${S} .cc-way__done { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--cw-account-ok-text); white-space: nowrap; }
 ${S} .cc-ig { display: inline-flex; align-items: center; min-height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--cw-account-line-strong);
-  color: var(--cw-account-ink); font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+  color: var(--cw-circle-ink, var(--cw-account-ink)); font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
 ${S} .cc-ig:focus-visible { outline: 2px solid var(--cw-account-focus); outline-offset: 2px; }
-${S} .cc-perk { flex-wrap: wrap; font-size: 15px; line-height: 22px; color: var(--cw-account-ink); }
-${S} .cc-perk__soon { flex-basis: 100%; margin: 4px 0 0; padding-left: 18px; font-size: 13px; line-height: 18px; color: var(--cw-account-muted); }
+${S} .cc-perk { flex-wrap: wrap; font-size: 15px; line-height: 22px; color: var(--cw-circle-ink, var(--cw-account-ink)); }
+${S} .cc-perk__soon { flex-basis: 100%; margin: 4px 0 0; padding-left: 18px; font-size: 13px; line-height: 18px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
 ${S} .cc-earn__grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-${S} .cc-earn-card { display: grid; align-content: start; row-gap: 4px; padding: 16px; border: 1px solid var(--cw-account-line); border-radius: var(--cw-account-radius); background: var(--cw-account-surface); }
-${S} .cc-earn-card__fig { font-family: var(--cw-account-display-font); font-size: 24px; line-height: 30px; color: var(--cw-account-display-ink); }
-${S} .cc-earn-card__t { font-size: 15px; line-height: 21px; font-weight: 600; color: var(--cw-account-ink); }
-${S} .cc-earn-card__s { font-size: 13px; line-height: 18px; color: var(--cw-account-muted); }
+${S} .cc-earn-card { display: grid; align-content: start; row-gap: 4px; padding: 16px; border: 1px solid var(--cw-circle-hair, var(--cw-account-line)); border-radius: var(--cw-account-radius); background: var(--cw-account-surface); }
+${S} .cc-earn-card__fig { font-family: var(--cw-circle-display-font, var(--cw-account-display-font)); font-size: 24px; line-height: 30px; color: var(--cw-circle-ink, var(--cw-account-display-ink)); }
+${S} .cc-earn-card__t { font-size: 15px; line-height: 21px; font-weight: 600; color: var(--cw-circle-ink, var(--cw-account-ink)); }
+${S} .cc-earn-card__s { font-size: 13px; line-height: 18px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
 ${S} .cc-earn-card .cc-ig { justify-self: start; margin-top: 8px; }
-${S} .cc-member__n { font-family: var(--cw-account-display-font); font-size: 22px; line-height: 28px; letter-spacing: 0.06em; color: var(--cw-account-display-ink); }
+${S} .cc-member__n { font-family: var(--cw-circle-display-font, var(--cw-account-display-font)); font-size: 22px; line-height: 28px; letter-spacing: 0.06em; color: var(--cw-circle-ink, var(--cw-account-display-ink)); }
 
 /* the header chip: the flat mark and the balance */
-${S} .cc-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; line-height: 1; font-weight: 500; color: var(--cw-account-ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+${S} .cc-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; line-height: 1; font-weight: 500; color: var(--cw-circle-ink, var(--cw-account-ink)); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* ADDENDUM KIT-2 (board 10): "Your next level" eyebrow, the benefits box's "until …", the wide earn cards, the saved line */
+${S} .cc-dash__level > .cc-eyebrow { margin-bottom: -4px; }
+${S} .cc-gives > .cc-eyebrow { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 12px; }
+${S} .cc-gives__until { text-transform: none; letter-spacing: 0; font-weight: 400; }
+@media (min-width: 640px) { ${S} .cc-earn-card.wide { grid-column: span 2; } }
+${S} .cc-earn-card > .cc-ig { justify-self: start; margin-top: 8px; font-family: inherit; background: none; cursor: pointer; }
+${S} .cc-saved { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 0; font-size: 15px; line-height: 22px;
+  color: var(--cw-circle-ink, var(--cw-account-ink)); font-variant-numeric: tabular-nums; }
+${S} .cc-saved > b { font-family: var(--cw-circle-display-font, var(--cw-account-display-font)); font-weight: var(--cw-account-display-weight); font-size: 22px; line-height: 28px; white-space: nowrap; }
 `;
 }
 
@@ -306,4 +320,15 @@ export const PANEL_CIRCLE_CSS = `
 .carisma-panel .cc-menu__act { display: grid; justify-items: center; padding: 14px 16px 16px; }
 .carisma-panel .cc-menu__act > .cc-btn { width: 100%; }
 .carisma-panel .carisma-panel__circle-slot { margin: 0 0 12px; }
+
+/* ── ADDENDUM KIT-1 (board 11): the account rows with their subtitles, under her Circle Card ── */
+.carisma-panel .carisma-panel__rows { list-style: none; margin: 0 0 4px; padding: 0; }
+.carisma-panel .carisma-panel__rows > li { border-top: 1px solid var(--cw-account-line); }
+.carisma-panel .carisma-panel__rows a { display: grid; grid-template-columns: minmax(0, 1fr) 16px; column-gap: 12px; align-items: center; min-height: 44px; padding: 6px 0;
+  color: var(--cw-account-ink); text-decoration: none; }
+.carisma-panel .carisma-panel__rows b { grid-column: 1; font-size: 15px; line-height: 20px; font-weight: 600; }
+.carisma-panel .carisma-panel__rows small { grid-column: 1; font-size: 13px; line-height: 18px; color: var(--cw-account-muted); }
+.carisma-panel .carisma-panel__rows small[hidden] { display: none; }
+.carisma-panel .carisma-panel__rows svg { grid-column: 2; grid-row: 1 / span 2; color: var(--cw-account-muted); }
+.carisma-panel .carisma-panel__rows a:focus-visible { outline: 2px solid var(--cw-account-focus); outline-offset: 2px; }
 ${circlePartsCSS(".carisma-panel")}`;

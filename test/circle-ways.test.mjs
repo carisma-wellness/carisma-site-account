@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import assert from "node:assert/strict";
+import assert from "./fixtures/plain-assert.mjs";
 import {
   readCircle,
   circleWaysHTML,
@@ -69,8 +69,9 @@ test("Instagram: a row only with the brand's own https profile; the link opens i
 
 test("the overview's earn cards: one figure each, only the open actions, Follow on the Instagram card", () => {
   const html = circleWaysCardsHTML(readCircle(MARIA));
-  assert.equal((html.match(/class="cc-earn-card"/g) || []).length, 3);
-  assert.match(html, /cc-earn-card__fig" data-clarity-mask="True">\+€2\.50</);
+  // Three open actions: Full Circle (a brand bonus), Instagram (a wide card), the app sign-in (board 10's order).
+  assert.equal((html.match(/class="cc-earn-card( wide)?"/g) || []).length, 3);
+  assert.match(html, /cc-earn-card__fig" data-clarity-mask="True">\+€2\.50 · 50 points</);
   assert.match(html, /data-cw-circle-ig=/);
   const allDone = readCircle({ ...MARIA, actions: MARIA.actions.map((a) => ({ ...a, done: true })) });
   assert.equal(circleWaysCardsHTML(allDone), "");

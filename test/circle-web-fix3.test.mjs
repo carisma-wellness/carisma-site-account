@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import assert from "node:assert/strict";
+import assert from "./fixtures/plain-assert.mjs";
 import { mountAccountPortal, circleSaysOff } from "../dist/index.js";
 import { MARIA } from "./fixtures/circle-v2.mjs";
 import { El, miniDocument } from "./fixtures/mini-dom.mjs";

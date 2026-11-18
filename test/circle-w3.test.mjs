@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import assert from "node:assert/strict";
+import assert from "./fixtures/plain-assert.mjs";
 import {
   createAccountRoutes,
   seal,

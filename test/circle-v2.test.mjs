@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import assert from "node:assert/strict";
+import assert from "./fixtures/plain-assert.mjs";
 import { readFileSync, readdirSync } from "node:fs";
 import {
   CIRCLE_V2_QC,
@@ -124,16 +124,21 @@ test("R5.4 states: below zero, under 18, paused, birthday credit ending, ready o
   assert.equal(pausedText("2026-11-19T19:15:00Z"), "Paying with points is paused until Thu 19 Nov, 20:15");
   const paused = readCircle({ ...MARIA, member: { ...MARIA.member, spendPausedUntil: "2026-11-19T19:15:00Z" } });
   assert.match(circleHeroHTML(paused), /Paying with points is paused until Thu 19 Nov, 20:15/);
-  // Birthday credit ending (ADDENDUM X4 + X5): the dated part under the balance, the ending as the ONE next step,
-  // never the same figure twice.
+  // Birthday credit ending (ADDENDUM X4 + X5): the dated part under the balance; the ending-soon sentence only inside
+  // the last notice window (14 days: Mon 30 Nov for Mon 7 Dec, never 22 days out). The Hero's ONE next step is the
+  // level sentence (`CK.hero`), so the same figure never shows twice there.
   const bday = readCircle({ ...MARIA, pointsExpireKind: "birthday", datedEnds: { at: "2026-12-07", points: 400 } });
   assert.equal(endsText(bday), "", "no second line with the same figure");
-  assert.equal(expiringText(bday), "Your €20.00 birthday credit ends Mon 7 Dec. Use it on a treatment before then.");
+  const nov30 = Date.parse("2026-11-30T10:00:00Z");
+  const nov15 = Date.parse("2026-11-15T10:00:00Z");
+  assert.equal(expiringText(bday, nov30), "Your €20.00 birthday credit ends Mon 7 Dec. Use it on a treatment before then.");
+  assert.equal(expiringText(bday, nov15), "", "22 days out: the dated part says it, not the ending-soon sentence");
+  assert.equal(expiringText(bday, Date.parse("2026-12-08T10:00:00Z")), "", "a day past the end: nothing");
   assert.equal(datedText(bday.datedEnds, bday.pointsPerEuro), "€20.00 of it until Mon 7 Dec");
   const bh = circleHeroHTML(bday);
   assert.match(bh, /cc-bal[^>]*>€72\.40<\/p><p class="cc-dated"[^>]*>€20\.00 of it until Mon 7 Dec<\/p><p class="cc-read"/, "X4: directly under the balance");
-  assert.match(bh, /cc-next[^>]*>Your €20\.00 birthday credit ends Mon 7 Dec\. Use it on a treatment before then\./);
-  assert.equal((bh.match(/€20\.00/g) || []).length, 2, "the dated line and the next step, nothing more");
+  assert.match(bh, /cc-next[^>]*>€290 more this year to reach Level 4 · Sapphire</, "the Hero's next step is the level's (board 10)");
+  assert.equal((bh.match(/€20\.00/g) || []).length, 1, "the dated line only");
   // Left: never a figure.
   assert.equal(readCircleState(LEFT).kind, "left");
   assert.doesNotMatch(circlePanelStateHTML(readCircleSummaryState(LEFT)), /€|points/);

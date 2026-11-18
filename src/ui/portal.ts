@@ -79,6 +79,8 @@ export interface ApptCard {
   /** The server's block, all-false when the row carried none. */
   actions: BookingActions;
   due: number;
+  /** ADDENDUM BE-g / KIT-6 strict listing: the server marked every line of this booking as earning (missing = false). */
+  circleEligible: boolean;
 }
 
 function parts(ms: number, opts: Intl.DateTimeFormatOptions): string {
@@ -175,6 +177,7 @@ export function buildApptCard(
     upcoming: bucket === "upcoming",
     actions,
     due,
+    circleEligible: row.circleEligible === true,
   };
 }
 
@@ -533,6 +536,11 @@ export function portalShellHTML(opts: {
   referRail?: boolean;
   /** Draw the (hidden until live) Carisma Circle rail row. */
   circleRail?: boolean;
+  /**
+   * ADDENDUM KIT-2: an empty, hidden slot under the greeting for her Circle line ("Level 3 · Ruby · Member since
+   * 2024 · CC 0042 1187"); browser.ts fills it only when the member read says live. Absent unless asked.
+   */
+  circleLine?: boolean;
 }): string {
   const name = opts.memberName || "";
   const member =
@@ -548,7 +556,9 @@ export function portalShellHTML(opts: {
     `<div class="cw-shell">` +
     `<aside class="cw-rail">${member}${nav(opts.view, opts.siteBrand, opts.referRail === true, opts.circleRail === true)}<div class="cw-rail__foot">${signOutLinks()}</div></aside>` +
     `<div class="cw-main">` +
-    `<header class="cw-head"><h1 class="cw-title" tabindex="-1" ${M}>${escapeHtml(opts.title)}</h1>${lede}</header>` +
+    `<header class="cw-head"><h1 class="cw-title" tabindex="-1" ${M}>${escapeHtml(opts.title)}</h1>${lede}` +
+    (opts.circleLine ? `<div class="cw-circle-slot" data-cw-circle-slot="greet" hidden></div>` : "") +
+    `</header>` +
     `<div class="cw-body"${opts.busy ? ' aria-busy="true"' : ""}>${opts.body}</div>` +
     `<footer class="cw-foot">${signOutLinks()}</footer>` +
     `</div></div>` +
@@ -910,5 +920,6 @@ export function accountPortalHTML(model: PortalModel): string {
     siteBrand: model.siteBrand,
     referRail: model.referRail,
     circleRail: model.circleRail && model.circleRewardsRail !== false,
+    circleLine: view === "home" && model.circleRail && model.circleOverview !== false,
   });
 }

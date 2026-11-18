@@ -14,8 +14,10 @@ import { jewelSlotHTML } from "./circleMark.js";
 import {
   M,
   PERKS_NOT_LIVE,
+  countWord,
   creditText,
   levelSentenceText,
+  nbWords,
   rateText,
   wholeEuroDown,
   wholeEuroUp,
@@ -33,6 +35,13 @@ export interface TrackInput {
   heldUntil?: string;
   /** Paid this year (the member read sends it; the summary does not, so it is derived from the gap). */
   spendThisYearCents?: number | null;
+  /**
+   * ADDENDUM X2 / BE-c: a booked visit that takes her to the next level — the head is then the SERVER's sentence
+   * ("Your visit on Fri 20 Nov takes you to Level 4 · Sapphire") and the caption's right end says what is left
+   * ("€40 to go"). Absent or null: the gap sentence and the next level's name. Never made up from local maths.
+   * The pay step passes the earn preview's `levelAfterVisit` here (this visit), never `/me`'s booked visit.
+   */
+  onItsWay?: { sentence: string } | null;
 }
 
 export interface TrackOptions {
@@ -121,7 +130,9 @@ export function benefitsList(p: CirclePerkSet | null, pointsPerEuro: number, ear
   if (r) out.push(`${r} back in Carisma credit`);
   if (p.birthdayCreditCents > 0) out.push(`${creditText(p.birthdayCreditCents)} birthday credit`);
   if (p.freeSpaDaysPerYear > 0 && p.live?.spaDays === true) {
-    out.push(p.freeSpaDaysPerYear === 1 ? "A free Spa day every year" : `${p.freeSpaDaysPerYear} free Spa days every year`);
+    // `CK.benefits`: "Two free Spa days every year" (the count in words, as the design writes it).
+    const n = countWord(p.freeSpaDaysPerYear);
+    out.push(p.freeSpaDaysPerYear === 1 ? "A free Spa day every year" : `${n.charAt(0).toUpperCase()}${n.slice(1)} free Spa days every year`);
   }
   if (p.noDeposit && p.live?.noDeposit === true) out.push("No deposit when you book by phone or at the desk");
   return out;
@@ -157,7 +168,11 @@ export function circleTrackHTML(t: TrackInput | null, opts: TrackOptions = {}): 
   const h = opts.compact ? 44 : 56;
   const pct = top ? 100 : Math.max(0, Math.min(100, Math.round(t.progressBp / 100)));
   const paid = paidLineText(t);
-  const sentence = levelSentenceText(t);
+  // X2: a level on its way first (the server's sentence), else the gap. Never the same figure twice: the caption's
+  // right end is "€40 to go" only under a head that names a visit, otherwise the next level's name.
+  const onItsWay = !top && t.onItsWay && t.onItsWay.sentence ? nbWords(t.onItsWay.sentence) : "";
+  const sentence = onItsWay || levelSentenceText(t);
+  const capRight = onItsWay && opts.head !== false && t.toNextLevelCents > 0 ? `${wholeEuroUp(t.toNextLevelCents)} to go` : t.nextLevel?.label ?? "";
   const poster = opts.poster ?? null;
   const slot = (gem: string, p: number) =>
     jewelSlotHTML({ gem: gem as CircleLevelView["key"], progress: p, height: h, kind: "small", poster: poster ? poster(gem, "small") : undefined });
@@ -169,7 +184,7 @@ export function circleTrackHTML(t: TrackInput | null, opts: TrackOptions = {}): 
   const cap =
     top || !paid
       ? ""
-      : `<p class="cc-track-cap" ${M}><span>${escapeHtml(paid)}</span><span>${escapeHtml(t.nextLevel?.label ?? "")}</span></p>`;
+      : `<p class="cc-track-cap" ${M}><span>${escapeHtml(paid)}</span><span>${escapeHtml(capRight)}</span></p>`;
   const list = !top && opts.unlocks && opts.unlocks.length
     ? `<div class="cc-unlocks"><p class="cc-eyebrow">${escapeHtml(`${t.nextLevel?.label ?? ""} unlocks`)}</p>` +
       `<ul>${opts.unlocks.map((u) => `<li>${escapeHtml(u)}</li>`).join("")}</ul></div>`

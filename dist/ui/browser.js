@@ -14,8 +14,8 @@
 import { accountMarkSignedInHTML, accountMarkState, ACCOUNT_MARK_ATTR } from "./accountMark.js";
 import { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, avatarUrlFromSession, sanitizeAvatarUrl } from "./avatar.js";
 import { readInitialsHint, readSignedInHint } from "./hint.js";
-import { buildPanelModel, accountPanelHTML, PANEL_SESSION_URL, PANEL_SESSION_URL_CIRCLE } from "./panel.js";
-import { CIRCLE_HREF, circleAllowedOn, circleActivityRowsHTML, circleNowRowHTML, circleOverviewHTML, circleOverviewLeftHTML, circleOverviewMinorHTML, circleActivityHTML, circleRewardsHTML, circleCardBlockHTML, circleWalletPlatform, nextPerksOf, ownPerksOf, paidLineText, readCircle, readCircleRewards, readCircleWalletAvailability, rejoinNoteText, unlockLineText, unlocksList, circlePrefsHTML, circleWalletLineHTML, leaveSheetBodyHTML, leaveSheetFootHTML, offersErrorText, offersSavedText, readCircleActivity, readCircleLeft, readCirclePrefs, readCircleState, readLeavePreview, readRejoined, } from "./circle.js";
+import { buildPanelModel, accountPanelHTML, panelRewardsSubText, PANEL_SESSION_URL, PANEL_SESSION_URL_CIRCLE } from "./panel.js";
+import { CIRCLE_HREF, circleAllowedOn, circleMemberLineHTML, circleWaysCardsHTML, circleActivityRowsHTML, circleNowRowHTML, circleOverviewHTML, circleOverviewLeftHTML, circleOverviewMinorHTML, circleActivityHTML, circleRewardsHTML, circleCardBlockHTML, circleWalletPlatform, nextPerksOf, ownPerksOf, paidLineText, readCircle, readCircleRewards, readCircleWalletAvailability, rejoinNoteText, unlockLineText, unlocksList, circlePrefsHTML, circleWalletLineHTML, leaveSheetBodyHTML, leaveSheetFootHTML, offersErrorText, offersSavedText, readCircleActivity, readCircleLeft, readCirclePrefs, readCircleState, readCircleStatus, readLeavePreview, readRejoined, } from "./circle.js";
 import { circleDetailsHTML, profileErrorText, profileSectionHTML, readCircleBirthday, readCircleComfort, readCircleWhatsapp, } from "./circleProfile.js";
 /** How long comfort choices settle before ONE save (a keyboard sweep through a radio group is one change). */
 const COMFORT_SETTLE_MS = 600;
@@ -81,13 +81,36 @@ function disposeCircleJewels(root) {
  */
 function hydrateCircleJewels(root, opts, owner) {
     const load = opts.circleJewel;
+    const host = !load && opts.jewelHost && typeof opts.jewelHost.hydrate === "function" ? opts.jewelHost : null;
     const el = live(root);
-    if (!load || !el || !qs(el, "[data-cw-jewel]"))
+    if ((!load && !host) || !el || !qs(el, "[data-cw-jewel]"))
         return;
     // The disposer is filed under the element whose innerHTML is replaced next (the portal mount, the panel
     // mount), so a repaint or a tab change frees every jewel it drew, whatever slot they were mounted in.
     const key = (owner && typeof owner === "object" ? owner : el);
     const run = () => {
+        if (host) {
+            // KIT-6 jewelHost: the site's own jewel; released through the same disposer map as the loader's.
+            try {
+                const prev = jewelDisposers.get(key);
+                host.hydrate(el);
+                jewelDisposers.set(key, () => {
+                    prev?.();
+                    try {
+                        host.release(el);
+                    }
+                    catch {
+                        /* nothing left to free */
+                    }
+                });
+            }
+            catch {
+                /* the marks stay */
+            }
+            return;
+        }
+        if (!load)
+            return;
         let p = jewelLoads.get(load);
         if (!p) {
             p = Promise.resolve()
@@ -179,6 +202,30 @@ function readPanelCircleExtras(doc, fetchImpl, needMe = true) {
     panelExtrasOnce.set(doc, p);
     return p;
 }
+const hostStatusOnce = new WeakMap();
+/**
+ * The host's public status (`circleStatus`), asked once per page and only after the member read says the Circle is
+ * live for her. Anything but a status with levels is null (the parts that need it then wait, never guess).
+ */
+function readHostStatus(opts) {
+    const get = opts.circleStatus;
+    if (typeof get !== "function")
+        return Promise.resolve(null);
+    let p = hostStatusOnce.get(get);
+    if (!p) {
+        p = Promise.resolve()
+            .then(get)
+            .then((st) => {
+            if (!st || typeof st !== "object")
+                return null;
+            // The site's own parsed status (it carries `retailBoostPct`), else the raw public answer, read here.
+            const parsed = typeof st.retailBoostPct === "number" && Array.isArray(st.levels) ? st : readCircleStatus(st);
+            return parsed && parsed.levels.length ? parsed : null;
+        }, () => null);
+        hostStatusOnce.set(get, p);
+    }
+    return p;
+}
 const igBound = new WeakSet();
 const igSent = new Set();
 /**
@@ -209,6 +256,37 @@ function bindCircleInstagram(doc, fetchImpl) {
             keepalive: true,
         }))
             .catch(() => undefined);
+    }, false);
+}
+const copyBound = new WeakSet();
+/**
+ * "Copy my link" on the Refer a friend card (KIT-2, X8: the website says "Copy my link"): her share link goes on the
+ * clipboard, and the card's status line says so. Without a clipboard the link is shown to copy by hand.
+ */
+function bindCircleCopy(doc) {
+    if (copyBound.has(doc))
+        return;
+    copyBound.add(doc);
+    doc.addEventListener("click", (e) => {
+        const b = closestOf(e.target, "[data-cw-circle-copy]");
+        if (!b)
+            return;
+        e.preventDefault();
+        const link = b.getAttribute("data-cw-circle-copy") || "";
+        const sec = closestOf(b, '[data-cw-circle="earn-cards"]');
+        const msg = sec ? qs(sec, "[data-cw-circle-copy-msg]") : null;
+        const say = (text) => {
+            if (msg)
+                msg.innerHTML = escapeHtml(text);
+        };
+        const clip = globalThis.navigator?.clipboard;
+        if (!link)
+            return;
+        if (!clip || typeof clip.writeText !== "function") {
+            say(`Your link: ${link}`);
+            return;
+        }
+        void clip.writeText(link).then(() => say("Link copied. Send it to a friend."), () => say(`Your link: ${link}`));
     }, false);
 }
 /** The photo the marks are currently painted with (exported for tests/hosts). */
@@ -455,15 +533,25 @@ export function mountAccountPanel(doc, opts = {}) {
             poster: opts.circlePoster ?? null,
             bookHref: opts.bookHref,
             photo: opts.circleRewardPhoto,
-        }, places);
+        }, { ...places, listing: opts.circleListing });
         setOpen(doc, mountId, true);
-        if (!places.menu)
+        // KIT-6 strict listing: no Card (and nothing read for it) beside a visit the server did not mark eligible.
+        if (!places.menu || (opts.circleListing === "strict" && !model.circleEligibleAll))
             return;
         if (model.circleLeft)
             nameFirstLevel(mount, opts);
         if (!model.circle)
             return;
         hydrateCircleJewels(mount, opts);
+        // KIT-1: the "Credit and rewards" row's subtitle names the API's level count ("all five levels").
+        void readHostStatus(opts).then((st) => {
+            const sub = qs(mount, "[data-cw-circle-levels-sub]");
+            const text = st ? panelRewardsSubText(st.levels.length) : "";
+            if (!sub || !text || sub.innerHTML)
+                return;
+            sub.innerHTML = escapeHtml(text);
+            sub.removeAttribute?.("hidden");
+        });
         if (!fetchImpl)
             return;
         const s = model.circle;
@@ -971,7 +1059,19 @@ function mountAccountPortalOnce(doc, opts) {
         // Live or left, the member has a Credit & rewards page to reach (under the minimum age: the one line only).
         if (circleNow.kind !== "minor")
             qsa(mount, "[data-cw-circle-rail]").forEach((a) => a.removeAttribute?.("hidden"));
-        const home = qs(mount, '[data-cw-circle-slot="home"]');
+        // KIT-6 strict listing: Overview's Circle block only when every visit listed on the page is marked eligible.
+        const listingOk = opts.circleListing !== "strict" || onScreen.filter((c) => c.upcoming).every((c) => c.circleEligible);
+        const home = listingOk ? qs(mount, '[data-cw-circle-slot="home"]') : null;
+        // KIT-2: her Circle line under the greeting ("Level 3 · Ruby · Member since 2024 · CC 0042 1187").
+        const liveModel = circleNow.kind === "live" ? circleNow.model : null;
+        const greet = listingOk && liveModel ? qs(mount, '[data-cw-circle-slot="greet"]') : null;
+        if (greet && liveModel && !greet.innerHTML) {
+            const line = circleMemberLineHTML(liveModel);
+            if (line) {
+                greet.innerHTML = line;
+                greet.removeAttribute?.("hidden");
+            }
+        }
         if (home && !home.innerHTML) {
             // A member who left sees the date and Rejoin, never a figure; a minor sees one line.
             home.innerHTML =
@@ -993,6 +1093,15 @@ function mountAccountPortalOnce(doc, opts) {
                 hydrateHere(home);
                 fillOverviewExtras(circleNow.model);
                 bindCircleInstagram(doc, fetchImpl);
+                bindCircleCopy(doc);
+                // KIT-2: the "Spa products" card waits for the public status's retail boost (never a typed 50%).
+                const model = circleNow.model;
+                void readHostStatus(opts).then((st) => {
+                    const earn = qs(mount, '[data-cw-circle-slot="ov-earn"]');
+                    if (!st || !(st.retailBoostPct > 0) || !earn || !current())
+                        return;
+                    earn.innerHTML = circleWaysCardsHTML(model, { retailBoostPct: st.retailBoostPct });
+                });
             }
         }
         if (circleNow.kind !== "live")
