@@ -157,7 +157,7 @@ export interface CircleMember {
   emailVerified: boolean;
   /** ISO instant while an email change pauses spending (48 h), else "". */
   spendPausedUntil: string;
-  /** ADDENDUM BE-e: the Malta day her Circle history starts (YYYY-MM-DD), "" when the API does not send it. */
+  /** ADDENDUM BE-e: the Malta day her Circle history starts (YYYY-MM-DD, or a year), "" when the API does not send it. */
   since: string;
 }
 
@@ -595,7 +595,8 @@ export function readCircle(body: unknown): CircleModel | null {
       number: str(member.number) || str(card.memberNumber),
       emailVerified: member.emailVerified === true,
       spendPausedUntil: isoOrEmpty(member.spendPausedUntil),
-      since: /^\d{4}-\d{2}-\d{2}$/.test(str(member.since)) ? str(member.since) : "",
+      // BE-2 sends the Malta day (YYYY-MM-DD); a bare year is read too. Anything else: not sent.
+      since: /^\d{4}(?:-\d{2}-\d{2})?$/.test(str(member.since)) ? str(member.since) : "",
     },
     // A level on its way is about the NEXT level only (a stale or wrong level never draws).
     levelOnItsWay: (() => {

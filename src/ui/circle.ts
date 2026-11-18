@@ -325,7 +325,7 @@ export function circleOnItsWayText(m: { levelOnItsWay: { sentence: string } | nu
  */
 export function circleMemberLineText(m: CircleModel | null): string {
   if (!m) return "";
-  const year = /^(\d{4})-\d{2}-\d{2}$/.exec(m.member.since)?.[1] ?? "";
+  const year = /^(\d{4})(?:-\d{2}-\d{2})?$/.exec(m.member.since)?.[1] ?? "";
   return [
     m.level.label,
     year ? `Member since${NB}${year}` : "",

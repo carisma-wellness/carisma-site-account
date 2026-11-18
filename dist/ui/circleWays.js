@@ -14,7 +14,7 @@
  * points are awarded on the tap that opens the profile).
  */
 import { escapeHtml } from "./html.js";
-import { M, REVIEWS_FOOTNOTE, brandsLine, countWord, creditPointsText, creditText, pointsText, } from "./circleCore.js";
+import { M, NB, REVIEWS_FOOTNOTE, brandsLine, countWord, creditPointsText, creditText, pointsText, } from "./circleCore.js";
 const TICK = '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
     'stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>';
 const BRAND_BONUS_KEYS = new Set(["first_house", "second_house", "full_circle"]);
@@ -85,12 +85,26 @@ function maltaWeekday(iso) {
         return "";
     }
 }
+/** Board 10's line icons, one per card, in the site's gold ink (decorative). */
+const ICON = {
+    rebook: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"></rect><path d="M16 2.5v4M8 2.5v4M3 10h18M12 13v5M9.5 15.5h5"></path></svg>',
+    bag: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 8h13.6l-.9 12.5H6.1z"></path><path d="M9 8V6.6a3 3 0 0 1 6 0V8"></path></svg>',
+    pin: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.5s-6.5-5.9-6.5-11a6.5 6.5 0 0 1 13 0c0 5.1-6.5 11-6.5 11z"></path><circle cx="12" cy="10.4" r="2.4"></circle></svg>',
+    friend: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="8" r="3.6"></circle><path d="M3 20v-.8a5.7 5.7 0 0 1 5.7-5.7h1.6a5.7 5.7 0 0 1 5.7 5.7v.8M19 8.5v5M16.5 11h5"></path></svg>',
+    insta: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"></rect><circle cx="12" cy="12" r="3.8"></circle><path d="M16.9 7.1h.01"></path></svg>',
+    star: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"></path></svg>',
+};
+/** "+€5.95 · 119 points": the euro lead in bold, the points after it, never broken inside. */
+function money(lead, cents, points) {
+    return { bold: `${lead}${creditText(cents)}`, rest: `${NB}·${NB}${pointsText(points)}` };
+}
 function earnCardHTML(c) {
     return (`<li class="cc-earn-card${c.wide ? " wide" : ""}" data-cw-circle-way="${escapeHtml(c.id)}">` +
+        `<i class="cc-earn-card__ic">${c.icon}</i>` +
         `<p class="cc-earn-card__t">${escapeHtml(c.title)}</p>` +
-        `<p class="cc-earn-card__fig" ${M}>${escapeHtml(c.figure)}</p>` +
-        (c.sub ? `<p class="cc-earn-card__s" ${M}>${escapeHtml(c.sub)}</p>` : "") +
         (c.action ?? "") +
+        `<p class="cc-earn-card__fig" ${M}><b>${escapeHtml(c.bold)}</b>${escapeHtml(c.rest ?? "")}</p>` +
+        (c.sub ? `<p class="cc-earn-card__s" ${M}>${escapeHtml(c.sub)}</p>` : "") +
         `</li>`);
 }
 /**
@@ -109,15 +123,16 @@ export function circleWaysCardsHTML(m, opts = {}) {
         const day = maltaWeekday(m.rebookNext.startAt);
         cards.push({
             id: "rebook",
+            icon: ICON.rebook,
             title: "Book your next visit before you leave",
-            figure: `+${creditPointsText(m.rebookNext.cents, m.rebookNext.points)}`,
-            sub: day ? `on ${day}’s visit` : "",
+            ...money("+", m.rebookNext.cents, m.rebookNext.points),
+            sub: day ? `on ${day}\u2019s visit` : "",
         });
     }
     const spa = m.brands.find((b) => b.house === "spa");
     const boost = Math.round(Number(opts.retailBoostPct) || 0);
     if (spa && boost > 0) {
-        cards.push({ id: "retail", title: "Spa products", figure: `${boost}% more points`, sub: `on the products you buy at ${spa.name}` });
+        cards.push({ id: "retail", icon: ICON.bag, title: "Spa products", bold: `${boost}% more points`, sub: `on the products you buy at ${spa.name}` });
     }
     const open = m.actions.filter((a) => !a.done);
     const bonus = open.filter((a) => BRAND_BONUS_KEYS.has(a.key));
@@ -127,31 +142,33 @@ export function circleWaysCardsHTML(m, opts = {}) {
         const passport = (a.key === "second_house" || a.key === "full_circle") && m.brands.length >= 2
             ? `Full Circle: ${m.passport.count} of ${m.brands.length} Carisma brands`
             : "";
-        cards.push({ id: a.id, title: a.label, figure: actionValueText(a), sub: passport || hintFor(a, m) });
+        cards.push({ id: a.id, icon: ICON.pin, title: a.label, ...money("+", a.cents, a.points), sub: passport || hintFor(a, m) });
     }
     if (m.referral) {
         const r = m.referral;
         cards.push({
             id: "referral",
+            icon: ICON.friend,
             title: "Refer a friend",
-            figure: `Up to ${creditPointsText(r.upToCents, r.upToPoints)}`,
+            ...money("Up to ", r.upToCents, r.upToPoints),
             sub: `for your first ${countWord(r.ladder.length)} friend${r.ladder.length === 1 ? "" : "s"}`,
             wide: true,
-            action: r.link ? `<button type="button" class="cc-ig" data-cw-circle-copy="${escapeHtml(r.link)}">Copy my link</button>` : "",
+            action: r.link ? `<button type="button" class="cc-earn-card__act" data-cw-circle-copy="${escapeHtml(r.link)}">Copy my link</button>` : "",
         });
     }
     for (const a of insta) {
         cards.push({
             id: a.id,
+            icon: ICON.insta,
             title: a.label,
-            figure: actionValueText(a),
+            ...money("+", a.cents, a.points),
             sub: "when you tap Follow, once for each Carisma brand",
             wide: true,
-            action: instagramLinkHTML(a),
+            action: instagramLinkHTML(a).replace('class="cc-ig"', 'class="cc-ig cc-earn-card__act"'),
         });
     }
     for (const a of rest)
-        cards.push({ id: a.id, title: a.label, figure: actionValueText(a), sub: hintFor(a, m) });
+        cards.push({ id: a.id, icon: ICON.star, title: a.label, ...money("+", a.cents, a.points), sub: hintFor(a, m) });
     if (!cards.length)
         return "";
     return (`<section class="cw-section cw-rise cc-earn" aria-labelledby="cw-circle-more-title" data-cw-circle="earn-cards">` +

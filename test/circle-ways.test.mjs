@@ -71,7 +71,8 @@ test("the overview's earn cards: one figure each, only the open actions, Follow 
   const html = circleWaysCardsHTML(readCircle(MARIA));
   // Three open actions: Full Circle (a brand bonus), Instagram (a wide card), the app sign-in (board 10's order).
   assert.equal((html.match(/class="cc-earn-card( wide)?"/g) || []).length, 3);
-  assert.match(html, /cc-earn-card__fig" data-clarity-mask="True">\+€2\.50 · 50 points</);
+  // Board 10: ONE figure, its euro lead in bold, the points after it.
+  assert.match(html, /cc-earn-card__fig" data-clarity-mask="True"><b>\+€2\.50<\/b> · 50 points</);
   assert.match(html, /data-cw-circle-ig=/);
   const allDone = readCircle({ ...MARIA, actions: MARIA.actions.map((a) => ({ ...a, done: true })) });
   assert.equal(circleWaysCardsHTML(allDone), "");

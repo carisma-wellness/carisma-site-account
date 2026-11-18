@@ -197,6 +197,8 @@ test("KIT-2: her line under the greeting — the level, 'Member since' only from
   assert.equal(circleMemberLineText(m), "Level 3 · Ruby · Member since 2024 · CC 0042 1187");
   const noSince = readCircle({ ...MARIA, member: { number: "CC 0042 1187", emailVerified: true, spendPausedUntil: null } });
   assert.equal(circleMemberLineText(noSince), "Level 3 · Ruby · CC 0042 1187", "BE-e absent: no 'Member since'");
+  const year = readCircle({ ...MARIA, member: { number: "CC 0042 1187", emailVerified: true, spendPausedUntil: null, since: "2024" } });
+  assert.equal(circleMemberLineText(year), "Level 3 · Ruby · Member since 2024 · CC 0042 1187", "a bare year reads too");
   const bare = readCircle({ ...MARIA, card: undefined, member: { number: null, emailVerified: false, spendPausedUntil: null, since: "garbage" } });
   assert.equal(circleMemberLineText(bare), "Level 3 · Ruby");
   assert.equal(circleMemberLineText(null), "");
@@ -234,9 +236,9 @@ test("KIT-2: the money cards — rebook from /me.rebookNext, Refer a friend only
   const titles = [...html.matchAll(/<p class="cc-earn-card__t">([^<]+)<\/p>/g)].map((m) => m[1]);
   assert.deepEqual(titles.slice(0, 3), ["Book your next visit before you leave", "Spa products", MARIA.actions.find((a) => a.key === "full_circle").label]);
   assert.ok(titles.indexOf("Refer a friend") > titles.indexOf("Spa products"));
-  assert.match(html, /Book your next visit before you leave<\/p><p class="cc-earn-card__fig"[^>]*>\+€5\.95 · 119 points<\/p><p class="cc-earn-card__s"[^>]*>on Friday[’']s visit<\/p>/);
-  assert.match(html, /Spa products<\/p><p class="cc-earn-card__fig"[^>]*>50% more points<\/p><p class="cc-earn-card__s"[^>]*>on the products you buy at Carisma Spa<\/p>/);
-  assert.match(html, /class="cc-earn-card wide" data-cw-circle-way="referral"><p class="cc-earn-card__t">Refer a friend<\/p><p class="cc-earn-card__fig"[^>]*>Up to €100\.00 · 2,000 points<\/p><p class="cc-earn-card__s"[^>]*>for your first three friends<\/p><button type="button" class="cc-ig" data-cw-circle-copy="https:\/\/www\.carismaspa\.com\/r\/MARIA42">Copy my link<\/button>/);
+  assert.match(html, /Book your next visit before you leave<\/p><p class="cc-earn-card__fig"[^>]*><b>\+€5\.95<\/b> · 119 points<\/p><p class="cc-earn-card__s"[^>]*>on Friday[’']s visit<\/p>/);
+  assert.match(html, /Spa products<\/p><p class="cc-earn-card__fig"[^>]*><b>50% more points<\/b><\/p><p class="cc-earn-card__s"[^>]*>on the products you buy at Carisma Spa<\/p>/);
+  assert.match(html, /class="cc-earn-card wide" data-cw-circle-way="referral"><i class="cc-earn-card__ic"><svg[^]*?<\/svg><\/i><p class="cc-earn-card__t">Refer a friend<\/p><button type="button" class="cc-earn-card__act" data-cw-circle-copy="https:\/\/www\.carismaspa\.com\/r\/MARIA42">Copy my link<\/button><p class="cc-earn-card__fig"[^>]*><b>Up to €100\.00<\/b> · 2,000 points<\/p><p class="cc-earn-card__s"[^>]*>for your first three friends<\/p>/);
   assert.match(html, /class="cc-earn-card wide" data-cw-circle-way="instagram:spa">[\s\S]*when you tap Follow, once for each Carisma brand/);
   assert.match(html, /<p class="cc-earn-card__s"[^>]*>Full Circle: 2 of 3 Carisma brands<\/p>/, "the brand bonus card counts her brands (X10: two or more on)");
   // Not sent → not drawn.

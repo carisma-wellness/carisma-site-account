@@ -242,12 +242,24 @@ ${S} .cc-ig { display: inline-flex; align-items: center; min-height: 36px; paddi
 ${S} .cc-ig:focus-visible { outline: 2px solid var(--cw-account-focus); outline-offset: 2px; }
 ${S} .cc-perk { flex-wrap: wrap; font-size: 15px; line-height: 22px; color: var(--cw-circle-ink, var(--cw-account-ink)); }
 ${S} .cc-perk__soon { flex-basis: 100%; margin: 4px 0 0; padding-left: 18px; font-size: 13px; line-height: 18px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
-${S} .cc-earn__grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-${S} .cc-earn-card { display: grid; align-content: start; row-gap: 4px; padding: 16px; border: 1px solid var(--cw-circle-hair, var(--cw-account-line)); border-radius: var(--cw-account-radius); background: var(--cw-account-surface); }
-${S} .cc-earn-card__fig { font-family: var(--cw-circle-display-font, var(--cw-account-display-font)); font-size: 24px; line-height: 30px; color: var(--cw-circle-ink, var(--cw-account-display-ink)); }
-${S} .cc-earn-card__t { font-size: 15px; line-height: 21px; font-weight: 600; color: var(--cw-circle-ink, var(--cw-account-ink)); }
-${S} .cc-earn-card__s { font-size: 13px; line-height: 18px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
-${S} .cc-earn-card .cc-ig { justify-self: start; margin-top: 8px; }
+/* More ways to earn (ADDENDUM KIT-2, board 10): a 6-column grid, three cards then two wide; a line icon, the title,
+   ONE figure (its euro lead in bold), the line under it. One column on a phone. */
+${S} .cc-earn__grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-flow: row dense; gap: 16px; }
+${S} .cc-earn-card { grid-column: span 2; display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-rows: minmax(44px, auto) auto auto;
+  column-gap: 12px; align-content: start; padding: 20px 20px 18px; border: 1px solid var(--cw-circle-hair, var(--cw-account-line)); border-radius: var(--cw-account-radius); background: var(--cw-account-surface); }
+${S} .cc-earn-card.wide { grid-column: span 3; }
+${S} .cc-earn-card__ic { grid-column: 1; grid-row: 1; align-self: center; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--cw-account-accent-soft); color: var(--cw-circle-link, var(--cw-account-circle-link)); font-style: normal; }
+${S} .cc-earn-card__t { grid-column: 2; grid-row: 1; align-self: center; font-size: 16px; line-height: 22px; font-weight: 600; color: var(--cw-circle-ink, var(--cw-account-ink)); }
+${S} .cc-earn-card__act { grid-column: 3; grid-row: 1; align-self: center; }
+${S} .cc-earn-card__fig { grid-column: 1 / -1; grid-row: 2; margin-top: 14px; font-size: 16px; line-height: 24px; color: var(--cw-circle-ink, var(--cw-account-ink)); font-variant-numeric: lining-nums; }
+${S} .cc-earn-card__fig > b { font-weight: 600; }
+${S} .cc-earn-card__s { grid-column: 1 / -1; grid-row: 3; font-size: 13px; line-height: 18px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
+${S} button.cc-earn-card__act { font-family: inherit; background: none; cursor: pointer; }
+@media (max-width: 760px) {
+  ${S} .cc-earn__grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  ${S} .cc-earn-card, ${S} .cc-earn-card.wide { grid-column: auto; grid-template-columns: 40px minmax(0, 1fr) auto; padding: 16px; }
+}
 ${S} .cc-member__n { font-family: var(--cw-circle-display-font, var(--cw-account-display-font)); font-size: 22px; line-height: 28px; letter-spacing: 0.06em; color: var(--cw-circle-ink, var(--cw-account-display-ink)); }
 
 /* the header chip: the flat mark and the balance */
@@ -257,11 +269,9 @@ ${S} .cc-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 
 ${S} .cc-dash__level > .cc-eyebrow { margin-bottom: -4px; }
 ${S} .cc-gives > .cc-eyebrow { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 12px; }
 ${S} .cc-gives__until { text-transform: none; letter-spacing: 0; font-weight: 400; }
-@media (min-width: 640px) { ${S} .cc-earn-card.wide { grid-column: span 2; } }
-${S} .cc-earn-card > .cc-ig { justify-self: start; margin-top: 8px; font-family: inherit; background: none; cursor: pointer; }
-${S} .cc-saved { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 0; font-size: 15px; line-height: 22px;
-  color: var(--cw-circle-ink, var(--cw-account-ink)); font-variant-numeric: tabular-nums; }
-${S} .cc-saved > b { font-family: var(--cw-circle-display-font, var(--cw-account-display-font)); font-weight: var(--cw-account-display-weight); font-size: 22px; line-height: 28px; white-space: nowrap; }
+${S} .cc-saved { display: flex; justify-content: space-between; align-items: center; column-gap: 20px; min-height: 52px; border-bottom: 1px solid var(--cw-circle-hair, var(--cw-account-line));
+  font-size: 14px; line-height: 20px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
+${S} .cc-saved > b { font-size: 16px; line-height: 24px; font-weight: 600; color: var(--cw-circle-ink, var(--cw-account-ink)); white-space: nowrap; font-variant-numeric: tabular-nums lining-nums; }
 `;
 }
 

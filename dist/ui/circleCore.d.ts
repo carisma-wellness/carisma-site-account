@@ -97,7 +97,7 @@ export interface CircleMember {
     emailVerified: boolean;
     /** ISO instant while an email change pauses spending (48 h), else "". */
     spendPausedUntil: string;
-    /** ADDENDUM BE-e: the Malta day her Circle history starts (YYYY-MM-DD), "" when the API does not send it. */
+    /** ADDENDUM BE-e: the Malta day her Circle history starts (YYYY-MM-DD, or a year), "" when the API does not send it. */
     since: string;
 }
 /**
