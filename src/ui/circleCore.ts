@@ -201,6 +201,8 @@ export interface CircleSummary {
   memberNumber: string;
   spendPausedUntil: string;
   pointsPerEuro: number;
+  /** Points per €1 paid before the multiplier (`rules.earnPerEuro` when the summary sends it; 1 only as the fallback). */
+  earnPerEuro: number;
   /** "€20.00 of it until Mon 7 Dec": the soonest dated part of the balance (BE-1 R1.14), or null. */
   datedEnds: { at: string; points: number } | null;
   /** The last day she keeps her level (YYYY-MM-DD), or "". */
@@ -538,6 +540,7 @@ export function readCircleSummary(body: unknown): CircleSummary | null {
     memberNumber: str(o.memberNumber),
     spendPausedUntil: isoOrEmpty(o.spendPausedUntil),
     pointsPerEuro,
+    earnPerEuro: earnPerEuroFrom(o),
     datedEnds: datedFrom(o.datedEnds),
     heldUntil: str(o.heldUntil) || str(obj(o.level)?.heldUntil),
     spendThisYearCents: typeof o.spendThisYearCents === "number" && o.spendThisYearCents >= 0 ? Math.round(o.spendThisYearCents) : null,
@@ -572,6 +575,7 @@ export function summaryOf(m: CircleModel): CircleSummary {
     memberNumber: m.member.number,
     spendPausedUntil: m.member.spendPausedUntil,
     pointsPerEuro: m.pointsPerEuro,
+    earnPerEuro: m.earnPerEuro,
     datedEnds: m.datedEnds,
     heldUntil: m.heldUntil,
     spendThisYearCents: m.spendThisYearCents,

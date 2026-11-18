@@ -177,6 +177,8 @@ export interface CircleSummary {
     memberNumber: string;
     spendPausedUntil: string;
     pointsPerEuro: number;
+    /** Points per €1 paid before the multiplier (`rules.earnPerEuro` when the summary sends it; 1 only as the fallback). */
+    earnPerEuro: number;
     /** "€20.00 of it until Mon 7 Dec": the soonest dated part of the balance (BE-1 R1.14), or null. */
     datedEnds: {
         at: string;

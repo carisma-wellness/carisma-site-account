@@ -57,9 +57,10 @@ function slot(gem, progress, height, kind, x) {
 export function circleChipHTML(s) {
     if (!s)
         return "";
+    // R5.4: below zero is never a figure in the header ("−€3.50" there reads as money owed): the mark alone.
     return (`<span class="cc cc-chip" data-cw-qc="${CIRCLE_V2_QC}" data-cw-circle="chip" ${M}>` +
         `<span class="cc-chip__mark">${circleMarkSVG(s.level.key, s.progressBp / 10000, 24)}</span>` +
-        `<span class="cc-chip__bal">${escapeHtml(creditText(s.creditCents))}</span>` +
+        (s.belowZero ? "" : `<span class="cc-chip__bal">${escapeHtml(creditText(s.creditCents))}</span>`) +
         `<span class="cw-vh">${escapeHtml(`Carisma credit, ${s.level.label}`)}</span>` +
         `</span>`);
 }
@@ -78,7 +79,9 @@ export function circlePanelRowHTML(s, x = {}) {
     // The unlock line straight from the summary when it carries both perk rows (BRIEF §9 ask of BE-1); else the
     // host fills it after the menu opens (browser.ts reads /me once).
     const unlockLine = x.unlockLine ||
-        (s.nextLevel && s.nextLevelPerks ? unlockLineText(s.nextLevel.label, unlocksList(s.perks, s.nextLevelPerks, s.pointsPerEuro)) : "");
+        (s.nextLevel && s.nextLevelPerks
+            ? unlockLineText(s.nextLevel.label, unlocksList(s.perks, s.nextLevelPerks, s.pointsPerEuro, s.earnPerEuro))
+            : "");
     const track = circleTrackHTML({
         level: s.level,
         nextLevel: s.nextLevel,

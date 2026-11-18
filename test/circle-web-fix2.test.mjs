@@ -553,3 +553,20 @@ test("creditMoment: a mixed bill keeps its earned moment and carries the points 
 test("left members: the WhatsApp option and the left fixture stay figure-free", () => {
   assert.doesNotMatch(circleLeftViewHTML({ left: { leftAt: LEFT.leftAt }, prefs: null }), /€\s?\d/);
 });
+
+/* ── minors: the menu's unlock rate ignored rules.earnPerEuro; the chip printed a balance below zero ───── */
+
+test("the menu's unlock line follows rules.earnPerEuro; the header chip draws no figure below zero", async () => {
+  const { accountPanelHTML, buildPanelModel, circleChipHTML, readCircleSummary } = await import("../dist/index.js");
+  const { SUMMARY_ASKED } = await import("./fixtures/circle-v2.mjs");
+  const base = { signedIn: true, initials: "MB", profile: { firstName: "Maria" }, upcoming: [] };
+  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED })), /Level 4 · Sapphire unlocks 8\.75% back/, "precondition: 1 point per €1");
+  const doubled = { ...SUMMARY_ASKED, rules: { pointsPerEuro: 20, earnPerEuro: 2 } };
+  assert.equal(readCircleSummary(doubled).earnPerEuro, 2);
+  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: doubled })), /Level 4 · Sapphire unlocks 17\.5% back/, "2 points per €1 doubles the share");
+  const chip = circleChipHTML(readCircleSummary(SUMMARY));
+  assert.match(chip, /cc-chip__bal">€72\.40</);
+  const below = circleChipHTML(readCircleSummary({ ...SUMMARY, balance: { points: -70, cents: -350, display: "−€3.50 · −70 points" } }));
+  assert.doesNotMatch(below, /cc-chip__bal|€|−/, "below zero: the mark alone, never '−€3.50' in the header");
+  assert.match(below, /Carisma credit, Level 3 · Ruby/);
+});
