@@ -212,6 +212,11 @@ ${S} .cc-reward__t b { font-size: 16px; line-height: 22px; font-weight: 600; col
 ${S} .cc-reward__t > span:last-child { font-size: 13px; line-height: 18px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
 ${S} .cc-reward.on .cc-eyebrow { color: var(--cw-circle-link, var(--cw-account-circle-link)); }
 ${S} .cc-rewards.scroll { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 240px; overflow-x: auto; scroll-snap-type: x mandatory; }
+/* ADDENDUM X3 / board 10: on a phone what her credit buys is ONE swipe row (never three tall photo cards stacked). */
+@media (max-width: 760px) {
+  ${S} .cc-rewards { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(220px, 72%); overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; }
+  ${S} .cc-rewards > .cc-reward { scroll-snap-align: start; }
+}
 ${S} .cc-now { display: grid; grid-template-columns: 56px minmax(0, 1fr); column-gap: 14px; align-items: center; padding: 10px 12px 10px 10px;
   border: 1px solid var(--cw-circle-hair, var(--cw-account-line)); border-radius: 14px; color: var(--cw-circle-ink, var(--cw-account-ink)); text-decoration: none; text-align: left; }
 ${S} .cc-now > img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; }
