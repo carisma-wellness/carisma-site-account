@@ -92,6 +92,7 @@ import {
   bookingViewParts,
   buildBookingDetailModel,
   isActiveBooking,
+  policyLead,
   type BookingDetailModel,
 } from "./bookingDetail.js";
 import { buildSlotsModel, venueDateString, venueLocalToUtcIso, type SlotsModel } from "./reschedule.js";
@@ -144,6 +145,7 @@ import {
   type ProxyCall,
 } from "./portalActions.js";
 import {
+  circleSaysOff,
   POINTS_CANCEL_NOT_READ,
   pointsCancelLine,
   readPointsBookings,
@@ -1378,22 +1380,36 @@ function mountAccountPortalOnce(doc: MinimalDocument, opts: PortalMountOptions):
   let circleOnce: Promise<CircleState | null> | null = null;
   /** The member read has answered (`circleNow` is then its answer, never "still in flight"). */
   let circleAnswered = false;
+  /**
+   * The member read answered nothing to trust: a 5xx, 429 or 401, no answer at all, or a 2xx that is neither a
+   * member state nor a clean `enabled:false`. Nothing is drawn for it (as for off), but it is NOT off: a booking her
+   * points paid may be on screen, so the cancel words then ask points-bookings themselves and never say "Free to
+   * cancel" on a guess (review round 3). Off is only a clean `enabled:false` or a 404 (an API without the door).
+   */
+  let circleFailed = false;
   const readCircleOnce = (): Promise<CircleState | null> => {
     if (!circleRail || !fetchImpl) return Promise.resolve(null);
     if (circleOnce) return circleOnce;
     if (circleNow !== undefined) return Promise.resolve(circleNow);
     circleNow = null; // in flight: a second load() never starts a second read
+    let answered2xx = false;
     circleOnce = fetchImpl("/api/auth/proxy/client/loyalty/me", { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        answered2xx = r.ok;
+        if (!r.ok && r.status !== 404) circleFailed = true;
+        return r.ok ? r.json() : null;
+      })
       .then(
         (body) => {
           circleNow = readCircleState(body);
+          if (answered2xx && !circleNow && !circleSaysOff(body)) circleFailed = true;
           circleAnswered = true;
           fillCircle();
           return circleNow;
         },
         () => {
           circleNow = null;
+          circleFailed = true;
           circleAnswered = true;
           return null;
         },
@@ -1403,23 +1419,44 @@ function mountAccountPortalOnce(doc: MinimalDocument, opts: PortalMountOptions):
 
   /**
    * Circle v2: the points (or free Spa day) on one booking, as the server's verdict (BE-2 `points-bookings`).
-   * `null` = nothing to say (the site has no Circle, the programme is not live for her, an API without the door
-   * (404), or no spend on it); "failed" = live, but the read gave no answer in time: the page then makes no
-   * "Free to cancel" claim. Bounded, so a slow loyalty read never holds the booking page up.
+   * `null` = nothing to say (the site has no Circle, the programme is off for her, she left or is under age, an API
+   * without the door (404), or no spend on it); "failed" = no answer we can trust: the page then makes no "Free to
+   * cancel" claim. Asked while the member read says live AND when that read itself failed (we do not know she is
+   * off); a clean off answer asks nothing, so the page is byte for byte as before. A 2xx points answer that does not
+   * parse is "failed", never "no points on it".
    */
   let detailPoints: PointsRead = null;
   /** The booking `detailPoints` was read for ("" = none yet). */
   let detailPointsFor = "";
-  const readPointsFor = (id: string): Promise<PointsRead> => {
+  /** The whole chain for one booking, unbounded: the member read, then (live, or that read failed) points-bookings. */
+  const pointsChainFor = (id: string): Promise<PointsRead> => {
     if (!circleRail || !fetchImpl) return Promise.resolve(null);
-    return readCircleOnce().then((state) => {
-      if (!state || state.kind !== "live") return null;
-      const read = readT(circlePointsBookingsCall([id]).path).then((r): PointsRead => {
+    return readCircleOnce().then((state): PointsRead | Promise<PointsRead> => {
+      if (state ? state.kind !== "live" : !circleFailed) return null;
+      return readT(circlePointsBookingsCall([id]).path).then((r): PointsRead => {
         if (r.state === "failed") return r.status === 404 ? null : "failed";
-        return readPointsBookings(r.body);
+        const items = readPointsBookings(r.body);
+        if (items === null) return circleSaysOff(r.body) ? null : "failed";
+        return items;
       });
-      return withinBudget(read, POINTS_READ_BUDGET_MS, "failed" as PointsRead);
     });
+  };
+  /** The chain within its budget: a slow or hanging member read never holds the booking page on its skeleton. */
+  const readPointsFor = (id: string): Promise<PointsRead> =>
+    withinBudget(pointsChainFor(id), POINTS_READ_BUDGET_MS, "failed" as PointsRead);
+  /** Booking-page loads so far: a late points verdict re-says the policy line only for the newest one. */
+  let bookingLoadNo = 0;
+  /** The booking page's policy line, re-said in place (the section and its policy text stay as painted). */
+  const sayPolicyLead = (lead: string) => {
+    const p = qs(mount, ".cw-bk-policy__lead");
+    if (p) {
+      if (lead) p.innerHTML = escapeHtml(lead);
+      else p.remove?.();
+      return;
+    }
+    if (lead) {
+      qs(mount, ".cw-bk-policy__text")?.insertAdjacentHTML?.("beforebegin", `<p class="cw-bk-policy__lead">${escapeHtml(lead)}</p>`);
+    }
   };
   /** The line for the booking on screen, as of NOW (a "come back" verdict never outlives its deadline). */
   const pointsLineFor = (read: PointsRead, id: string): PointsCancelLine | null =>
@@ -1496,9 +1533,12 @@ function mountAccountPortalOnce(doc: MinimalDocument, opts: PortalMountOptions):
           const previewRead = postJson(fetchImpl, cancellationPreviewCall(bookingId)).then((r) =>
             r.ok ? readCancellationPreview(r.body) : null,
           );
-          // Circle v2: what cancelling does to the points that paid it — asked only once the member read says
-          // live (off: no request at all, the page byte for byte as before).
-          const pointsRead = readPointsFor(bookingId);
+          // Circle v2: what cancelling does to the points that paid it — asked once the member read says live,
+          // or failed (off: no request at all, the page byte for byte as before). Within its budget; a verdict that
+          // lands after it re-says the policy line in place (below).
+          const pointsChain = pointsChainFor(bookingId);
+          const pointsRead = withinBudget(pointsChain, POINTS_READ_BUDGET_MS, "failed" as PointsRead);
+          const loadNo = ++bookingLoadNo;
           return Promise.all([readT(`/api/auth/proxy/client/booking/appointments/${id}`), readWallet(), previewRead, pointsRead]).then(
             ([read, wallet, preview, pointsItems]) => {
               if (read.status === 401) return signIn();
@@ -1528,6 +1568,16 @@ function mountAccountPortalOnce(doc: MinimalDocument, opts: PortalMountOptions):
                 points: pointsLineFor(pointsItems, model.id),
               });
               paint(shellHTML({ view, title: parts.title, lede: parts.lede, body: parts.body, emailMasked, memberName }));
+              if (pointsItems === "failed") {
+                // Drawn without a verdict (no "Free to cancel" claim). If one lands after the budget, the policy
+                // line says it: off — the money words exactly as before; live — the points sentence. A newer
+                // paint of this page, or another page, wins.
+                void pointsChain.then((late) => {
+                  if (late === "failed" || loadNo !== bookingLoadNo || !current() || detail !== model) return;
+                  detailPoints = late;
+                  sayPolicyLead(policyLead(model, needPreview ? preview : null, pointsLineFor(late, model.id)));
+                });
+              }
             },
           );
         }
@@ -2260,8 +2310,10 @@ function mountAccountPortalOnce(doc: MinimalDocument, opts: PortalMountOptions):
        first for a booking her points paid). Off — the site has no Circle, or her member read said not live — the
        sheet is exactly what it was: no read, no wait. */
     const pointsKnown = detailPointsFor === m.id;
-    let points = pointsKnown ? pointsLineFor(detailPoints, m.id) : null;
-    const circleOff = !circleRail || (circleAnswered && (!circleNow || circleNow.kind !== "live"));
+    // Off is only a clean answer (or no Circle on this site): a member read that FAILED is not off. Known off by
+    // now (a slow read that landed after the page's budget): the sheet is exactly what it was, whatever the page drew.
+    const circleOff = !circleRail || (circleAnswered && !circleFailed && (!circleNow || circleNow.kind !== "live"));
+    let points = !circleOff && pointsKnown ? pointsLineFor(detailPoints, m.id) : null;
     const askPoints = !circleOff && (!pointsKnown || points !== null);
     let pointsRead = !askPoints || pointsKnown;
     let preview: CancellationPreview | null = null;

@@ -32,7 +32,7 @@ export { eur, longDate, timeOfDay, shortWhen, plainDate, whenRange, untilPhrase 
 export { venueLocalToUtcIso, venueDateString, buildSlotsModel, reschedulePickerHTML, RESCHEDULE_QC, } from "./reschedule.js";
 export { confirmCall, cancelCall, cancellationPreviewCall, rescheduleCall, payBalanceCall, packagePayCall, packageBookCall, packagePayConfirmCall, packageReturnFrom, invoicePayCall, invoicePayConfirmCall, invoiceReturnFrom, statementPayFailureMessage, readCheckoutUrl, readBookedAppointmentId, packageBookFailureMessage, isTakenTimeRefusal, slotsCall, membershipCall, circleLeavePreviewCall, circleLeaveCall, circleRejoinCall, circleOffersCall, circleComfortReadCall, circleBirthdayReadCall, circleWhatsappReadCall, circleComfortCall, circleBirthdayCall, circleWhatsappCall, readCancellationPreview, cancelQuestion, cancelSummary, needsPreview, messageFromError, walletAvailabilityCall, walletPassCall, readWalletAvailability, circleWalletCardCall, circlePointsBookingsCall, POINTS_NOT_CHECKED, POINTS_NOT_READ, } from "./portalActions.js";
 // Circle v2: what cancelling does to the points (or free Spa day) that paid a booking (BE-2 points-bookings).
-export { readPointsBookings, pointsCancelLine, POINTS_CANCEL_UNKNOWN, POINTS_CANCEL_NOT_READ } from "./circlePointsCancel.js";
+export { readPointsBookings, pointsCancelLine, circleSaysOff, POINTS_CANCEL_UNKNOWN, POINTS_CANCEL_NOT_READ } from "./circlePointsCancel.js";
 export { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
 export { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";
 // Circle v2: the parts CSS under any scope, so a site's own Circle blocks (pay step, thank-you, programme page) draw

@@ -376,7 +376,7 @@ export {
   POINTS_NOT_READ,
 } from "./portalActions.js";
 // Circle v2: what cancelling does to the points (or free Spa day) that paid a booking (BE-2 points-bookings).
-export { readPointsBookings, pointsCancelLine, POINTS_CANCEL_UNKNOWN, POINTS_CANCEL_NOT_READ } from "./circlePointsCancel.js";
+export { readPointsBookings, pointsCancelLine, circleSaysOff, POINTS_CANCEL_UNKNOWN, POINTS_CANCEL_NOT_READ } from "./circlePointsCancel.js";
 export type { CirclePointsBooking, PointsCancelLine } from "./circlePointsCancel.js";
 export type { ProxyCall, CancellationPreview, PortalActionName, CancelSummary } from "./portalActions.js";
 

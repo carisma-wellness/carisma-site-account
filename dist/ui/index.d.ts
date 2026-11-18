@@ -34,7 +34,7 @@ export { eur, longDate, timeOfDay, shortWhen, plainDate, whenRange, untilPhrase 
 export { venueLocalToUtcIso, venueDateString, buildSlotsModel, reschedulePickerHTML, RESCHEDULE_QC, } from "./reschedule.js";
 export type { SlotsModel, SlotView } from "./reschedule.js";
 export { confirmCall, cancelCall, cancellationPreviewCall, rescheduleCall, payBalanceCall, packagePayCall, packageBookCall, packagePayConfirmCall, packageReturnFrom, invoicePayCall, invoicePayConfirmCall, invoiceReturnFrom, statementPayFailureMessage, readCheckoutUrl, readBookedAppointmentId, packageBookFailureMessage, isTakenTimeRefusal, slotsCall, membershipCall, circleLeavePreviewCall, circleLeaveCall, circleRejoinCall, circleOffersCall, circleComfortReadCall, circleBirthdayReadCall, circleWhatsappReadCall, circleComfortCall, circleBirthdayCall, circleWhatsappCall, readCancellationPreview, cancelQuestion, cancelSummary, needsPreview, messageFromError, walletAvailabilityCall, walletPassCall, readWalletAvailability, circleWalletCardCall, circlePointsBookingsCall, POINTS_NOT_CHECKED, POINTS_NOT_READ, } from "./portalActions.js";
-export { readPointsBookings, pointsCancelLine, POINTS_CANCEL_UNKNOWN, POINTS_CANCEL_NOT_READ } from "./circlePointsCancel.js";
+export { readPointsBookings, pointsCancelLine, circleSaysOff, POINTS_CANCEL_UNKNOWN, POINTS_CANCEL_NOT_READ } from "./circlePointsCancel.js";
 export type { CirclePointsBooking, PointsCancelLine } from "./circlePointsCancel.js";
 export type { ProxyCall, CancellationPreview, PortalActionName, CancelSummary } from "./portalActions.js";
 export { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";

@@ -11,6 +11,12 @@ export interface CirclePointsBooking {
     /** The free-cancel deadline (ISO), or "". */
     freeCancelUntil: string;
 }
+/**
+ * A clean answer that says the programme is off for her (`enabled: false`, bare or in the `{success, data}`
+ * envelope). Only this — or a 404, an API without the door — is "off" to the cancel words: a 2xx that says neither
+ * on nor off is no answer, and never stands for "no points on this booking" (the review's round 3).
+ */
+export declare function circleSaysOff(body: unknown): boolean;
 /** `GET /client/loyalty/points-bookings` → its items, or null (off, left, 404, garbage). */
 export declare function readPointsBookings(body: unknown): CirclePointsBooking[] | null;
 export interface PointsCancelLine {
