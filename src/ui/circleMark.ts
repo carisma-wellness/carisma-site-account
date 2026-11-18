@@ -90,12 +90,13 @@ export function jewelSlotHTML(opts: {
   const kind = opts.kind ?? (h >= 200 ? "full" : "small");
   const p = Math.max(0, Math.min(1, opts.progress));
   const markSize = Math.max(24, Math.min(w, Math.round(h * 0.62)));
+  // The box lays itself out (inline styles): a slot works on any host page, with or without the kit's CSS.
   return (
     `<span class="cc-jw${opts.cls ? ` ${opts.cls}` : ""}" data-cw-jewel data-gem="${opts.gem}" data-p="${p.toFixed(3)}" data-k="${kind}"` +
-    ` style="width:${w}px;height:${h}px" aria-hidden="true">` +
+    ` style="display:inline-grid;place-items:center;position:relative;flex:none;vertical-align:middle;width:${w}px;height:${h}px" aria-hidden="true">` +
     (opts.poster
-      ? `<img class="cc-jw__poster" src="${opts.poster.replace(/"/g, "%22")}" alt="" width="${w}" height="${h}" loading="lazy" decoding="async">`
-      : `<span class="cc-jw__mark">${circleMarkSVG(opts.gem, p, markSize)}</span>`) +
+      ? `<img class="cc-jw__poster" src="${opts.poster.replace(/"/g, "%22")}" alt="" width="${w}" height="${h}" loading="lazy" decoding="async" style="grid-area:1/1;width:100%;height:100%;object-fit:contain">`
+      : `<span class="cc-jw__mark" style="grid-area:1/1;display:grid;place-items:center">${circleMarkSVG(opts.gem, p, markSize)}</span>`) +
     `</span>`
   );
 }

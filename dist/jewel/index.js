@@ -53,6 +53,8 @@ function unmountSlot(slot) {
     }
     m.canvas.remove();
     slot.removeAttribute(LIVE);
+    for (const el of Array.from(slot.children))
+        el.style.opacity = "";
 }
 /**
  * Mount a live jewel in every `[data-cw-jewel]` slot under `root` that has
@@ -75,6 +77,8 @@ export function hydrateJewels(root) {
         const canvas = document.createElement("canvas");
         canvas.className = "cc-jw__canvas";
         canvas.setAttribute("aria-hidden", "true");
+        // Stacked over the mark in the slot's own grid cell (inline, so any host page lays it out the same).
+        canvas.style.cssText = "grid-area:1/1;display:block;width:100%;height:100%;opacity:0;transition:opacity 240ms ease";
         slot.appendChild(canvas);
         try {
             const handle = mountJewel(canvas, {
@@ -82,7 +86,14 @@ export function hydrateJewels(root) {
                 progress: progressOf(slot.getAttribute("data-p")),
                 variant: variantOf(slot.getAttribute("data-k")),
                 hover: hoverFor(slot),
-                onFirstFrame: () => slot.setAttribute(LIVE, ""),
+                onFirstFrame: () => {
+                    slot.setAttribute(LIVE, "");
+                    canvas.style.opacity = "1";
+                    for (const el of Array.from(slot.children)) {
+                        if (el !== canvas)
+                            el.style.opacity = "0";
+                    }
+                },
             });
             mounted.set(slot, { handle, canvas });
             mine.push(slot);

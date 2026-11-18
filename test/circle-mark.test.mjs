@@ -32,9 +32,11 @@ test("the mark draws the gem's flat colour by key, a gold rim, and the ring to t
 
 test("a jewel slot is plain HTML with a fixed box (0.84 × height) and its flat mark until the live jewel draws", () => {
   const s = jewelSlotHTML({ gem: "sapphire", progress: 0.25, height: 96 });
-  assert.match(s, /^<span class="cc-jw" data-cw-jewel data-gem="sapphire" data-p="0\.250" data-k="small" style="width:81px;height:96px" aria-hidden="true">/);
-  assert.match(s, /class="cc-jw__mark"><svg class="cc-mark" data-cc-gem="sapphire"/);
-  assert.match(jewelSlotHTML({ gem: "ruby", progress: 0.4, height: 240 }), /data-k="full" style="width:202px;height:240px"/, "Hero size = the full jewel");
+  assert.match(s, /^<span class="cc-jw" data-cw-jewel data-gem="sapphire" data-p="0\.250" data-k="small" style="display:inline-grid;place-items:center;position:relative;[^"]*width:81px;height:96px" aria-hidden="true">/);
+  // Self-contained: the mark sits in the slot's own grid cell (a host page without the kit's CSS lays it out the same).
+  assert.match(s, /<span class="cc-jw__mark" style="grid-area:1\/1;/);
+  assert.match(s, /class="cc-jw__mark" style="[^"]*"><svg class="cc-mark" data-cc-gem="sapphire"/);
+  assert.match(jewelSlotHTML({ gem: "ruby", progress: 0.4, height: 240 }), /data-k="full" style="[^"]*width:202px;height:240px"/, "Hero size = the full jewel");
   assert.match(jewelSlotHTML({ gem: "ruby", progress: 1, height: 56, kind: "icon" }), /data-k="icon"/);
   const poster = jewelSlotHTML({ gem: "pearl", progress: 0, height: 128, poster: "/circle/jewel/v1/pearl-small.webp" });
   assert.match(poster, /<img class="cc-jw__poster" src="\/circle\/jewel\/v1\/pearl-small\.webp" alt="" width="108" height="128"/);
