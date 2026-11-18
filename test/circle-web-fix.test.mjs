@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  jewelSlotHTML,
   createAccountRoutes,
   seal,
   isAllowed,
@@ -369,4 +370,17 @@ test("earnPerEuro and the level count come from the API", () => {
   assert.match(circleLadderHTML(four, readCircle(MARIA).level, 20), /aria-label="The four levels"/);
   const page = readCircle({ ...MARIA, levels: LEVELS.slice(0, 4) });
   assert.ok(page.levels.length === 4);
+});
+
+test("a Diamond short of the top level (the next stone, beads dark) never shows the all-gold Diamond still", () => {
+  const poster = (gem, kind) => `/circle/jewel/v1/${gem}-${kind}.webp`;
+  const next = jewelSlotHTML({ gem: "diamond", progress: 0, height: 44, kind: "small", poster: poster("diamond", "small") });
+  assert.doesNotMatch(next, /<img/, "no poster: the flat mark with its empty ring");
+  assert.match(next, /cc-jw__mark/);
+  const top = jewelSlotHTML({ gem: "diamond", progress: 1, height: 44, kind: "small", poster: poster("diamond", "small") });
+  assert.match(top, /<img class="cc-jw__poster" src="\/circle\/jewel\/v1\/diamond-small\.webp"/, "her own Level 5 jewel: every bead gold, the still is right");
+  const sapphire = jewelSlotHTML({ gem: "sapphire", progress: 0, height: 44, kind: "small", poster: poster("sapphire", "small") });
+  assert.match(sapphire, /sapphire-small\.webp/, "every other stone keeps its dark-beaded still");
+  const icon = jewelSlotHTML({ gem: "diamond", progress: 0, height: 56, kind: "icon", poster: poster("diamond", "icon") });
+  assert.match(icon, /diamond-icon\.webp/, "an icon is every bead gold by definition");
 });

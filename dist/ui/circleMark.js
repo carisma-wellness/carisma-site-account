@@ -73,11 +73,16 @@ export function jewelSlotHTML(opts) {
     const kind = opts.kind ?? (h >= 200 ? "full" : "small");
     const p = Math.max(0, Math.min(1, opts.progress));
     const markSize = Math.max(24, Math.min(w, Math.round(h * 0.62)));
+    // The generator's Diamond stills carry every bead gold (the prototype's Level 5 rule), so a Diamond short of the
+    // top level — the NEXT stone in a track, every bead dark (ADDENDUM X2) — shows its flat mark (the true, empty
+    // ring) until the live jewel draws, never an all-gold still that reads as earned. A dark Diamond still is a JA
+    // follow-up (PACK/build/WEB-log.md).
+    const poster = opts.poster && !(opts.gem === "diamond" && kind !== "icon" && p < 1) ? opts.poster : "";
     // The box lays itself out (inline styles): a slot works on any host page, with or without the kit's CSS.
     return (`<span class="cc-jw${opts.cls ? ` ${opts.cls}` : ""}" data-cw-jewel data-gem="${opts.gem}" data-p="${p.toFixed(3)}" data-k="${kind}"` +
         ` style="display:inline-grid;place-items:center;position:relative;flex:none;vertical-align:middle;width:${w}px;height:${h}px" aria-hidden="true">` +
-        (opts.poster
-            ? `<img class="cc-jw__poster" src="${opts.poster.replace(/"/g, "%22")}" alt="" width="${w}" height="${h}" loading="lazy" decoding="async" style="grid-area:1/1;width:100%;height:100%;object-fit:contain">`
+        (poster
+            ? `<img class="cc-jw__poster" src="${poster.replace(/"/g, "%22")}" alt="" width="${w}" height="${h}" loading="lazy" decoding="async" style="grid-area:1/1;width:100%;height:100%;object-fit:contain">`
             : `<span class="cc-jw__mark" style="grid-area:1/1;display:grid;place-items:center">${circleMarkSVG(opts.gem, p, markSize)}</span>`) +
         `</span>`);
 }
