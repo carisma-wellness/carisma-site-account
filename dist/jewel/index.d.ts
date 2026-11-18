@@ -20,7 +20,8 @@
  * mark, quietly. Gem by KEY (the API's `level.key`), never by level number.
  */
 import { type JewelHandle } from "./engine.js";
-export type { JewelHandle, JewelOptions, JewelState, JewelVariant } from "./engine.js";
+export type { FrameStage, JewelHandle, JewelOptions, JewelState, JewelVariant } from "./engine.js";
+export { frameStep, motionReduced } from "./engine.js";
 export { GEM_IDENTITY, isGemKey, jewelSupported, onJewelFailed, prefersReducedMotion, type CircleGemKey } from "./stage.js";
 export declare const CIRCLE_JEWEL_QC = "carisma-circle-v2-20261117";
 /** Mount one jewel. Throws only when WebGL cannot start (the caller keeps its flat mark). */

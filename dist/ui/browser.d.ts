@@ -1,3 +1,4 @@
+import { type CircleRewardPhoto } from "./circle.js";
 import { type LoadState, type PortalView } from "./portal.js";
 import type { MinimalDocument, MinimalElement } from "./dom.js";
 /** The photo the marks are currently painted with (exported for tests/hosts). */
@@ -75,6 +76,16 @@ export interface HydrateOptions {
     } | undefined>;
     /** Circle v2: poster stills for jewel slots, by gem and kind. */
     circlePoster?: (gem: string, kind: "small" | "full" | "icon") => string;
+    /** Where the menu's "Book a visit" goes on this brand (ADDENDUM KIT-1). Default: Credit & rewards. */
+    bookHref?: string;
+    /** Circle v2: the site's own photo for a featured service (ADDENDUM X3/KIT-3), before the API's imageUrl. */
+    circleRewardPhoto?: CircleRewardPhoto;
+    /** Circle v2: the API's first-level label ("Level 1 · Pearl", the public status) for the rejoin sentence. */
+    circleFirstLevel?: () => Promise<string | null | undefined>;
+    /** Circle v2: where a free Spa day's "Book it" goes (the Spa-day service's page). */
+    circleSpaDayHref?: string;
+    /** Circle v2: the "Your card" Wallet row on Credit & rewards (ADDENDUM KIT-4). Off unless true. */
+    circleWallet?: boolean;
 }
 /**
  * Mount the panel: on a click of a signed-in mark, make the ONE authenticated read
@@ -133,7 +144,12 @@ export interface ReadResult {
 export declare function classifyRead(ok: boolean, status: number, body: unknown): ReadResult;
 /** The brand a host serves, for the cross-brand label on a card. "" when unknown. */
 export declare function siteBrandFromHost(host: string): string;
-export declare function mountAccountPortal(doc: MinimalDocument, opts?: PortalMountOptions): void;
+/**
+ * Mount the account portal. Returns its unmount (React's effect cleanup): every live jewel the portal drew is
+ * disposed and a read that answers later mounts none (a dead tab never holds GPU buffers or the shared
+ * WebGL context).
+ */
+export declare function mountAccountPortal(doc: MinimalDocument, opts?: PortalMountOptions): () => void;
 /**
  * What to say when the member comes back to the account.
  *

@@ -96,6 +96,8 @@ export interface CircleModel {
     minAge: number | null;
     brandBonusMinCents: number;
     pointsPerEuro: number;
+    /** Points per €1 paid at Level 1 (the API's `rules.earnPerEuro`; 1 only as the fallback). */
+    earnPerEuro: number;
     /** Booked, not yet paid. */
     pendingPoints: number;
     pendingCents: number;
@@ -159,6 +161,21 @@ export interface CircleSummary {
     pointsExpireAt: string;
     memberNumber: string;
     spendPausedUntil: string;
+    pointsPerEuro: number;
+    /** "€20.00 of it until Mon 7 Dec": the soonest dated part of the balance (BE-1 R1.14), or null. */
+    datedEnds: {
+        at: string;
+        points: number;
+    } | null;
+    /** The last day she keeps her level (YYYY-MM-DD), or "". */
+    heldUntil: string;
+    /**
+     * Paid this year, and the two perk rows, only when the summary sends them (BE-1's built summary does
+     * not yet: BRIEF §9 ask). Without them the menu reads `/me` once for the unlock line and the caption.
+     */
+    spendThisYearCents: number | null;
+    perks: CirclePerkSet | null;
+    nextLevelPerks: CirclePerkSet | null;
 }
 export type CircleSummaryState = {
     kind: "live";
@@ -234,12 +251,19 @@ export declare function wholeEuroUp(cents: number): string;
 export declare function wholeEuroDown(cents: number): string;
 /** Points → their euro value at the programme's rate: "€21.00". */
 export declare function pointsEuroText(points: number, pointsPerEuro: number): string;
-/** "7.5%" — what a level gives back: multiplier × (100 / points per euro) percent of every euro. */
-export declare function rateText(multiplier: number, pointsPerEuro: number): string;
+/**
+ * "7.5%" — what a level gives back: points per €1 (`earnPerEuro`, 1 when the API does not say) × the level
+ * multiplier × (100 / points per euro) percent of every euro paid.
+ */
+export declare function rateText(multiplier: number, pointsPerEuro: number, earnPerEuro?: number): string;
 /** A calendar day (YYYY-MM-DD) or an instant → "7 Dec" in Malta. Days are read as Malta days, never shifted. */
 export declare function maltaDayShort(iso: string): string;
 /** "31 Dec 2027". */
 export declare function maltaDayLong(iso: string): string;
+/** "Mon 7 Dec" in Malta (a calendar day is read as that Malta day). */
+export declare function maltaDayWeek(iso: string): string;
+/** "five" for 5 (the level count printed in words, from `levels.length`); digits past ten. */
+export declare function countWord(n: number): string;
 /** "Thu 19 Nov, 20:15" in Malta. */
 export declare function maltaWhen(iso: string): string;
 /**
@@ -273,6 +297,26 @@ export declare function levelSentenceText(m: {
     levelSentence: string;
     nextLevel: unknown;
     heldUntil?: string;
+}): string;
+/**
+ * ADDENDUM X4: the dated part of her balance, directly under the balance it describes: "€20.00 of it until
+ * Mon 7 Dec". "" when nothing in the balance is dated.
+ */
+export declare function datedText(d: {
+    at: string;
+    points: number;
+} | null | undefined, pointsPerEuro: number): string;
+/**
+ * ADDENDUM X5 (the rollout's `CK.S.expiring`), the next step while her birthday credit is the part that ends
+ * first: "Your €20.00 birthday credit ends Mon 7 Dec. Use it on a treatment before then." "" otherwise.
+ */
+export declare function expiringText(m: {
+    pointsExpireKind: string;
+    datedEnds: {
+        at: string;
+        points: number;
+    } | null;
+    pointsPerEuro: number;
 }): string;
 /** R5.4 + R1.14: the line under the balance that says what ends first. "" when nothing is close. */
 export declare function endsText(m: CircleModel): string;

@@ -62,18 +62,43 @@ export const MARIA = {
   card: { memberNumber: "CC 1234 5678", qrPayload: "cc1.x", deskCode: "123456", deskCodeExpiresAt: "2026-11-17T20:10:00Z" },
 };
 
+/**
+ * `GET /client/loyalty/summary` EXACTLY as BE-1 built it (loyalty.readModel.ts `summaryFromRow`, feat/circle-v2-be1
+ * @ abdf5bead): `nextLevel` is {key, number, name, label} with NO thresholdCents, no `rules`, no paid-this-year,
+ * no perks. The one field added on top is BE-2's `affordable` (R2.9 adds it to this read). The WEB fix's BRIEF §9
+ * ask (thresholdCents, spendThisYearCents, perks, nextLevelPerks on the summary) is `SUMMARY_ASKED` below.
+ */
 export const SUMMARY = {
   enabled: true,
   level: { key: "ruby", number: 3, name: "Ruby", label: "Level 3 · Ruby" },
-  balance: { points: 1448, cents: 7240, display: "€72.40 · 1,448 points" },
-  nextLevel: { key: "sapphire", number: 4, name: "Sapphire", label: "Level 4 · Sapphire", thresholdCents: 100000 },
+  nextLevel: { key: "sapphire", number: 4, name: "Sapphire", label: "Level 4 · Sapphire" },
   toNextLevelCents: 29000,
   progressBp: 4200,
   levelSentence: "€290 more this year to reach Level 4 · Sapphire",
+  heldUntil: "2027-12-31",
+  balance: { points: 1448, cents: 7240, display: "€72.40 · 1,448 points" },
   pointsExpireAt: "2027-11-17",
+  pointsExpiring: 1448,
+  pointsExpireKind: "balance",
+  balanceLapse: { at: "2027-11-17", points: 1448 },
+  datedEnds: null,
+  awaitingEmailPoints: 0,
+  identity: "ok",
   memberNumber: "CC 1234 5678",
   spendPausedUntil: null,
+  brandsVisited: ["spa", "aesthetics"],
+  fullCircleAt: null,
+  left: false,
   affordable: true,
+};
+
+/** The summary once BE-1 takes the WEB fix's ask: the menu then draws the caption and the unlock line at once. */
+export const SUMMARY_ASKED = {
+  ...SUMMARY,
+  nextLevel: { ...SUMMARY.nextLevel, thresholdCents: 100000 },
+  spendThisYearCents: 71000,
+  perks: { multiplier: 1.5, birthdayCreditCents: 2000, freeSpaDaysPerYear: 1, earlyAccessHours: 48, noDeposit: true },
+  nextLevelPerks: { multiplier: 1.75, birthdayCreditCents: 3500, freeSpaDaysPerYear: 2, earlyAccessHours: 48, noDeposit: true },
 };
 
 export const STATUS = {

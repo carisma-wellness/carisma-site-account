@@ -29,14 +29,42 @@ export interface CircleReward {
   fromPoints: number;
   /** null on the public featured read (it never says what a visitor can afford). */
   affordable: boolean | null;
+  /** The catalogue's own photo of the service (BE-2 §8 ask), https only; "" when the API sends none. */
+  imageUrl: string;
 }
 
-/** Under the reward cards: how points pay, online and at the desk (terms §10: the card in the Carisma app). */
-export const REWARDS_FOOT =
-  "Your points pay for one whole treatment at its full price: online when you are signed in, or at reception with your card in the Carisma app. Prices include VAT.";
+/**
+ * Under the reward cards: counsel's corrected sentence (surface-consistency row 26), word for word, as the v1
+ * kit shipped it under its old name. Still true in v2: a reward is one whole treatment, paid in full, and at
+ * the desk it is the card in the Carisma app. A rewrite needs counsel's OK first.
+ */
+export const REWARDS_FOOT = "Rewards are paid in full with credit: show your card in the Carisma app at the desk. Prices include VAT.";
 
 /** A photo and a booking link the site knows for a service id. */
 export type CircleRewardArt = Record<string, { img?: string; href?: string } | undefined>;
+
+/**
+ * ADDENDUM X3/KIT-3: the host's own photo for a featured service (the brand site's library), or null. Asked
+ * before the API's `imageUrl`; with neither, the card is words only (never a stock image).
+ */
+export type CircleRewardPhoto = (item: CircleReward) => { src: string; alt?: string } | null | undefined;
+
+function httpsOrEmpty(v: string): string {
+  return /^https:\/\//i.test(v) ? v : "";
+}
+
+/** The card's photo: the site's art map, then the host callback, then the API's `imageUrl`. */
+function photoOf(r: CircleReward, art: CircleRewardArt | undefined, photo: CircleRewardPhoto | undefined): { src: string; alt: string } | null {
+  const fromArt = art?.[r.serviceId]?.img;
+  if (fromArt) return { src: fromArt, alt: "" };
+  try {
+    const p = photo?.(r);
+    if (p && typeof p.src === "string" && p.src) return { src: p.src, alt: typeof p.alt === "string" ? p.alt : "" };
+  } catch {
+    /* a host callback that throws costs only its photo */
+  }
+  return r.imageUrl ? { src: r.imageUrl, alt: "" } : null;
+}
 
 /** Either read → the items, or null (off, 404, garbage). Carisma Medical is dropped if it ever came. */
 export function readCircleRewards(body: unknown): CircleReward[] | null {
@@ -59,6 +87,7 @@ export function readCircleRewards(body: unknown): CircleReward[] | null {
         fromCents: Math.max(0, int(r.fromCents)),
         fromPoints: Math.max(0, int(r.fromPoints)),
         affordable: typeof r.affordable === "boolean" ? r.affordable : null,
+        imageUrl: httpsOrEmpty(str(r.imageUrl)),
       };
     })
     .filter((r) => r.fromPoints > 0);
@@ -107,14 +136,16 @@ function cardHTML(
   line: string,
   on: boolean,
   art: CircleRewardArt | undefined,
+  photo?: CircleRewardPhoto,
 ): string {
   const a = art?.[r.serviceId];
   const tag = a?.href ? "a" : "div";
   const href = a?.href ? ` href="${escapeHtml(a.href)}"` : "";
+  const img = photoOf(r, art, photo);
   return (
-    `<li class="cc-reward${on ? " on" : ""}">` +
+    `<li class="cc-reward${on ? " on" : ""}${img ? " has-photo" : ""}">` +
     `<${tag} class="cc-reward__in"${href}>` +
-    (a?.img ? `<img src="${escapeHtml(a.img)}" alt="" loading="lazy" decoding="async">` : "") +
+    (img ? `<img src="${escapeHtml(img.src)}" alt="${escapeHtml(img.alt)}" loading="lazy" decoding="async">` : "") +
     `<span class="cc-reward__t"><span class="cc-eyebrow">${escapeHtml(eyebrow)}</span>` +
     `<b>${escapeHtml(rewardTitle(r))}</b><span ${M}>${escapeHtml(line)}</span></span>` +
     `</${tag}></li>`
@@ -129,23 +160,24 @@ function cardHTML(
 export function circleRewardsHTML(
   items: CircleReward[] | null,
   balancePoints: number | null,
-  opts: { art?: CircleRewardArt; pointsPerEuro?: number; scroll?: boolean; title?: string; foot?: string } = {},
+  opts: { art?: CircleRewardArt; photo?: CircleRewardPhoto; pointsPerEuro?: number; scroll?: boolean; title?: string; foot?: string } = {},
 ): string {
   if (!items || !items.length) return "";
-  const ppe = opts.pointsPerEuro && opts.pointsPerEuro > 0 ? opts.pointsPerEuro : 20;
+  // The rate comes from the caller's API answer; pointsEuroText keeps the 20-points fallback in one place.
+  const ppe = opts.pointsPerEuro && opts.pointsPerEuro > 0 ? opts.pointsPerEuro : 0;
   let cards = "";
   if (balancePoints === null) {
     cards = items
       .slice(0, 3)
-      .map((r) => cardHTML(r.brandName || "Carisma Circle", r, priceLine(r), false, opts.art))
+      .map((r) => cardHTML(r.brandName || "Carisma Circle", r, priceLine(r), false, opts.art, opts.photo))
       .join("");
   } else {
     const g = rewardGroups(items, balancePoints);
     const gap = (r: CircleReward) => `${pointsEuroText(r.fromPoints - Math.max(0, balancePoints), ppe)} more credit`;
     cards =
-      (g.now ? cardHTML("Yours now", g.now, priceLine(g.now), true, opts.art) : "") +
-      (g.next ? cardHTML("Next up", g.next, gap(g.next), false, opts.art) : "") +
-      (g.dream ? cardHTML("One day", g.dream, gap(g.dream), false, opts.art) : "");
+      (g.now ? cardHTML("Yours now", g.now, priceLine(g.now), true, opts.art, opts.photo) : "") +
+      (g.next ? cardHTML("Next up", g.next, gap(g.next), false, opts.art, opts.photo) : "") +
+      (g.dream ? cardHTML("One day", g.dream, gap(g.dream), false, opts.art, opts.photo) : "");
   }
   if (!cards) return "";
   return (
@@ -159,15 +191,16 @@ export function circleRewardsHTML(
 }
 
 /** The account menu's "Yours now" row: the treatment's photo, its name, what it costs. "" when nothing is affordable. */
-export function circleNowRowHTML(items: CircleReward[] | null, art?: CircleRewardArt): string {
+export function circleNowRowHTML(items: CircleReward[] | null, art?: CircleRewardArt, photo?: CircleRewardPhoto): string {
   if (!items || !items.length) return "";
   const { now } = rewardGroups(items, 0);
   if (!now) return "";
   const a = art?.[now.serviceId];
   const tag = a?.href ? "a" : "div";
+  const img = photoOf(now, art, photo);
   return (
     `<${tag} class="cc cc-now"${a?.href ? ` href="${escapeHtml(a.href)}"` : ""} data-cw-circle="now">` +
-    (a?.img ? `<img src="${escapeHtml(a.img)}" alt="" loading="lazy" decoding="async">` : "") +
+    (img ? `<img src="${escapeHtml(img.src)}" alt="${escapeHtml(img.alt)}" loading="lazy" decoding="async">` : "") +
     `<span><i class="cc-eyebrow">Yours now</i><b>${escapeHtml(rewardTitle(now))}</b>` +
     `<small ${M}>${escapeHtml(priceLine(now))}</small></span></${tag}>`
   );

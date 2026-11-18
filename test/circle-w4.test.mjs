@@ -30,7 +30,7 @@ import {
   CIRCLE_QC,
   ACCOUNT_DETAILS_HREF,
 } from "../dist/index.js";
-import { MARIA as MARIA_V2 } from "./fixtures/circle-v2.mjs";
+import { MARIA as MARIA_V2, THREE_BRANDS } from "./fixtures/circle-v2.mjs";
 import { PORTAL_RULES_CSS } from "../dist/ui/styles/index.js";
 
 /**
@@ -151,7 +151,8 @@ test("ways to earn (v2): rows are the API's actions; the retired profile hint ne
   assert.equal(profileMissingText(["email_verified", "birthday", "comfort"]), "Still to do: Verify your email address · add your birthday · choose your room preferences");
   assert.equal(profileMissingText([]), "");
   assert.equal(profileMissingText(["something_new"]), "", "an unknown item is never shown as a raw code");
-  const page = circleViewHTML({ me: readCircle(MARIA), activity: null, rewards: null });
+  // Three houses on, so every row the server sent is drawn (X10 drops the brand rows on a Spa-only config).
+  const page = circleViewHTML({ me: readCircle({ ...MARIA, brands: THREE_BRANDS }), activity: null, rewards: null });
   assert.doesNotMatch(page, /data-cw-circle-missing|Complete your profile/);
   for (const a of MARIA.actions) assert.ok(page.includes(a.label), a.label);
   const unverified = circleViewHTML({
@@ -477,8 +478,8 @@ test("proxy: the six W4 doors are exact literals; siblings and the staff twin st
     assert.equal(isAllowed(m, p), false, `${m} ${p}`);
   }
   for (const f of FORBIDDEN_PATHS) assert.equal(isAllowed(f.method, f.path), false, `${f.method} ${f.path}`);
-  // v2 adds five more (summary, Instagram, perks, Spa day, points-bookings): 22 in all.
-  assert.equal(PROXY_ALLOWLIST.filter((r) => /loyalty|Carisma Circle/i.test(r.label)).length, 22);
+  // v2 adds six more (summary, Instagram, perks, Spa day, points-bookings, the member earn preview): 23 in all.
+  assert.equal(PROXY_ALLOWLIST.filter((r) => /loyalty|Carisma Circle/i.test(r.label)).length, 23);
 });
 
 const RP = "carisma-spa";

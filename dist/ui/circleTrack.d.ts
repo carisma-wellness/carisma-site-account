@@ -27,11 +27,17 @@ export interface TrackOptions {
 export declare function paidLineText(t: TrackInput): string;
 /**
  * What a level adds over the one before it (the reason to reach it), from the
- * API's perks. `pointsPerEuro` turns a multiplier into the share back.
+ * API's perks. `pointsPerEuro` (and `earnPerEuro`, points per €1 before the
+ * multiplier) turn a multiplier into the share back.
+ *
+ * Early access to sales is NOT listed (nor in `benefitsList`): it reaches only
+ * offers opened in the Carisma account, not the website's offer pages or
+ * Klaviyo sends, and its wording waits on the CEO and the advocate (RECONCILED
+ * Q5; R5.7 keeps the one perks line, drawn only with something upcoming).
  */
-export declare function unlocksList(cur: CirclePerkSet | null, next: CirclePerkSet | null, pointsPerEuro: number): string[];
+export declare function unlocksList(cur: CirclePerkSet | null, next: CirclePerkSet | null, pointsPerEuro: number, earnPerEuro?: number): string[];
 /** Everything a level gives (the account's "What Level 3 · Ruby gives you"). */
-export declare function benefitsList(p: CirclePerkSet | null, pointsPerEuro: number): string[];
+export declare function benefitsList(p: CirclePerkSet | null, pointsPerEuro: number, earnPerEuro?: number): string[];
 /** One line for tight places: "Level 4 · Sapphire unlocks 8.75% back and a second free Spa day every year". */
 export declare function unlockLineText(nextLabel: string, unlocks: string[]): string;
 /** The perks the API gives for the level after hers: `nextLevelPerks`, else that level's row in `levels[]`. */

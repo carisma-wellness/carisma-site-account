@@ -536,7 +536,8 @@ test("proxy: the five W3 doors are exact literals; siblings, the till and placem
     ["DELETE", "/client/loyalty/preferences"],
     ["PATCH", "/client/loyalty/preferences/abc"],
     ["GET", "/client/loyalty/preferences/abc"],
-    ["POST", "/client/loyalty/earn/preview"],
+    // POST /client/loyalty/earn/preview is a member door since the v2 WEB fix (the pay step's earn line at her
+    // own level, a read): the PUBLIC earn twin below still never goes through the member proxy.
     ["GET", "/public/loyalty/earn"],
     ["GET", "/hod/appointments/abc/checkout/loyalty-reward"],
     ["POST", "/hod/appointments/abc/checkout/loyalty-reward"],
@@ -546,9 +547,9 @@ test("proxy: the five W3 doors are exact literals; siblings, the till and placem
   for (const [m, p] of refused) assert.equal(isAllowed(m, p), false, `${m} ${p}`);
   for (const f of FORBIDDEN_PATHS) assert.equal(isAllowed(f.method, f.path), false, `${f.method} ${f.path}`);
   // Loyalty doors in all: /me, W1's five, W3's five, W4's six (test/circle-w4.test.mjs), v2's five
-  // (test/circle-ways.test.mjs). Never anything wider.
+  // (test/circle-ways.test.mjs) + the member earn preview (the WEB fix). Never anything wider.
   const loyaltyRules = PROXY_ALLOWLIST.filter((r) => /loyalty|Carisma Circle/i.test(r.label));
-  assert.equal(loyaltyRules.length, 22, loyaltyRules.map((r) => `${r.method} ${r.label}`).join(", "));
+  assert.equal(loyaltyRules.length, 23, loyaltyRules.map((r) => `${r.method} ${r.label}`).join(", "));
 });
 
 const RP = "carisma-spa";

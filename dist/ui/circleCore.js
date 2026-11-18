@@ -141,6 +141,12 @@ function pointsPerEuroFrom(o) {
     const v = r ? int(r.pointsPerEuro) : 0;
     return v > 0 ? v : 100 / CENTS_PER_POINT;
 }
+/** Points per €1 paid before the level multiplier (`rules.earnPerEuro`, BRIEF §9 asks BE-1 to send it); 1 when absent. */
+function earnPerEuroFrom(o) {
+    const r = obj(o.rules);
+    const v = r ? num(r.earnPerEuro, 0) : 0;
+    return v > 0 ? v : 1;
+}
 function centsOf(rawCents, points, pointsPerEuro) {
     return int(rawCents, Math.round((points * 100) / pointsPerEuro));
 }
@@ -152,7 +158,12 @@ function datedFrom(raw) {
     const points = int(o.points);
     return at && points > 0 ? { at, points } : null;
 }
-function actionsFrom(raw, pointsPerEuro) {
+/**
+ * ADDENDUM X10: the second-brand and Full Circle rows only when two or more houses are switched on (a Spa-only
+ * programme names no other brand and offers no purchase there). The first-brand bonus stays.
+ */
+const MULTI_BRAND_KEYS = new Set(["second_house", "full_circle"]);
+function actionsFrom(raw, pointsPerEuro, housesOn = 3) {
     if (!Array.isArray(raw))
         return [];
     const out = [];
@@ -160,6 +171,8 @@ function actionsFrom(raw, pointsPerEuro) {
         if (!a || !str(a.key) || !str(a.label))
             continue;
         const key = str(a.key);
+        if (MULTI_BRAND_KEYS.has(key) && housesOn < 2)
+            continue;
         const url = str(a.url);
         // An Instagram row exists only with its brand's own https profile (BE-1 R1.21: the item is omitted when null).
         if (key === "instagram" && !/^https:\/\//i.test(url))
@@ -205,8 +218,12 @@ export function readCircle(body) {
     const pass = obj(o.passport) ?? {};
     const passport = { spa: pass.spa === true, aesthetics: pass.aesthetics === true, slimming: pass.slimming === true, count: 0 };
     passport.count = [passport.spa, passport.aesthetics, passport.slimming].filter(Boolean).length;
-    const actions = actionsFrom(o.actions, pointsPerEuro);
-    const summary = obj(o.actionsSummary);
+    const brands = brandsFrom(o.brands);
+    const sent = Array.isArray(o.actions) ? o.actions.length : 0;
+    // X10: with fewer than two houses on, the second-brand and Full Circle rows are dropped (brands unknown = keep).
+    const actions = actionsFrom(o.actions, pointsPerEuro, Array.isArray(o.brands) ? brands.length : 3);
+    // The server's "3 of 6 done" counts every row it sent; when a row was dropped here, count what is drawn.
+    const summary = actions.length === actionsFrom(o.actions, pointsPerEuro).length || !sent ? obj(o.actionsSummary) : null;
     const member = obj(o.member) ?? {};
     const card = obj(o.card) ?? {};
     const kind = str(o.pointsExpireKind);
@@ -228,10 +245,11 @@ export function readCircle(body) {
         levels: levelRulesFrom(o.levels),
         perks: perksFrom(o.perks),
         nextLevelPerks: nextLevel ? perksFrom(o.nextLevelPerks) : null,
-        brands: brandsFrom(o.brands),
+        brands,
         minAge: minAge > 0 ? minAge : null,
         brandBonusMinCents: Math.max(0, int(o.brandBonusMinCents)),
         pointsPerEuro,
+        earnPerEuro: earnPerEuroFrom(o),
         pendingPoints,
         pendingCents: pending ? centsOf(pending.cents, pendingPoints, pointsPerEuro) : 0,
         awaitingEmail: awaiting && awaitingPoints > 0 ? { points: awaitingPoints, cents: centsOf(awaiting.cents, awaitingPoints, pointsPerEuro) } : null,
@@ -306,6 +324,12 @@ export function readCircleSummary(body) {
         pointsExpireAt: str(o.pointsExpireAt),
         memberNumber: str(o.memberNumber),
         spendPausedUntil: isoOrEmpty(o.spendPausedUntil),
+        pointsPerEuro,
+        datedEnds: datedFrom(o.datedEnds),
+        heldUntil: str(o.heldUntil) || str(obj(o.level)?.heldUntil),
+        spendThisYearCents: typeof o.spendThisYearCents === "number" && o.spendThisYearCents >= 0 ? Math.round(o.spendThisYearCents) : null,
+        perks: perksFrom(o.perks),
+        nextLevelPerks: nextLevel ? perksFrom(o.nextLevelPerks) : null,
     };
 }
 export function readCircleSummaryState(body) {
@@ -334,6 +358,12 @@ export function summaryOf(m) {
         pointsExpireAt: m.pointsExpireAt,
         memberNumber: m.member.number,
         spendPausedUntil: m.member.spendPausedUntil,
+        pointsPerEuro: m.pointsPerEuro,
+        datedEnds: m.datedEnds,
+        heldUntil: m.heldUntil,
+        spendThisYearCents: m.spendThisYearCents,
+        perks: m.perks,
+        nextLevelPerks: m.nextLevelPerks,
     };
 }
 /** `GET /public/loyalty/status` v2 → what a signed-out page may say, or null (off, v1, garbage). */
@@ -405,11 +435,15 @@ export function pointsEuroText(points, pointsPerEuro) {
     const ppe = pointsPerEuro > 0 ? pointsPerEuro : 100 / CENTS_PER_POINT;
     return creditText(Math.round((points * 100) / ppe));
 }
-/** "7.5%" — what a level gives back: multiplier × (100 / points per euro) percent of every euro. */
-export function rateText(multiplier, pointsPerEuro) {
+/**
+ * "7.5%" — what a level gives back: points per €1 (`earnPerEuro`, 1 when the API does not say) × the level
+ * multiplier × (100 / points per euro) percent of every euro paid.
+ */
+export function rateText(multiplier, pointsPerEuro, earnPerEuro = 1) {
+    const per = earnPerEuro > 0 ? earnPerEuro : 1;
     if (!(multiplier > 0) || !(pointsPerEuro > 0))
         return "";
-    const pct = Math.round(((multiplier * 100) / pointsPerEuro) * 100) / 100;
+    const pct = Math.round(((per * multiplier * 100) / pointsPerEuro) * 100) / 100;
     return `${pct.toLocaleString("en-GB", { maximumFractionDigits: 2 })}%`;
 }
 function fmt(iso, o) {
@@ -432,6 +466,16 @@ export function maltaDayShort(iso) {
 export function maltaDayLong(iso) {
     const day = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T12:00:00Z` : iso;
     return fmt(day, { day: "numeric", month: "short", year: "numeric" });
+}
+/** "Mon 7 Dec" in Malta (a calendar day is read as that Malta day). */
+export function maltaDayWeek(iso) {
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T12:00:00Z` : iso;
+    return fmt(day, { weekday: "short", day: "numeric", month: "short" });
+}
+/** "five" for 5 (the level count printed in words, from `levels.length`); digits past ten. */
+export function countWord(n) {
+    const w = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][n];
+    return w ?? String(n);
 }
 /** "Thu 19 Nov, 20:15" in Malta. */
 export function maltaWhen(iso) {
@@ -481,7 +525,7 @@ export function readingText(m, rate = "") {
 /** The rate a member's level gives (from her perks), e.g. "7.5%". "" when not known. */
 export function memberRate(m) {
     const mult = m.perks?.multiplier || m.levels.find((l) => l.key === m.level.key)?.multiplier || 0;
-    return rateText(mult, m.pointsPerEuro);
+    return rateText(mult, m.pointsPerEuro, m.earnPerEuro);
 }
 /** The level sentence: the API's words, or at the top level "Our highest level, kept until 31 Dec 2027". */
 export function levelSentenceText(m) {
@@ -493,13 +537,32 @@ export function levelSentenceText(m) {
     }
     return "";
 }
+/**
+ * ADDENDUM X4: the dated part of her balance, directly under the balance it describes: "€20.00 of it until
+ * Mon 7 Dec". "" when nothing in the balance is dated.
+ */
+export function datedText(d, pointsPerEuro) {
+    if (!d || !(d.points > 0))
+        return "";
+    const day = maltaDayWeek(d.at);
+    return day ? `${pointsEuroText(d.points, pointsPerEuro)} of it until ${day}` : "";
+}
+/**
+ * ADDENDUM X5 (the rollout's `CK.S.expiring`), the next step while her birthday credit is the part that ends
+ * first: "Your €20.00 birthday credit ends Mon 7 Dec. Use it on a treatment before then." "" otherwise.
+ */
+export function expiringText(m) {
+    if (m.pointsExpireKind !== "birthday" || !m.datedEnds || !(m.datedEnds.points > 0))
+        return "";
+    const day = maltaDayWeek(m.datedEnds.at);
+    return day ? `Your ${pointsEuroText(m.datedEnds.points, m.pointsPerEuro)} birthday credit ends ${day}. Use it on a treatment before then.` : "";
+}
 /** R5.4 + R1.14: the line under the balance that says what ends first. "" when nothing is close. */
 export function endsText(m) {
-    if (m.pointsExpireKind === "birthday" && m.datedEnds) {
-        const d = maltaDayShort(m.datedEnds.at);
-        const cents = Math.round((m.datedEnds.points * 100) / m.pointsPerEuro);
-        return d ? `${creditText(cents)} birthday credit ends on ${d} — use it on a visit before then` : "";
-    }
+    // Her birthday credit ending is the NEXT STEP (expiringText) and the dated part sits under the balance
+    // (datedText): never the same figure twice.
+    if (m.pointsExpireKind === "birthday")
+        return "";
     if (m.balanceLapse && m.points > 0) {
         // A balance lapses up to 12 months out: the date always carries its year.
         const d = maltaDayLong(m.balanceLapse.at);

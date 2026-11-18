@@ -22,6 +22,7 @@
 import { createJewelMount } from "./engine.js";
 import { buildSolitaire } from "./motif.js";
 import { isGemKey, jewelSupported, onJewelFailed } from "./stage.js";
+export { frameStep, motionReduced } from "./engine.js";
 export { GEM_IDENTITY, isGemKey, jewelSupported, onJewelFailed, prefersReducedMotion } from "./stage.js";
 export const CIRCLE_JEWEL_QC = "carisma-circle-v2-20261117";
 /** Mount one jewel. Throws only when WebGL cannot start (the caller keeps its flat mark). */

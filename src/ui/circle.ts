@@ -15,6 +15,7 @@
 import { escapeHtml } from "./html.js";
 import { circleMarkSVG, jewelSlotHTML, type CircleGemKey } from "./circleMark.js";
 import {
+  CENTS_PER_POINT,
   CIRCLE_HREF,
   CIRCLE_TERMS_HREF,
   CIRCLE_V2_QC,
@@ -24,8 +25,11 @@ import {
   actionText,
   ageLineText,
   conditionsText,
+  countWord,
   creditText,
+  datedText,
   endsText,
+  expiringText,
   gainText,
   int,
   levelSentenceText,
@@ -55,7 +59,7 @@ import {
 import { benefitsList, circleTrackHTML, nextPerksOf, ownPerksOf, unlockLineText, unlocksList } from "./circleTrack.js";
 import { circleWaysCardsHTML, circleWaysHTML } from "./circleWays.js";
 import { circlePerksHTML, type CirclePerks } from "./circlePerks.js";
-import { circleNowRowHTML, circleRewardsHTML, type CircleReward, type CircleRewardArt } from "./circleFeatured.js";
+import { circleNowRowHTML, circleRewardsHTML, type CircleReward, type CircleRewardArt, type CircleRewardPhoto } from "./circleFeatured.js";
 import { unwrapEnvelope } from "./appointments.js";
 
 export * from "./circleCore.js";
@@ -83,12 +87,22 @@ export {
   rewardTitle,
   type CircleReward,
   type CircleRewardArt,
+  type CircleRewardPhoto,
 } from "./circleFeatured.js";
 
 /** Same literal as panel.ts ACCOUNT_DETAILS_HREF (not imported: panel.ts imports this module). */
 export const REJOIN_LABEL = "Rejoin Carisma Circle";
-/** v1 name for the rejoin sentence; v2 words, the first level named by `rejoinNoteText(label)` where it is known. */
+/**
+ * The rejoin sentence WITHOUT a level name ("the first level"), for a site that cannot read the public status.
+ * Every left state draws `rejoinNoteText(firstLevelLabel)` instead, inside `[data-cw-circle-rejoin-note]`, and
+ * the browser puts the API's first-level label in ("Level 1 · Pearl", R5.1) as soon as the host hands it over.
+ */
 export const REJOIN_NOTE = rejoinNoteText();
+
+/** The rejoin sentence for one left state, marked so browser.ts can name the API's first level in it. */
+function rejoinNoteHTML(tag: "span" | "p", cls: string, firstLevelLabel?: string): string {
+  return `<${tag} class="${cls}" data-cw-circle-rejoin-note>${escapeHtml(rejoinNoteText(firstLevelLabel ?? ""))}</${tag}>`;
+}
 
 const ARROW =
   '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" ' +
@@ -108,6 +122,10 @@ export interface CircleExtras {
   /** Where "Book a visit" / "Book it" go on this brand. */
   bookHref?: string;
   spaDayHref?: string | null;
+  /** ADDENDUM X3/KIT-3: the site's own photo for a featured service (then the API's `imageUrl`). */
+  photo?: CircleRewardPhoto;
+  /** The API's first-level label ("Level 1 · Pearl") for the rejoin sentence; "" = "the first level". */
+  firstLevelLabel?: string;
 }
 
 function terms(x: CircleExtras | undefined): string | null {
@@ -155,10 +173,30 @@ export function circlePanelRowHTML(s: CircleSummary | null, x: PanelCircleExtras
   if (!s) return "";
   const read = readingText(s);
   const paused = s.spendPausedUntil ? pausedText(s.spendPausedUntil) : "";
+  const dated = datedText(s.datedEnds, s.pointsPerEuro);
+  // The unlock line straight from the summary when it carries both perk rows (BRIEF §9 ask of BE-1); else the
+  // host fills it after the menu opens (browser.ts reads /me once).
+  const unlockLine =
+    x.unlockLine ||
+    (s.nextLevel && s.nextLevelPerks ? unlockLineText(s.nextLevel.label, unlocksList(s.perks, s.nextLevelPerks, s.pointsPerEuro)) : "");
   const track = circleTrackHTML(
-    { level: s.level, nextLevel: s.nextLevel, progressBp: s.progressBp, toNextLevelCents: s.toNextLevelCents, levelSentence: s.levelSentence },
-    { compact: true, unlockLine: x.unlockLine, poster: x.poster },
+    {
+      level: s.level,
+      nextLevel: s.nextLevel,
+      progressBp: s.progressBp,
+      toNextLevelCents: s.toNextLevelCents,
+      levelSentence: s.levelSentence,
+      heldUntil: s.heldUntil,
+      spendThisYearCents: s.spendThisYearCents,
+    },
+    { compact: true, unlockLine, poster: x.poster },
   );
+  // ADDENDUM KIT-1: ONE ink pill — "Use my credit" when the server says her balance pays for a featured
+  // treatment, else "Book a visit" (never "View my credit"); the rows below the Card reach Credit & rewards.
+  const use = s.affordable && !s.belowZero;
+  const act = use
+    ? `<a class="cc-btn" href="${CIRCLE_HREF}#rewards">Use my credit</a>`
+    : `<a class="cc-btn" href="${escapeHtml(x.bookHref || CIRCLE_HREF)}">Book a visit</a>`;
   return (
     `<div class="carisma-panel__circle cc cc-menu" data-cw-qc="${CIRCLE_V2_QC}" data-cw-circle="panel" data-cw-jewel-hover>` +
     `<div class="cc-menu__top">` +
@@ -166,24 +204,25 @@ export function circlePanelRowHTML(s: CircleSummary | null, x: PanelCircleExtras
     `<div class="cc-menu__fig">` +
     `<p class="cc-level" ${M}>${escapeHtml(s.level.label)}</p>` +
     `<p class="cc-bal" ${M}>${escapeHtml(creditText(s.creditCents))}</p>` +
+    (dated ? `<p class="cc-dated" ${M}>${escapeHtml(dated)}</p>` : "") +
     `<p class="cc-read" ${M}>${withTermsHTML(read, terms(x))}</p>` +
     (paused ? `<p class="cc-note" ${M}>${escapeHtml(paused)}</p>` : "") +
     `</div></div>` +
     `<div class="cc-menu__sec">${track}</div>` +
-    `<div class="cw-circle-slot" data-cw-circle-slot="menu-now">${circleNowRowHTML(x.rewards ?? null, x.art)}</div>` +
-    `<div class="cc-menu__act"><a class="cc-btn" href="${CIRCLE_HREF}">${escapeHtml(s.affordable && !s.belowZero ? "Use my credit" : "View my credit")}</a></div>` +
+    `<div class="cw-circle-slot" data-cw-circle-slot="menu-now">${circleNowRowHTML(x.rewards ?? null, x.art, x.photo)}</div>` +
+    `<div class="cc-menu__act">${act}</div>` +
     `</div>`
   );
 }
 
 /** The menu block for a member who left: the date and Rejoin, nothing else. "" when null. */
-export function circlePanelLeftHTML(l: CircleLeftModel | null): string {
+export function circlePanelLeftHTML(l: CircleLeftModel | null, firstLevelLabel = ""): string {
   if (!l) return "";
   return (
     `<div class="carisma-panel__circle carisma-panel__circle--left" data-cw-qc="${CIRCLE_V2_QC}" data-cw-circle="panel-left">` +
     `<span class="carisma-panel__circle-label">Carisma Circle</span>` +
     `<span class="carisma-panel__circle-left" ${M}>${escapeHtml(leftText(l))}</span>` +
-    `<span class="carisma-panel__circle-sub">${escapeHtml(REJOIN_NOTE)}</span>` +
+    rejoinNoteHTML("span", "carisma-panel__circle-sub", firstLevelLabel) +
     `<button type="button" class="carisma-panel__circle-rejoin" data-cw-circle-rejoin>${REJOIN_LABEL}</button>` +
     `<span class="carisma-panel__circle-gap" role="status" data-cw-circle-rejoin-msg></span>` +
     `</div>`
@@ -202,7 +241,7 @@ export function circlePanelMinorHTML(minor: { minAge: number | null } | null): s
 /** The whole menu block for one summary state. */
 export function circlePanelStateHTML(st: CircleSummaryState | null, x: PanelCircleExtras = {}): string {
   if (!st) return "";
-  if (st.kind === "left") return circlePanelLeftHTML(st.left);
+  if (st.kind === "left") return circlePanelLeftHTML(st.left, x.firstLevelLabel);
   if (st.kind === "minor") return circlePanelMinorHTML(st);
   return circlePanelRowHTML(st.summary, x);
 }
@@ -221,24 +260,24 @@ export function leftText(l: CircleLeftModel): string {
   }
 }
 
-function circleLeftCardHTML(l: CircleLeftModel, tone: "primary" | "secondary"): string {
+function circleLeftCardHTML(l: CircleLeftModel, tone: "primary" | "secondary", firstLevelLabel = ""): string {
   return (
     `<div class="cw-card cw-circle-left" data-cw-circle="left">` +
     `<p class="cw-circle__level" ${M}>${escapeHtml(leftText(l))}</p>` +
-    `<p class="cw-circle__rule">${escapeHtml(REJOIN_NOTE)}</p>` +
+    rejoinNoteHTML("p", "cw-circle__rule", firstLevelLabel) +
     `<div class="cw-actions"><button type="button" class="cw-btn cw-btn--${tone}" data-cw-circle-rejoin>${REJOIN_LABEL}</button></div>` +
     `</div>`
   );
 }
 
 /** The Overview card for a member who left. "" when null. */
-export function circleOverviewLeftHTML(l: CircleLeftModel | null): string {
+export function circleOverviewLeftHTML(l: CircleLeftModel | null, firstLevelLabel = ""): string {
   if (!l) return "";
   return (
     `<section class="cw-circle-ov cw-rise" aria-labelledby="cw-circle-ov-title" data-cw-qc="${CIRCLE_V2_QC}" data-cw-circle="overview-left">` +
     `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-ov-title">Carisma Circle</h2>` +
     `<a class="cw-section__more" href="${CIRCLE_HREF}">Credit &amp; rewards${ARROW}</a></div>` +
-    circleLeftCardHTML(l, "secondary") +
+    circleLeftCardHTML(l, "secondary", firstLevelLabel) +
     `</section>`
   );
 }
@@ -277,7 +316,9 @@ export function circleHeroHTML(
   x: CircleExtras & { say?: string; conditions?: "earned" | "spend"; action?: { label: string; href: string } | false } = {},
 ): string {
   if (!m) return "";
-  const next = x.say ?? levelSentenceText(m);
+  // The ONE next step: her birthday credit ending first (X5), else the level sentence (R5.3).
+  const next = x.say ?? (expiringText(m) || levelSentenceText(m));
+  const dated = datedText(m.datedEnds, m.pointsPerEuro);
   const action =
     x.action === false
       ? ""
@@ -294,6 +335,8 @@ export function circleHeroHTML(
     slot(m.level.key, m.progressBp / 10000, 240, "full", x) +
     `<p class="cc-level" ${M}>${escapeHtml(m.level.label)}${m.member.number ? ` · ${escapeHtml(m.member.number)}` : ""}</p>` +
     `<p class="cc-bal" ${M}>${escapeHtml(creditText(m.creditCents))}</p>` +
+    // ADDENDUM X4: the dated part directly under the balance it describes.
+    (dated ? `<p class="cc-dated" ${M}>${escapeHtml(dated)}</p>` : "") +
     `<p class="cc-read" ${M}>${escapeHtml(readingText(m, memberRate(m)))}</p>` +
     heroLinesHTML(m) +
     (next ? `<p class="cc-next" ${M}>${escapeHtml(next)}</p>` : "") +
@@ -305,13 +348,18 @@ export function circleHeroHTML(
 
 /* ── The ladder: all five levels, from the API's table ─────────────────── */
 
-export function circleLadderHTML(levels: CircleLevelRule[], current: CircleLevelView | null, pointsPerEuro: number, x?: CircleExtras): string {
+export function circleLadderHTML(
+  levels: CircleLevelRule[],
+  current: CircleLevelView | null,
+  pointsPerEuro: number,
+  x?: CircleExtras & { earnPerEuro?: number },
+): string {
   if (!levels.length) return "";
   const rungs = levels
     .map((l) => {
       const got = current ? l.number <= current.number : false;
       const you = current ? l.key === current.key : false;
-      const rate = rateText(l.multiplier, pointsPerEuro);
+      const rate = rateText(l.multiplier, pointsPerEuro, x?.earnPerEuro);
       const when = l.thresholdCents <= 0 ? "When you join" : `${creditText(l.thresholdCents).replace(/\.00$/, "")} paid in a calendar year`;
       return (
         `<li class="cc-rung${got ? "" : " todo"}${you ? " you" : ""}"${you ? ' aria-current="step"' : ""}>` +
@@ -322,7 +370,7 @@ export function circleLadderHTML(levels: CircleLevelRule[], current: CircleLevel
       );
     })
     .join("");
-  return `<ol class="cc cc-ladder" role="list" aria-label="The five levels">${rungs}</ol>`;
+  return `<ol class="cc cc-ladder" role="list" aria-label="${escapeHtml(`The ${countWord(levels.length)} levels`)}">${rungs}</ol>`;
 }
 
 /* ── Activity ──────────────────────────────────────────────────────────── */
@@ -340,8 +388,13 @@ export interface CircleActivityItem {
   expiresAt: string | null;
 }
 
-export function readCircleActivity(body: unknown): { items: CircleActivityItem[]; nextCursor: string | null } | null {
+export function readCircleActivity(
+  body: unknown,
+  pointsPerEuro = 0,
+): { items: CircleActivityItem[]; nextCursor: string | null } | null {
   const o = obj(unwrapEnvelope(body));
+  // Only when a row carries no cents: its points at the programme's rate (the API's, else the 20-points fallback).
+  const ppe = pointsPerEuro > 0 ? pointsPerEuro : 100 / CENTS_PER_POINT;
   if (!o || o.enabled !== true || !Array.isArray(o.items)) return null;
   const items = o.items
     .map(obj)
@@ -357,7 +410,7 @@ export function readCircleActivity(body: unknown): { items: CircleActivityItem[]
         brand: str(obj(r.brand)?.name),
         label: str(r.label) || "Carisma credit",
         points: pts,
-        cents: int(r.cents, pts * 5),
+        cents: int(r.cents, Math.round((pts * 100) / ppe)),
         status: str(r.status),
         expiresAt: str(r.expiresAt) || null,
       };
@@ -436,8 +489,8 @@ export function circleOverviewHTML(
   if (!m) return "";
   const own = ownPerksOf(m);
   const next = nextPerksOf(m);
-  const unlocks = unlocksList(own, next, m.pointsPerEuro);
-  const gives = benefitsList(own, m.pointsPerEuro);
+  const unlocks = unlocksList(own, next, m.pointsPerEuro, m.earnPerEuro);
+  const gives = benefitsList(own, m.pointsPerEuro, m.earnPerEuro);
   return (
     `<section class="cw-circle-ov cw-rise cc-dash" aria-labelledby="cw-circle-ov-title" data-cw-qc="${CIRCLE_V2_QC}" data-cw-circle="overview">` +
     `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-ov-title">Carisma Circle</h2>` +
@@ -452,9 +505,9 @@ export function circleOverviewHTML(
     (gives.length
       ? `<div class="cc-gives"><p class="cc-eyebrow">${escapeHtml(`What ${m.level.label} gives you`)}</p><ul>${gives.map((g) => `<li>${escapeHtml(g)}</li>`).join("")}</ul></div>`
       : "") +
-    (m.levels.length ? `<a class="cw-link cc-link" href="${CIRCLE_HREF}#levels">See all five levels</a>` : "") +
+    (m.levels.length ? `<a class="cw-link cc-link" href="${CIRCLE_HREF}#levels">${escapeHtml(`See all ${countWord(m.levels.length)} levels`)}</a>` : "") +
     `</div></div>` +
-    `<div class="cw-circle-slot" data-cw-circle-slot="ov-rewards">${circleRewardsHTML(x.rewards ?? null, m.points, { art: x.art, pointsPerEuro: m.pointsPerEuro })}</div>` +
+    `<div class="cw-circle-slot" data-cw-circle-slot="ov-rewards">${circleRewardsHTML(x.rewards ?? null, m.points, { art: x.art, photo: x.photo, pointsPerEuro: m.pointsPerEuro })}</div>` +
     circleWaysCardsHTML(m) +
     `<div class="cw-circle-slot" data-cw-circle-slot="ov-activity">${x.activity ? circleActivityHTML(m, x.activity, { limit: 3, moreHref: CIRCLE_HREF }) : ""}</div>` +
     `</section>`
@@ -476,6 +529,46 @@ export function circleWalletLineHTML(m: CircleModel | null): string {
     `<span class="cw-strip__value" ${M}>${escapeHtml(m.display)}</span>` +
     `<span class="cw-strip__note">${escapeHtml(conditionsText(m.brands))}</span></span>` +
     `<span class="cw-strip__arrow" aria-hidden="true">${ARROW}</span></a>`
+  );
+}
+
+/* ── "Your card": the Circle card in Apple / Google Wallet (ADDENDUM X9, KIT-4) ── */
+
+/** The one quiet line under the Wallet button: the card identifies her; it never pays. */
+export const CIRCLE_CARD_LINE = "Your card shows the desk who you are. Paying with points at the desk needs the code in the Carisma app.";
+
+/**
+ * Which Wallet this browser may offer: "apple" on an iPhone or iPad in Safari, "google" on Android in Chrome,
+ * null everywhere else (never on a desktop browser, ADDENDUM KIT-4). `touchPoints` tells iPadOS (which reports
+ * a Mac) from a Mac.
+ */
+export function circleWalletPlatform(ua: string, touchPoints = 0): "apple" | "google" | null {
+  const u = ua || "";
+  const ios = /\b(iPhone|iPad|iPod)\b/.test(u) || (/\bMacintosh\b/.test(u) && touchPoints > 1);
+  if (ios) return /Safari\//.test(u) && !/(CriOS|FxiOS|EdgiOS|OPiOS|GSA)\//.test(u) ? "apple" : null;
+  if (/\bAndroid\b/.test(u)) return /Chrome\//.test(u) && !/(EdgA|OPR|SamsungBrowser|Firefox|YaBrowser|wv\))/.test(u) ? "google" : null;
+  return null;
+}
+
+/**
+ * `GET /client/wallet/availability` → the Circle card per platform (`circle: {apple, google}`, ADD-W4). Any
+ * other shape — the old `{apple, google}` with no `circle`, an error, garbage — is "no".
+ */
+export function readCircleWalletAvailability(body: unknown): { apple: boolean; google: boolean } {
+  const o = obj(unwrapEnvelope(body));
+  const c = o ? obj(o.circle) : null;
+  return { apple: c?.apple === true, google: c?.google === true };
+}
+
+/** The "Your card" block for one platform. Its button is bound by browser.ts (`data-cw-circle-wallet`). */
+export function circleCardBlockHTML(which: "apple" | "google"): string {
+  const label = which === "apple" ? "Add to Apple Wallet" : "Add to Google Wallet";
+  return (
+    `<section class="cw-section cw-rise cc-card-wallet" aria-labelledby="cw-circle-card-title" data-cw-circle="your-card">` +
+    `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-card-title">Your card</h2></div>` +
+    `<button type="button" class="cw-btn cw-btn--secondary" data-cw-circle-wallet="${which}">${escapeHtml(label)}</button>` +
+    `<p class="cw-fine">${escapeHtml(CIRCLE_CARD_LINE)}</p>` +
+    `</section>`
   );
 }
 
@@ -505,7 +598,7 @@ export function circleViewHTML(input: CircleViewInput | null): string {
   if (!input) return "";
   const m = input.me;
   const own = ownPerksOf(m);
-  const unlocks = unlocksList(own, nextPerksOf(m), m.pointsPerEuro);
+  const unlocks = unlocksList(own, nextPerksOf(m), m.pointsPerEuro, m.earnPerEuro);
   const age = ageLineText(m.minAge);
   const t = terms(input);
   return (
@@ -514,11 +607,14 @@ export function circleViewHTML(input: CircleViewInput | null): string {
     circleHeroHTML(m, input) +
     `<div class="cc-view__track">${circleTrackHTML({ ...m }, { unlocks, poster: input.poster })}</div>` +
     `</section>` +
-    `<div id="rewards">${circleRewardsHTML(input.rewards, m.points, { art: input.art, pointsPerEuro: m.pointsPerEuro })}</div>` +
+    `<div id="rewards">${circleRewardsHTML(input.rewards, m.points, { art: input.art, photo: input.photo, pointsPerEuro: m.pointsPerEuro })}</div>` +
+    // ADDENDUM KIT-4: "Your card", empty and hidden; browser.ts fills it only when the availability read answers
+    // circle.<platform>: true on an iPhone/iPad (Safari) or Android (Chrome) AND the host passed circleWallet.
+    `<div class="cw-circle-slot" id="your-card" data-cw-circle-slot="your-card" hidden></div>` +
     (m.levels.length
       ? `<section class="cw-section cw-rise" id="levels" aria-labelledby="cw-circle-levels-title" data-cw-circle="levels">` +
-        `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-levels-title">All five levels</h2></div>` +
-        circleLadderHTML(m.levels, m.level, m.pointsPerEuro, input) +
+        `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-levels-title">${escapeHtml(`All ${countWord(m.levels.length)} levels`)}</h2></div>` +
+        circleLadderHTML(m.levels, m.level, m.pointsPerEuro, { ...input, earnPerEuro: m.earnPerEuro }) +
         `<p class="cw-fine">${escapeHtml("Your level counts what you pay in a calendar year. It lasts the rest of the year you reach it and all of the next.")}</p>` +
         `</section>`
       : "") +
@@ -534,12 +630,12 @@ export function circleViewHTML(input: CircleViewInput | null): string {
 }
 
 /** The Credit & rewards page for a member who left: the date, Rejoin, then "Offers and reminders". */
-export function circleLeftViewHTML(input: { left: CircleLeftModel; prefs?: CirclePrefs | null } | null): string {
+export function circleLeftViewHTML(input: { left: CircleLeftModel; prefs?: CirclePrefs | null; firstLevelLabel?: string } | null): string {
   if (!input) return "";
   return (
     `<div class="cw-rec cw-circle cw-circle--left" data-cw-qc="${CIRCLE_V2_QC}">` +
     `<section class="cw-circle-left-wrap cw-rise" aria-label="Carisma Circle" data-cw-circle="left-view">` +
-    circleLeftCardHTML(input.left, "primary") +
+    circleLeftCardHTML(input.left, "primary", input.firstLevelLabel ?? "") +
     `</section>` +
     circlePrefsSlotHTML(input.prefs ?? null) +
     `</div>`
@@ -572,7 +668,7 @@ export type LeavePreview =
   | { kind: "preview"; points: number; cents: number; warning: string }
   | { kind: "left"; left: CircleLeftModel };
 
-export function readLeavePreview(body: unknown): LeavePreview | null {
+export function readLeavePreview(body: unknown, pointsPerEuro = 0): LeavePreview | null {
   const o = obj(unwrapEnvelope(body));
   if (!o || o.enabled !== true) return null;
   if (o.left === true) {
@@ -583,7 +679,8 @@ export function readLeavePreview(body: unknown): LeavePreview | null {
   const f = obj(o.forfeit);
   if (!f) return null;
   const points = Math.max(0, int(f.points));
-  const cents = Math.max(0, int(f.cents, points * 5));
+  const ppe = pointsPerEuro > 0 ? pointsPerEuro : 100 / CENTS_PER_POINT;
+  const cents = Math.max(0, int(f.cents, Math.round((points * 100) / ppe)));
   const warning =
     str(o.warning).trim() ||
     `If you leave Carisma Circle, your ${creditText(cents)} of Carisma credit (${pointsText(points)}) is forfeited and cannot be restored, even if you rejoin. We stop using your purchase history for the programme.`;
@@ -764,6 +861,8 @@ export interface CreditMomentInput {
   paidWithPoints?: { points: number } | null;
   /** Booked, not paid yet ("on its way", never "received"). */
   unpaid?: boolean;
+  /** The programme's rate (the API's `rules.pointsPerEuro`), for a figure sent without its points. */
+  pointsPerEuro?: number;
 }
 
 export interface CreditMoment {
@@ -798,7 +897,9 @@ export function creditMoment(input: CreditMomentInput | null | undefined): Credi
   if (earned <= 0) return NONE;
   const points = Math.max(0, Math.round(Number(input.earnedPoints) || 0));
   if (input.unpaid) {
-    return { kind: "onTheWay", hero: "", sentence: "", conditions: "", quiet: onTheWayText(earned, points || Math.round(earned / 5)) };
+    const given = input.pointsPerEuro ?? input.member?.pointsPerEuro ?? 0;
+    const ppe = given > 0 ? given : 100 / CENTS_PER_POINT;
+    return { kind: "onTheWay", hero: "", sentence: "", conditions: "", quiet: onTheWayText(earned, points || Math.round((earned * ppe) / 100)) };
   }
   const brands = input.member?.brands.length ? input.member.brands : input.brands ?? [];
   if (input.member) {
@@ -819,11 +920,15 @@ export function creditMoment(input: CreditMomentInput | null | undefined): Credi
   };
 }
 
-/** floor(eligible euros × multiplier) points — whole euros paid, VAT-inclusive (BRIEF §2 Earning). */
-export function earnPoints(eligibleCents: number, multiplier = 1): number {
+/**
+ * floor(eligible euros × points per €1 × multiplier) points — euros paid, VAT-inclusive (BRIEF §2 Earning).
+ * `earnPerEuro` is the API's `rules.earnPerEuro` (1 point per €1 today; 1 only as the fallback).
+ */
+export function earnPoints(eligibleCents: number, multiplier = 1, earnPerEuro = 1): number {
   const euros = Math.max(0, Number(eligibleCents) || 0) / 100;
   const mm = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
-  return Math.floor(euros * mm + 1e-9);
+  const per = Number.isFinite(earnPerEuro) && earnPerEuro > 0 ? earnPerEuro : 1;
+  return Math.floor(euros * per * mm + 1e-9);
 }
 
 /** The member model as the menu summary (the account page has the full read). */

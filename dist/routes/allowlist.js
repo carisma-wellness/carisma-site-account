@@ -30,6 +30,14 @@ const isApptSub = (p, suffix) => new RegExp(`^${APPT}/[^/]+/${suffix}$`).test(p)
 export const PROXY_ALLOWLIST = [
     /* ── Booking: read ─────────────────────────────────────────────────── */
     { method: "POST", label: "member checkout", match: (p) => p === "/client/booking/checkout" },
+    // Carisma Circle v2 (2026-11-18, the WEB fix): a member's booking that
+    // carries a points or free Spa day code. Brand sites book members through the
+    // guest door since 2026-09-16 (the member door refuses the sites' body); a
+    // points code is owner-locked, so this one booking travels through the proxy
+    // and carries the member's bearer, which is how the backend knows the code is
+    // hers (BE-2 R2.16). Same body, same answer as the guest door.
+    // Marker: carisma-circle-v2-20261117
+    { method: "POST", label: "member booking with points (guest door, signed in)", match: (p) => p === "/client/booking/guest/checkout" },
     { method: "GET", label: "appointments list", match: (p) => p === APPT },
     { method: "GET", label: "appointment counts", match: (p) => p === `${APPT}/counts` },
     {
@@ -130,6 +138,9 @@ export const PROXY_ALLOWLIST = [
     { method: "GET", label: "loyalty perks", match: (p) => p === "/client/loyalty/perks" },
     { method: "POST", label: "loyalty free spa day", match: (p) => p === "/client/loyalty/perks/spa-day" },
     { method: "GET", label: "loyalty points bookings", match: (p) => p === "/client/loyalty/points-bookings" },
+    // What this booking earns at HER level (a read, never a write): the pay
+    // step's earn line for a member, from the server rather than local maths.
+    { method: "POST", label: "loyalty earn preview", match: (p) => p === "/client/loyalty/earn/preview" },
     { method: "GET", label: "visits awaiting a rating", match: (p) => p === "/client/ratings/pending" },
     // `/pending` is the listing, not an appointment id — excluded so the rule
     // cannot be read as "POST anything under /ratings".
@@ -177,6 +188,10 @@ export const PROXY_ALLOWLIST = [
     // yet, so the buttons render only when this answers true — a Wallet button
     // that 500s on the tap is the defect this read prevents. Exact path only.
     { method: "GET", label: "wallet pass availability", match: (p) => p === "/client/wallet/availability" },
+    // Carisma Circle v2: the member's own Circle card (it shows the desk who she
+    // is; it never pays). Exact paths, two kinds only; drawn only when the
+    // availability read answers `circle.<platform>: true` (ADDENDUM KIT-4).
+    { method: "GET", label: "circle wallet card", match: (p) => /^\/client\/wallet\/circle\/(apple|google)$/.test(p) },
 ];
 /**
  * Paths that MUST never be proxyable. Not consulted by isAllowed() at runtime — the
@@ -224,6 +239,12 @@ export const FORBIDDEN_PATHS = [
     { method: "POST", path: "/client/loyalty/perks", why: "a member never writes their perks" },
     { method: "POST", path: "/client/loyalty/summary", why: "the member's Circle summary is read-only" },
     { method: "GET", path: "/client/loyalty/actions/instagram", why: "the Instagram award is a tap, never a read" },
+    // The WEB fix: the signed-in guest door is the checkout POST only. A guest
+    // hold is released with its OWN guest token, never with the member's bearer.
+    { method: "POST", path: "/client/booking/guest/abandon", why: "a guest hold is released with its guest token, never the member's bearer" },
+    { method: "GET", path: "/client/booking/guest/session", why: "the guest session is read with its guest token, never the member's bearer" },
+    { method: "GET", path: "/client/wallet/circle/samsung", why: "the Circle card exists for Apple and Google Wallet only" },
+    { method: "GET", path: "/hod/clients/abc123/loyalty/earn/preview", why: "the staff twin of the member's earn preview" },
 ];
 /** Normalise a proxy sub-path: strip query/hash, collapse to a leading-slash path. */
 export function normalizePath(path) {

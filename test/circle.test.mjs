@@ -31,7 +31,7 @@ import {
   PAY_STEP_DISCLOSURE,
   readCircleSummary,
 } from "../dist/index.js";
-import { MARIA, SUMMARY, REWARDS, THREE_BRANDS } from "./fixtures/circle-v2.mjs";
+import { MARIA, SUMMARY, SUMMARY_ASKED, REWARDS, THREE_BRANDS } from "./fixtures/circle-v2.mjs";
 import { PORTAL_RULES_CSS } from "../dist/ui/styles/index.js";
 
 /**
@@ -192,11 +192,21 @@ test("the header panel: no loyalty (or loyalty off) is the panel it always was; 
   assert.match(live, /€72\.40/);
   assert.match(live, /ready to use · 1,448 points/);
   assert.match(live, /€290 more this year to reach Level 4 · Sapphire/);
-  assert.match(live, /€710 of €1,000 paid this year/);
+  // BE-1's built summary has no threshold: the summary-only Card never invents "€0 of €0" (browser.ts adds the
+  // caption from /me once the menu opens); a summary that carries it draws it at once.
+  assert.doesNotMatch(live, /paid this year/);
+  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED })), /<span>€710 of €1,000 paid this year<\/span><span>Level 4 · Sapphire<\/span>/);
+  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED })), /Level 4 · Sapphire unlocks 8\.75% back and a second free Spa day every year/);
   assert.match(live, /data-cw-jewel data-gem="ruby"/);
   assert.match(live, /data-cw-jewel data-gem="sapphire" data-p="0\.000"/, "the next stone, beads dark");
-  assert.match(live, /href="\/account\/rewards"/);
-  assert.match(live, />Use my credit</);
+  assert.match(live, /href="\/account\/rewards#rewards">Use my credit</, "ADDENDUM KIT-1: affordable → Use my credit");
+  // KIT-1: nothing affordable → "Book a visit" to the brand's booking page, never "View my credit".
+  const none = accountPanelHTML(buildPanelModel({ ...base, loyalty: { ...SUMMARY, affordable: false } }), { bookHref: "/book" });
+  assert.match(none, /<a class="cc-btn" href="\/book">Book a visit<\/a>/);
+  assert.doesNotMatch(none + live, /View my credit/);
+  // X4: the dated part sits directly under the balance.
+  const dated = accountPanelHTML(buildPanelModel({ ...base, loyalty: { ...SUMMARY, datedEnds: { at: "2026-12-07", points: 400 } } }));
+  assert.match(dated, /cc-bal[^>]*>€72\.40<\/p><p class="cc-dated"[^>]*>€20\.00 of it until Mon 7 Dec<\/p>/);
 });
 
 test("the portal: not opted in draws nothing Circle; opted in draws only HIDDEN, EMPTY placeholders", () => {

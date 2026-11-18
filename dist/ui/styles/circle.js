@@ -155,6 +155,8 @@ ${S} .cc-bal { font-family: var(--cw-account-display-font); font-weight: var(--c
 ${S} .cc-read { font-size: 15px; line-height: 22px; color: var(--cw-account-muted); }
 ${S} .cc-next { font-size: 16px; line-height: 24px; color: var(--cw-account-ink); }
 ${S} .cc-note { font-size: 14px; line-height: 20px; color: var(--cw-account-ink); }
+/* ADDENDUM X4: the dated part of the balance, directly under it ("€20.00 of it until Mon 7 Dec"). */
+${S} .cc-dated { font-size: 14px; line-height: 20px; color: var(--cw-account-ink); font-variant-numeric: lining-nums tabular-nums; }
 ${S} .cc-cond { font-size: 13px; line-height: 18px; color: var(--cw-account-muted); max-width: 44ch; }
 ${S} .cc-link, ${S} .cc-cond a, ${S} .cc-read a { color: var(--cw-account-circle-link); text-decoration: underline; text-underline-offset: 2px; }
 /* the ONE action: the ink pill (gold is a material, never a Circle button) */
@@ -172,6 +174,7 @@ ${S} .cc-hero > .cc-level { margin-top: 20px; }
 ${S} .cc-hero > .cc-bal { font-size: 48px; line-height: 52px; margin-top: 4px; }
 ${S} .cc-hero > .cc-read { margin-top: 4px; }
 ${S} .cc-hero > .cc-note { margin-top: 4px; }
+${S} .cc-hero > .cc-dated { margin-top: 2px; }
 ${S} .cc-hero > .cc-next { margin-top: 16px; max-width: 36ch; }
 ${S} .cc-hero > .cc-btn { margin-top: 24px; width: 100%; max-width: 320px; }
 ${S} .cc-hero > .cc-cond { margin-top: 12px; }
@@ -294,6 +297,7 @@ export const PANEL_CIRCLE_CSS = `
 .carisma-panel .cc-menu__fig { display: grid; align-content: center; padding: 8px 16px; text-align: left; }
 .carisma-panel .cc-menu__fig > .cc-bal { font-size: 28px; line-height: 32px; margin-top: 2px; }
 .carisma-panel .cc-menu__fig > .cc-read { font-size: 14px; line-height: 20px; margin-top: 2px; }
+.carisma-panel .cc-menu__fig > .cc-dated { font-size: 13px; line-height: 18px; margin-top: 2px; }
 .carisma-panel .cc-menu__sec { padding: 14px 16px 0; }
 .carisma-panel .carisma-panel__circle-slot .cw-circle-slot { display: block; padding: 12px 16px 0; }
 .carisma-panel .carisma-panel__circle-slot .cw-circle-slot:empty { display: none; }

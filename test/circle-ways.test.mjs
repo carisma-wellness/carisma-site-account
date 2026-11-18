@@ -9,7 +9,10 @@ import {
   FORBIDDEN_PATHS,
   mountAccountPanel,
 } from "../dist/index.js";
-import { MARIA, SPA_ONLY } from "./fixtures/circle-v2.mjs";
+import { MARIA as MARIA_SPA_ONLY, SPA_ONLY, THREE_BRANDS } from "./fixtures/circle-v2.mjs";
+
+/** Three houses on: every row the server sends is drawn (ADDENDUM X10 needs two or more for the brand rows). */
+const MARIA = { ...MARIA_SPA_ONLY, brands: THREE_BRANDS };
 
 /**
  * Ways to earn (surfaces §1.3 B): rows only from the member read's actions;
@@ -30,6 +33,19 @@ test("rows come only from the API's actions, in its order, with its labels and f
   assert.match(html, /We never give points for public reviews, ratings, posts, tags or shares\./);
   assert.equal(circleWaysHTML(readCircle({ ...MARIA, actions: [], actionsSummary: undefined })).includes("cc-ways__list"), false, "no actions → no rows (never typed ones)");
   assert.equal(circleWaysHTML(null), "");
+});
+
+test("X10: a Spa-only programme draws no second-brand or Full Circle row, and the count is what is drawn", () => {
+  const m = readCircle(MARIA_SPA_ONLY);
+  assert.deepEqual(m.actions.map((a) => a.key), ["verified_email", "app", "instagram", "first_house"]);
+  const html = circleWaysHTML(m) + circleWaysCardsHTML(m);
+  assert.doesNotMatch(html, /Full Circle|second brand|third brand|Carisma Aesthetics|Carisma Slimming/);
+  // The server's "3 of 6" counted rows that are not drawn: the summary is the drawn rows' own.
+  assert.equal(waysSummaryText(m), "2 of 4 done · €5.00 more to earn");
+  // Two houses on: the second-brand row draws; with three, Full Circle too.
+  const two = readCircle({ ...MARIA_SPA_ONLY, brands: THREE_BRANDS.slice(0, 2) });
+  assert.ok(two.actions.some((a) => a.key === "second_house") && two.actions.some((a) => a.key === "full_circle"));
+  assert.equal(waysSummaryText(two), "3 of 6 done · €30.00 more to earn", "nothing dropped: the server's count");
 });
 
 test("Instagram: a row only with the brand's own https profile; the link opens it in a new tab", () => {

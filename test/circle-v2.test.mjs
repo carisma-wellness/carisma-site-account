@@ -12,6 +12,9 @@ import {
   readCircleRewards,
   readingText,
   endsText,
+  expiringText,
+  datedText,
+  memberRate,
   pausedText,
   minorText,
   ageLineText,
@@ -39,7 +42,7 @@ import {
   circleViewHTML,
   bodyFor,
 } from "../dist/index.js";
-import { MARIA, SUMMARY, STATUS, PERKS, REWARDS, LEVELS, SPA_ONLY, THREE_BRANDS, LEFT, MINOR } from "./fixtures/circle-v2.mjs";
+import { MARIA, SUMMARY, SUMMARY_ASKED, STATUS, PERKS, REWARDS, LEVELS, SPA_ONLY, THREE_BRANDS, LEFT, MINOR } from "./fixtures/circle-v2.mjs";
 
 /**
  * Circle v2 (carisma-circle-v2-20261117): the kit reads the BE-1 / BE-2 answers
@@ -60,7 +63,9 @@ test("the BE-1 / BE-2 sample answers parse; garbage and off read as null", () =>
   const s = readCircleSummary(SUMMARY);
   assert.equal(s.creditCents, 7240);
   assert.equal(s.display, "€72.40 · 1,448 points");
-  assert.equal(s.nextLevel.thresholdCents, 100000);
+  // BE-1's built summary sends no threshold (0 = unknown, never a figure); once the ask lands it is read.
+  assert.equal(s.nextLevel.thresholdCents, 0);
+  assert.equal(readCircleSummary(SUMMARY_ASKED).nextLevel.thresholdCents, 100000);
   const st = readCircleStatus(STATUS);
   assert.equal(st.levels[0].key, "pearl");
   assert.equal(st.levels[0].label, "Level 1 · Pearl");
@@ -119,9 +124,16 @@ test("R5.4 states: below zero, under 18, paused, birthday credit ending, ready o
   assert.equal(pausedText("2026-11-19T19:15:00Z"), "Paying with points is paused until Thu 19 Nov, 20:15");
   const paused = readCircle({ ...MARIA, member: { ...MARIA.member, spendPausedUntil: "2026-11-19T19:15:00Z" } });
   assert.match(circleHeroHTML(paused), /Paying with points is paused until Thu 19 Nov, 20:15/);
-  // Birthday credit ending: its own sentence.
+  // Birthday credit ending (ADDENDUM X4 + X5): the dated part under the balance, the ending as the ONE next step,
+  // never the same figure twice.
   const bday = readCircle({ ...MARIA, pointsExpireKind: "birthday", datedEnds: { at: "2026-12-07", points: 400 } });
-  assert.equal(endsText(bday), "€20.00 birthday credit ends on 7 Dec — use it on a visit before then");
+  assert.equal(endsText(bday), "", "no second line with the same figure");
+  assert.equal(expiringText(bday), "Your €20.00 birthday credit ends Mon 7 Dec. Use it on a treatment before then.");
+  assert.equal(datedText(bday.datedEnds, bday.pointsPerEuro), "€20.00 of it until Mon 7 Dec");
+  const bh = circleHeroHTML(bday);
+  assert.match(bh, /cc-bal[^>]*>€72\.40<\/p><p class="cc-dated"[^>]*>€20\.00 of it until Mon 7 Dec<\/p><p class="cc-read"/, "X4: directly under the balance");
+  assert.match(bh, /cc-next[^>]*>Your €20\.00 birthday credit ends Mon 7 Dec\. Use it on a treatment before then\./);
+  assert.equal((bh.match(/€20\.00/g) || []).length, 2, "the dated line and the next step, nothing more");
   // Left: never a figure.
   assert.equal(readCircleState(LEFT).kind, "left");
   assert.doesNotMatch(circlePanelStateHTML(readCircleSummaryState(LEFT)), /€|points/);
@@ -147,7 +159,9 @@ test("R5.2 brands from the API: one, two, three; a Spa-only config names no othe
 test("the level track: her stone, the bar, the next stone; the caption; what the next level unlocks", () => {
   const m = readCircle(MARIA);
   assert.equal(paidLineText(m), "€710 of €1,000 paid this year");
-  assert.equal(paidLineText(readCircleSummary(SUMMARY)), "€710 of €1,000 paid this year", "derived from the gap on the summary");
+  // BE-1's built summary sends no threshold: the caption is NOT invented (the menu fills it from /me).
+  assert.equal(paidLineText(readCircleSummary(SUMMARY)), "", "no threshold on BE-1's summary → no caption, never €0 of €0");
+  assert.equal(paidLineText(readCircleSummary(SUMMARY_ASKED)), "€710 of €1,000 paid this year", "once BE-1 sends it");
   const unlocks = unlocksList(ownPerksOf(m), nextPerksOf(m), m.pointsPerEuro);
   assert.deepEqual(unlocks, ["8.75% back in Carisma credit, up from 7.5%", "A second free Spa day every year", "€35.00 birthday credit, up from €20.00"]);
   assert.equal(unlockLineText(m.nextLevel.label, unlocks), "Level 4 · Sapphire unlocks 8.75% back and a second free Spa day every year");
@@ -164,7 +178,16 @@ test("the level track: her stone, the bar, the next stone; the caption; what the
   // From the levels table when nextLevelPerks is absent; from her level's row when perks is absent.
   const noPerks = readCircle({ ...MARIA, perks: undefined, nextLevelPerks: undefined });
   assert.deepEqual(unlocksList(ownPerksOf(noPerks), nextPerksOf(noPerks), 20), unlocks);
-  assert.deepEqual(benefitsList(ownPerksOf(m), 20), ["7.5% back in Carisma credit", "€20.00 birthday credit", "A free Spa day every year", "Sales and offers 48 hours early", "No deposit when you book by phone or at the desk"]);
+  // Early access is left out of both lists until the CEO and the advocate word it (RECONCILED Q5, R5.7).
+  assert.deepEqual(benefitsList(ownPerksOf(m), 20), ["7.5% back in Carisma credit", "€20.00 birthday credit", "A free Spa day every year", "No deposit when you book by phone or at the desk"]);
+  assert.deepEqual(
+    unlocksList({ ...ownPerksOf(m), earlyAccessHours: 0 }, { ...nextPerksOf(m), earlyAccessHours: 72 }, 20).filter((u) => /early|hours/i.test(u)),
+    [],
+    "a bigger early-access window never reaches the unlock list",
+  );
+  // rules.earnPerEuro (BRIEF §9): the share back follows it, never a typed 1 point per €1.
+  assert.equal(rateText(1.5, 20, 2), "15%");
+  assert.equal(memberRate(readCircle({ ...MARIA, rules: { ...MARIA.rules, earnPerEuro: 2 } })), "15%");
   assert.equal(rateText(1.25, 20), "6.25%");
   assert.equal(rateText(2, 20), "10%");
 });

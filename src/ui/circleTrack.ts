@@ -65,15 +65,21 @@ export function paidLineText(t: TrackInput): string {
 
 /**
  * What a level adds over the one before it (the reason to reach it), from the
- * API's perks. `pointsPerEuro` turns a multiplier into the share back.
+ * API's perks. `pointsPerEuro` (and `earnPerEuro`, points per €1 before the
+ * multiplier) turn a multiplier into the share back.
+ *
+ * Early access to sales is NOT listed (nor in `benefitsList`): it reaches only
+ * offers opened in the Carisma account, not the website's offer pages or
+ * Klaviyo sends, and its wording waits on the CEO and the advocate (RECONCILED
+ * Q5; R5.7 keeps the one perks line, drawn only with something upcoming).
  */
-export function unlocksList(cur: CirclePerkSet | null, next: CirclePerkSet | null, pointsPerEuro: number): string[] {
+export function unlocksList(cur: CirclePerkSet | null, next: CirclePerkSet | null, pointsPerEuro: number, earnPerEuro = 1): string[] {
   if (!next) return [];
   const a: CirclePerkSet = cur ?? { multiplier: 0, birthdayCreditCents: 0, freeSpaDaysPerYear: 0, earlyAccessHours: 0, noDeposit: false };
   const out: string[] = [];
   if (next.multiplier > a.multiplier) {
-    const to = rateText(next.multiplier, pointsPerEuro);
-    const from = rateText(a.multiplier, pointsPerEuro);
+    const to = rateText(next.multiplier, pointsPerEuro, earnPerEuro);
+    const from = rateText(a.multiplier, pointsPerEuro, earnPerEuro);
     if (to) out.push(`${to} back in Carisma credit${from ? `, up from ${from}` : ""}`);
   }
   if (next.freeSpaDaysPerYear > a.freeSpaDaysPerYear) {
@@ -86,23 +92,21 @@ export function unlocksList(cur: CirclePerkSet | null, next: CirclePerkSet | nul
         (a.birthdayCreditCents > 0 ? `, up from ${creditText(a.birthdayCreditCents)}` : ""),
     );
   }
-  if (next.earlyAccessHours > a.earlyAccessHours) out.push(`Sales and offers ${next.earlyAccessHours} hours early`);
   // D7: no deposit applies to desk, phone and Cara bookings only (online keeps its payment).
   if (next.noDeposit && !a.noDeposit) out.push("No deposit when you book by phone or at the desk");
   return out;
 }
 
 /** Everything a level gives (the account's "What Level 3 · Ruby gives you"). */
-export function benefitsList(p: CirclePerkSet | null, pointsPerEuro: number): string[] {
+export function benefitsList(p: CirclePerkSet | null, pointsPerEuro: number, earnPerEuro = 1): string[] {
   if (!p) return [];
   const out: string[] = [];
-  const r = rateText(p.multiplier, pointsPerEuro);
+  const r = rateText(p.multiplier, pointsPerEuro, earnPerEuro);
   if (r) out.push(`${r} back in Carisma credit`);
   if (p.birthdayCreditCents > 0) out.push(`${creditText(p.birthdayCreditCents)} birthday credit`);
   if (p.freeSpaDaysPerYear > 0) {
     out.push(p.freeSpaDaysPerYear === 1 ? "A free Spa day every year" : `${p.freeSpaDaysPerYear} free Spa days every year`);
   }
-  if (p.earlyAccessHours > 0) out.push(`Sales and offers ${p.earlyAccessHours} hours early`);
   if (p.noDeposit) out.push("No deposit when you book by phone or at the desk");
   return out;
 }

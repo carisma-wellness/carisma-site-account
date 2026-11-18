@@ -415,6 +415,11 @@ export const walletPassCall = (id, which) => ({
     path: `${PROXY}/client/wallet/appointments/${encodeURIComponent(id)}/${which}`,
     method: "GET",
 });
+/** Circle v2 (ADDENDUM KIT-4): the member's own Circle card. Answers `{ url }` like the other passes. */
+export const circleWalletCardCall = (which) => ({
+    path: `${PROXY}/client/wallet/circle/${which}`,
+    method: "GET",
+});
 /** `{ apple, google }` from the availability read; anything else is "no". */
 export function readWalletAvailability(body) {
     const envelope = body && typeof body === "object" ? body : {};

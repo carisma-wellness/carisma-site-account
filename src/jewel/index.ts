@@ -23,7 +23,8 @@ import { createJewelMount, type JewelHandle, type JewelVariant } from "./engine.
 import { buildSolitaire } from "./motif.js";
 import { isGemKey, jewelSupported, onJewelFailed } from "./stage.js";
 
-export type { JewelHandle, JewelOptions, JewelState, JewelVariant } from "./engine.js";
+export type { FrameStage, JewelHandle, JewelOptions, JewelState, JewelVariant } from "./engine.js";
+export { frameStep, motionReduced } from "./engine.js";
 export { GEM_IDENTITY, isGemKey, jewelSupported, onJewelFailed, prefersReducedMotion, type CircleGemKey } from "./stage.js";
 
 export const CIRCLE_JEWEL_QC = "carisma-circle-v2-20261117";

@@ -15,7 +15,7 @@ import { accountMarkSignedInHTML, accountMarkState, ACCOUNT_MARK_ATTR } from "./
 import { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, avatarUrlFromSession, sanitizeAvatarUrl } from "./avatar.js";
 import { readInitialsHint, readSignedInHint } from "./hint.js";
 import { buildPanelModel, accountPanelHTML, PANEL_SESSION_URL, PANEL_SESSION_URL_CIRCLE } from "./panel.js";
-import { CIRCLE_HREF, circleAllowedOn, circleActivityRowsHTML, circleNowRowHTML, circleOverviewHTML, circleOverviewLeftHTML, circleOverviewMinorHTML, circleActivityHTML, circleRewardsHTML, nextPerksOf, ownPerksOf, readCircle, readCircleRewards, unlockLineText, unlocksList, circlePrefsHTML, circleWalletLineHTML, leaveSheetBodyHTML, leaveSheetFootHTML, offersErrorText, offersSavedText, readCircleActivity, readCircleLeft, readCirclePrefs, readCircleState, readLeavePreview, readRejoined, } from "./circle.js";
+import { CIRCLE_HREF, circleAllowedOn, circleActivityRowsHTML, circleNowRowHTML, circleOverviewHTML, circleOverviewLeftHTML, circleOverviewMinorHTML, circleActivityHTML, circleRewardsHTML, circleCardBlockHTML, circleWalletPlatform, nextPerksOf, ownPerksOf, paidLineText, readCircle, readCircleRewards, readCircleWalletAvailability, rejoinNoteText, unlockLineText, unlocksList, circlePrefsHTML, circleWalletLineHTML, leaveSheetBodyHTML, leaveSheetFootHTML, offersErrorText, offersSavedText, readCircleActivity, readCircleLeft, readCirclePrefs, readCircleState, readLeavePreview, readRejoined, } from "./circle.js";
 import { circleDetailsHTML, profileErrorText, profileSectionHTML, readCircleBirthday, readCircleComfort, readCircleWhatsapp, } from "./circleProfile.js";
 /** How long comfort choices settle before ONE save (a keyboard sweep through a radio group is one change). */
 const COMFORT_SETTLE_MS = 600;
@@ -28,7 +28,7 @@ import { ACCOUNT_BOOKINGS_HREF } from "./panel.js";
 import { linkifyPhones } from "./portal.js";
 import { bookingSkeletonHTML, bookingTreatment, bookingViewParts, buildBookingDetailModel, isActiveBooking, } from "./bookingDetail.js";
 import { buildSlotsModel, venueDateString, venueLocalToUtcIso } from "./reschedule.js";
-import { cancelCall, cancelSummary, circleBirthdayCall, circleBirthdayReadCall, circleComfortCall, circleComfortReadCall, circleWhatsappCall, circleWhatsappReadCall, circleLeaveCall, circleLeavePreviewCall, circleOffersCall, circleRejoinCall, errorCodeOf, cancellationPreviewCall, confirmCall, membershipCall, messageFromError, needsPreview, payBalanceCall, isTakenTimeRefusal, packageBookCall, packageBookFailureMessage, packagePayCall, packagePayConfirmCall, packageReturnFrom, invoicePayCall, invoicePayConfirmCall, invoiceReturnFrom, statementPayFailureMessage, readBookedAppointmentId, readCheckoutUrl, readCancellationPreview, readWalletAvailability, LATE_WINDOW_SENTENCE, rescheduleCall, slotsCall, readStaffList, staffCall, walletAvailabilityCall, walletPassCall, circleInstagramCall, } from "./portalActions.js";
+import { cancelCall, cancelSummary, circleBirthdayCall, circleBirthdayReadCall, circleComfortCall, circleComfortReadCall, circleWhatsappCall, circleWhatsappReadCall, circleLeaveCall, circleLeavePreviewCall, circleOffersCall, circleRejoinCall, errorCodeOf, cancellationPreviewCall, confirmCall, membershipCall, messageFromError, needsPreview, payBalanceCall, isTakenTimeRefusal, packageBookCall, packageBookFailureMessage, packagePayCall, packagePayConfirmCall, packageReturnFrom, invoicePayCall, invoicePayConfirmCall, invoiceReturnFrom, statementPayFailureMessage, readBookedAppointmentId, readCheckoutUrl, readCancellationPreview, readWalletAvailability, LATE_WINDOW_SENTENCE, rescheduleCall, slotsCall, readStaffList, staffCall, walletAvailabilityCall, walletPassCall, circleInstagramCall, circleWalletCardCall, } from "./portalActions.js";
 import { buildDayStrip, cancelBodyHTML, cancelDialogHTML, cancelFootHTML, clockOf, dateWords, dayChipsHTML, dialogFrameHTML, instantWords, packageBookBarHTML, packageBookDialogHTML, rescheduleDialogHTML, rescheduleTimesHTML, reviewBarHTML, } from "./dialogs.js";
 import { buildIcs, icsFileName, icsLocation } from "./ics.js";
 import { installBrandLinkInterceptor } from "./linkInterceptor.js";
@@ -64,11 +64,14 @@ function disposeCircleJewels(root) {
  * loader, and only once a slot comes within 120 px of the viewport. The loader
  * runs once per page; a failure keeps every flat mark.
  */
-function hydrateCircleJewels(root, opts) {
+function hydrateCircleJewels(root, opts, owner) {
     const load = opts.circleJewel;
     const el = live(root);
     if (!load || !el || !qs(el, "[data-cw-jewel]"))
         return;
+    // The disposer is filed under the element whose innerHTML is replaced next (the portal mount, the panel
+    // mount), so a repaint or a tab change frees every jewel it drew, whatever slot they were mounted in.
+    const key = (owner && typeof owner === "object" ? owner : el);
     const run = () => {
         let p = jewelLoads.get(load);
         if (!p) {
@@ -81,9 +84,9 @@ function hydrateCircleJewels(root, opts) {
             if (!m)
                 return;
             try {
-                const prev = jewelDisposers.get(el);
+                const prev = jewelDisposers.get(key);
                 const d = m.hydrateJewels(el);
-                jewelDisposers.set(el, () => {
+                jewelDisposers.set(key, () => {
                     prev?.();
                     d();
                 });
@@ -106,6 +109,31 @@ function hydrateCircleJewels(root, opts) {
     }, { rootMargin: "120px" });
     qsa(el, "[data-cw-jewel]").forEach((slot) => io.observe(slot));
 }
+/**
+ * The rejoin sentence names the API's first level ("If you rejoin, you start again at Level 1 · Pearl …",
+ * R5.1) once the host hands the label over (`circleFirstLevel`, from the public status). Until then, or
+ * without it, the sentence says "the first level".
+ */
+function nameFirstLevel(root, opts) {
+    const get = opts.circleFirstLevel;
+    const el = live(root);
+    if (!get || !el)
+        return;
+    const notes = qsa(el, "[data-cw-circle-rejoin-note]");
+    if (!notes.length)
+        return;
+    void Promise.resolve()
+        .then(get)
+        .then((label) => {
+        const l = typeof label === "string" ? label.trim() : "";
+        if (!l)
+            return;
+        const html = escapeHtml(rejoinNoteText(l));
+        notes.forEach((n) => {
+            n.innerHTML = html;
+        });
+    }, () => undefined);
+}
 const panelExtrasOnce = new WeakMap();
 function readJsonOrNull(fetchImpl, url) {
     return fetchImpl(url, { credentials: "same-origin" })
@@ -117,17 +145,21 @@ function readJsonOrNull(fetchImpl, url) {
  * unlock (from the member read's perks) and the "Yours now" row (the featured
  * read). Read once per page; either read failing costs only its own line.
  */
-function readPanelCircleExtras(doc, fetchImpl) {
+function readPanelCircleExtras(doc, fetchImpl, needMe = true) {
     let p = panelExtrasOnce.get(doc);
     if (p)
         return p;
+    // `/me` only while the summary lacks the next level's perks and its threshold (BE-1's built summary sends
+    // neither yet: BRIEF §9 ask). With them on the summary the menu draws both lines at once and reads nothing.
     p = Promise.all([
-        readJsonOrNull(fetchImpl, "/api/auth/proxy/client/loyalty/me"),
+        needMe ? readJsonOrNull(fetchImpl, "/api/auth/proxy/client/loyalty/me") : Promise.resolve(null),
         readJsonOrNull(fetchImpl, "/api/auth/proxy/client/loyalty/rewards"),
     ]).then(([me, rewards]) => {
         const m = readCircle(me);
-        const unlockLine = m && m.nextLevel ? unlockLineText(m.nextLevel.label, unlocksList(ownPerksOf(m), nextPerksOf(m), m.pointsPerEuro)) : "";
-        return { unlockLine, rewards: readCircleRewards(rewards) };
+        const unlockLine = m && m.nextLevel
+            ? unlockLineText(m.nextLevel.label, unlocksList(ownPerksOf(m), nextPerksOf(m), m.pointsPerEuro, m.earnPerEuro))
+            : "";
+        return { unlockLine, paidLine: m ? paidLineText(m) : "", rewards: readCircleRewards(rewards) };
     });
     panelExtrasOnce.set(doc, p);
     return p;
@@ -377,24 +409,38 @@ export function mountAccountPanel(doc, opts = {}) {
             return;
         const model = buildPanelModel(body);
         disposeCircleJewels(mount);
-        mount.innerHTML = accountPanelHTML(model, { art: opts.circleArt, poster: opts.circlePoster ?? null });
+        mount.innerHTML = accountPanelHTML(model, {
+            art: opts.circleArt,
+            poster: opts.circlePoster ?? null,
+            bookHref: opts.bookHref,
+            photo: opts.circleRewardPhoto,
+        });
         setOpen(doc, mountId, true);
+        if (model.circleLeft)
+            nameFirstLevel(mount, opts);
         if (!model.circle)
             return;
         hydrateCircleJewels(mount, opts);
         if (!fetchImpl)
             return;
-        void readPanelCircleExtras(doc, fetchImpl).then((x) => {
+        const s = model.circle;
+        const needMe = !(s.nextLevel ? s.nextLevelPerks && s.spendThisYearCents !== null : true);
+        void readPanelCircleExtras(doc, fetchImpl, needMe).then((x) => {
             const card = qs(mount, '[data-cw-circle="panel"]');
             if (!card)
                 return;
             const track = qs(card, ".cc-menu__sec .cc-track");
+            // The caption "€710 of €1,000 paid this year", from /me when the summary could not draw it.
+            const row = track ? qs(track, ".cc-track-row") : null;
+            if (x.paidLine && row && !qs(track, ".cc-track-cap") && s.nextLevel) {
+                row.insertAdjacentHTML?.("afterend", `<p class="cc-track-cap" data-clarity-mask="True"><span>${escapeHtml(x.paidLine)}</span><span>${escapeHtml(s.nextLevel.label)}</span></p>`);
+            }
             if (x.unlockLine && track && !qs(track, ".cc-track-line")) {
                 track.insertAdjacentHTML?.("beforeend", `<p class="cc-track-line">${escapeHtml(x.unlockLine)}</p>`);
             }
             const now = qs(card, '[data-cw-circle-slot="menu-now"]');
             if (now && !now.innerHTML)
-                now.innerHTML = circleNowRowHTML(x.rewards ?? null, opts.circleArt);
+                now.innerHTML = circleNowRowHTML(x.rewards ?? null, opts.circleArt, opts.circleRewardPhoto);
         });
     };
     doc.addEventListener("click", (e) => {
@@ -521,6 +567,30 @@ function closestOf(el, sel) {
 }
 const portalListBound = new WeakSet();
 const portalCircleBound = new WeakSet();
+const portalCircleWalletBound = new WeakSet();
+/** The Circle card's Wallet button: the pass door answers `{url}` (a download or a save link, https only). */
+function bindCircleWallet(mount, readT, navigate) {
+    const host = live(mount);
+    if (!host || portalCircleWalletBound.has(mount))
+        return;
+    portalCircleWalletBound.add(mount);
+    host.addEventListener?.("click", (e) => {
+        const btn = closestOf(e.target, "[data-cw-circle-wallet]");
+        if (!btn)
+            return;
+        const which = btn.getAttribute("data-cw-circle-wallet") === "google" ? "google" : "apple";
+        const done = setBusy(btn, "Opening wallet…");
+        void readT(circleWalletCardCall(which).path).then((r) => {
+            const inner = unwrapEnvelope(r.body);
+            const url = inner && typeof inner.url === "string" ? inner.url : "";
+            done();
+            if (r.state !== "failed" && /^https:\/\//.test(url))
+                navigate(url);
+            else
+                announce(mount, GENERIC_FAILURE, "bad");
+        });
+    });
+}
 /**
  * "Show more" under the Carisma credit activity: the next page, appended.
  * A failed page leaves the button for another try; nothing else changes.
@@ -693,7 +763,27 @@ function phoneAlreadyOnPage(doc) {
     const href = links && links.length ? links[0].getAttribute?.("href") || "" : "";
     return href.replace(/^tel:/i, "").trim();
 }
+/** Each mount's generation: an unmount (or a re-mount for another tab) makes every older read's jewels a no-op. */
+const portalGen = new WeakMap();
+/**
+ * Mount the account portal. Returns its unmount (React's effect cleanup): every live jewel the portal drew is
+ * disposed and a read that answers later mounts none (a dead tab never holds GPU buffers or the shared
+ * WebGL context).
+ */
 export function mountAccountPortal(doc, opts = {}) {
+    const mountId = opts.portalMountId || "carisma-account-portal";
+    const el = doc.getElementById(mountId);
+    if (el)
+        portalGen.set(el, (portalGen.get(el) ?? 0) + 1);
+    mountAccountPortalOnce(doc, opts);
+    return () => {
+        if (!el)
+            return;
+        portalGen.set(el, (portalGen.get(el) ?? 0) + 1);
+        disposeCircleJewels(el);
+    };
+}
+function mountAccountPortalOnce(doc, opts) {
     try {
         injectChrome(doc);
     }
@@ -743,6 +833,32 @@ export function mountAccountPortal(doc, opts = {}) {
         ? r.json().then((body) => classifyRead(true, r.status, body), () => classifyRead(false, r.status, null))
         : classifyRead(false, r.status, null), () => classifyRead(false, 0, null));
     const signIn = () => navigate(`/member?next=${encodeURIComponent(next)}`);
+    /** This mount's generation (see mountAccountPortal): a late read never draws a jewel into a dead mount. */
+    const myGen = portalGen.get(mount) ?? 0;
+    const current = () => (portalGen.get(mount) ?? 0) === myGen;
+    const hydrateHere = (root) => {
+        if (current())
+            hydrateCircleJewels(root, opts, mount);
+    };
+    /** ADDENDUM KIT-4: "Your card" on Credit & rewards, only on a phone Wallet AND circle.<platform> AND the host. */
+    let circleWalletOnce = null;
+    const fillCircleWallet = () => {
+        if (opts.circleWallet !== true || view !== "rewards" || !circleNow || circleNow.kind !== "live")
+            return;
+        const nav = globalThis.navigator;
+        const which = circleWalletPlatform(nav?.userAgent ?? "", nav?.maxTouchPoints ?? 0);
+        if (!which || !qs(mount, '[data-cw-circle-slot="your-card"]'))
+            return;
+        circleWalletOnce ??= readT(walletAvailabilityCall().path).then((r) => r.state === "failed" ? { apple: false, google: false } : readCircleWalletAvailability(r.body));
+        void circleWalletOnce.then((a) => {
+            const slot = qs(mount, '[data-cw-circle-slot="your-card"]');
+            if (!a[which] || !current() || !slot || slot.innerHTML)
+                return;
+            slot.innerHTML = circleCardBlockHTML(which);
+            slot.removeAttribute?.("hidden");
+        });
+        bindCircleWallet(mount, readT, navigate);
+    };
     /** Cards on screen, so a toast can name the day without another read. */
     let onScreen = [];
     /** Packages on the wallet page, so Pay / Book read the model, never the DOM. */
@@ -775,11 +891,15 @@ export function mountAccountPortal(doc, opts = {}) {
         void overviewExtrasOnce.then(({ rewards, activity }) => {
             const r = qs(mount, '[data-cw-circle-slot="ov-rewards"]');
             if (r && !r.innerHTML) {
-                r.innerHTML = circleRewardsHTML(readCircleRewards(rewards), model.points, { art: opts.circleArt, pointsPerEuro: model.pointsPerEuro });
+                r.innerHTML = circleRewardsHTML(readCircleRewards(rewards), model.points, {
+                    art: opts.circleArt,
+                    photo: opts.circleRewardPhoto,
+                    pointsPerEuro: model.pointsPerEuro,
+                });
             }
             const a = qs(mount, '[data-cw-circle-slot="ov-activity"]');
             if (a && !a.innerHTML) {
-                a.innerHTML = circleActivityHTML(model, readCircleActivity(activity), { limit: 3, moreHref: CIRCLE_HREF });
+                a.innerHTML = circleActivityHTML(model, readCircleActivity(activity, model.pointsPerEuro), { limit: 3, moreHref: CIRCLE_HREF });
             }
         });
     };
@@ -794,13 +914,21 @@ export function mountAccountPortal(doc, opts = {}) {
             // A member who left sees the date and Rejoin, never a figure; a minor sees one line.
             home.innerHTML =
                 circleNow.kind === "live"
-                    ? circleOverviewHTML(circleNow.model, { art: opts.circleArt, poster: opts.circlePoster ?? null, bookHref: opts.bookHref })
+                    ? circleOverviewHTML(circleNow.model, {
+                        art: opts.circleArt,
+                        poster: opts.circlePoster ?? null,
+                        bookHref: opts.bookHref,
+                        photo: opts.circleRewardPhoto,
+                    })
                     : circleNow.kind === "left"
                         ? circleOverviewLeftHTML(circleNow.left)
                         : circleOverviewMinorHTML(circleNow);
             home.removeAttribute?.("hidden");
+            if (circleNow.kind === "left")
+                nameFirstLevel(home, opts);
             if (circleNow.kind === "live") {
-                hydrateCircleJewels(home, opts);
+                // Filed under the portal mount: paint() and openPanel() free them before the next innerHTML.
+                hydrateHere(home);
                 fillOverviewExtras(circleNow.model);
                 bindCircleInstagram(doc, fetchImpl);
             }
@@ -849,9 +977,12 @@ export function mountAccountPortal(doc, opts = {}) {
         markMixed();
         // The Credit & rewards page draws its own jewels (Hero, track, ladder) and its Instagram rows.
         if (view === "rewards" && circleNow && circleNow.kind === "live") {
-            hydrateCircleJewels(mount, opts);
+            hydrateHere(mount);
             bindCircleInstagram(doc, fetchImpl);
+            fillCircleWallet();
         }
+        if (view === "rewards" && circleNow && circleNow.kind === "left")
+            nameFirstLevel(mount, opts);
     };
     const focusTitle = () => qs(mount, ".cw-title")?.focus?.({ preventScroll: false });
     const skeleton = () => {
@@ -1023,6 +1154,11 @@ export function mountAccountPortal(doc, opts = {}) {
                                 invoicePay: opts.invoicePay === true,
                                 circleSlot: circleRail,
                                 bookHref: opts.bookHref,
+                                // Circle v2: the reward photos, the jewel posters and the free Spa day's "Book it" link.
+                                circleArt: opts.circleArt,
+                                circlePoster: opts.circlePoster ?? null,
+                                circlePhoto: opts.circleRewardPhoto,
+                                spaDayHref: opts.circleSpaDayHref ?? null,
                             })}</div>`,
                 }));
                 if (!portalMembershipBound.has(mount)) {
@@ -1762,7 +1898,10 @@ export function mountAccountPortal(doc, opts = {}) {
                 signIn();
                 return;
             }
-            preview = r.state === "failed" ? null : readLeavePreview(r.body);
+            preview =
+                r.state === "failed"
+                    ? null
+                    : readLeavePreview(r.body, circleNow && circleNow.kind === "live" ? circleNow.model.pointsPerEuro : 0);
             if (preview && preview.kind === "left") {
                 // Already out (another tab, the app): show the page as it now is.
                 dlg.close?.();

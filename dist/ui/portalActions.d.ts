@@ -208,6 +208,8 @@ export declare function cancelSummary(preview: CancellationPreview | null, free:
 export declare const walletAvailabilityCall: () => ProxyCall;
 /** Answers `{ url }` — a signed pass download (Apple) or a save link (Google). */
 export declare const walletPassCall: (id: string, which: "apple" | "google") => ProxyCall;
+/** Circle v2 (ADDENDUM KIT-4): the member's own Circle card. Answers `{ url }` like the other passes. */
+export declare const circleWalletCardCall: (which: "apple" | "google") => ProxyCall;
 /** `{ apple, google }` from the availability read; anything else is "no". */
 export declare function readWalletAvailability(body: unknown): {
     apple: boolean;

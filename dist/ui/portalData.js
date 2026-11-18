@@ -152,11 +152,12 @@ export function bodyFor(view, answers, ctx = {}) {
                 return circleMinorViewHTML(state);
             return circleViewHTML({
                 me: state.model,
-                activity: readCircleActivity(answers[1]),
+                activity: readCircleActivity(answers[1], state.model.pointsPerEuro),
                 rewards: readCircleRewards(answers[2]),
                 perks: readCirclePerks(answers[4]),
                 bookHref: ctx.bookHref,
                 art: ctx.circleArt,
+                photo: ctx.circlePhoto,
                 poster: ctx.circlePoster ?? null,
                 spaDayHref: ctx.spaDayHref ?? null,
                 prefs,

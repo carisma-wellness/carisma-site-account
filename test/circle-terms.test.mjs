@@ -71,7 +71,8 @@ test("same defect as row 26: how points pay at the desk is the card in the Caris
   assert.ok(m, "precondition: the demo member reads live");
   const cards = circleRewardsHTML(readCircleRewards(REWARDS_V2), m.points);
   assert.ok(cards.length > 0, "precondition: the reward cards rendered");
-  assert.match(cards, /at reception with your card in the Carisma app\. Prices include VAT\./);
+  // Counsel's corrected row-26 sentence, word for word (surface-consistency.md row 26), as the v1 kit shipped it.
+  assert.match(cards, /Rewards are paid in full with credit: show your card in the Carisma app at the desk\. Prices include VAT\./);
   assert.doesNotMatch(cards, /tell the desk/);
 });
 

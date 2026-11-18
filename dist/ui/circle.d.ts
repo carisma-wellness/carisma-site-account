@@ -1,15 +1,19 @@
 import { summaryOf, type CircleBrand, type CircleLeftModel, type CircleLevelRule, type CircleLevelView, type CircleModel, type CircleSummary, type CircleSummaryState } from "./circleCore.js";
 import { type CirclePerks } from "./circlePerks.js";
-import { type CircleReward, type CircleRewardArt } from "./circleFeatured.js";
+import { type CircleReward, type CircleRewardArt, type CircleRewardPhoto } from "./circleFeatured.js";
 export * from "./circleCore.js";
 export { asGemKey, circleMarkSVG, jewelSlotHTML, progressFraction, CIRCLE_GEM_KEYS, type CircleGemKey } from "./circleMark.js";
 export { benefitsList, circleTrackHTML, nextPerksOf, ownPerksOf, paidLineText, unlockLineText, unlocksList, type TrackInput, type TrackOptions, } from "./circleTrack.js";
 export { actionValueText, circleWaysCardsHTML, circleWaysHTML, instagramLinkHTML, waysSummaryText } from "./circleWays.js";
 export { circlePerksHTML, readCirclePerks, spaDaysText, type CirclePerks, type CirclePerkUpcoming } from "./circlePerks.js";
-export { circleNowRowHTML, circleRewardsHTML, REWARDS_FOOT, nextRewardText, readCircleRewards, rewardGroups, rewardTitle, type CircleReward, type CircleRewardArt, } from "./circleFeatured.js";
+export { circleNowRowHTML, circleRewardsHTML, REWARDS_FOOT, nextRewardText, readCircleRewards, rewardGroups, rewardTitle, type CircleReward, type CircleRewardArt, type CircleRewardPhoto, } from "./circleFeatured.js";
 /** Same literal as panel.ts ACCOUNT_DETAILS_HREF (not imported: panel.ts imports this module). */
 export declare const REJOIN_LABEL = "Rejoin Carisma Circle";
-/** v1 name for the rejoin sentence; v2 words, the first level named by `rejoinNoteText(label)` where it is known. */
+/**
+ * The rejoin sentence WITHOUT a level name ("the first level"), for a site that cannot read the public status.
+ * Every left state draws `rejoinNoteText(firstLevelLabel)` instead, inside `[data-cw-circle-rejoin-note]`, and
+ * the browser puts the API's first-level label in ("Level 1 · Pearl", R5.1) as soon as the host hands it over.
+ */
 export declare const REJOIN_NOTE: string;
 /** What a site may hand the Circle builders. */
 export interface CircleExtras {
@@ -22,6 +26,10 @@ export interface CircleExtras {
     /** Where "Book a visit" / "Book it" go on this brand. */
     bookHref?: string;
     spaDayHref?: string | null;
+    /** ADDENDUM X3/KIT-3: the site's own photo for a featured service (then the API's `imageUrl`). */
+    photo?: CircleRewardPhoto;
+    /** The API's first-level label ("Level 1 · Pearl") for the rejoin sentence; "" = "the first level". */
+    firstLevelLabel?: string;
 }
 /**
  * The header chip for a signed-in member: the flat mark and the balance in
@@ -43,7 +51,7 @@ export interface PanelCircleExtras extends CircleExtras {
  */
 export declare function circlePanelRowHTML(s: CircleSummary | null, x?: PanelCircleExtras): string;
 /** The menu block for a member who left: the date and Rejoin, nothing else. "" when null. */
-export declare function circlePanelLeftHTML(l: CircleLeftModel | null): string;
+export declare function circlePanelLeftHTML(l: CircleLeftModel | null, firstLevelLabel?: string): string;
 /** R5.4: under the minimum age, one line and nothing else. */
 export declare function circlePanelMinorHTML(minor: {
     minAge: number | null;
@@ -53,7 +61,7 @@ export declare function circlePanelStateHTML(st: CircleSummaryState | null, x?: 
 /** "You left Carisma Circle on 14 November 2026" (Malta date; no date when the server gave none). */
 export declare function leftText(l: CircleLeftModel): string;
 /** The Overview card for a member who left. "" when null. */
-export declare function circleOverviewLeftHTML(l: CircleLeftModel | null): string;
+export declare function circleOverviewLeftHTML(l: CircleLeftModel | null, firstLevelLabel?: string): string;
 /** R5.4 on the account: one line, nothing else. */
 export declare function circleOverviewMinorHTML(minor: {
     minAge: number | null;
@@ -71,7 +79,9 @@ export declare function circleHeroHTML(m: CircleModel | null, x?: CircleExtras &
         href: string;
     } | false;
 }): string;
-export declare function circleLadderHTML(levels: CircleLevelRule[], current: CircleLevelView | null, pointsPerEuro: number, x?: CircleExtras): string;
+export declare function circleLadderHTML(levels: CircleLevelRule[], current: CircleLevelView | null, pointsPerEuro: number, x?: CircleExtras & {
+    earnPerEuro?: number;
+}): string;
 export interface CircleActivityItem {
     id: string;
     at: string;
@@ -84,7 +94,7 @@ export interface CircleActivityItem {
     status: string;
     expiresAt: string | null;
 }
-export declare function readCircleActivity(body: unknown): {
+export declare function readCircleActivity(body: unknown, pointsPerEuro?: number): {
     items: CircleActivityItem[];
     nextCursor: string | null;
 } | null;
@@ -114,6 +124,24 @@ export declare function circleOverviewHTML(m: CircleModel | null, x?: CircleExtr
  * spend" (points pay one whole treatment, never part of a bill). "" when null.
  */
 export declare function circleWalletLineHTML(m: CircleModel | null): string;
+/** The one quiet line under the Wallet button: the card identifies her; it never pays. */
+export declare const CIRCLE_CARD_LINE = "Your card shows the desk who you are. Paying with points at the desk needs the code in the Carisma app.";
+/**
+ * Which Wallet this browser may offer: "apple" on an iPhone or iPad in Safari, "google" on Android in Chrome,
+ * null everywhere else (never on a desktop browser, ADDENDUM KIT-4). `touchPoints` tells iPadOS (which reports
+ * a Mac) from a Mac.
+ */
+export declare function circleWalletPlatform(ua: string, touchPoints?: number): "apple" | "google" | null;
+/**
+ * `GET /client/wallet/availability` → the Circle card per platform (`circle: {apple, google}`, ADD-W4). Any
+ * other shape — the old `{apple, google}` with no `circle`, an error, garbage — is "no".
+ */
+export declare function readCircleWalletAvailability(body: unknown): {
+    apple: boolean;
+    google: boolean;
+};
+/** The "Your card" block for one platform. Its button is bound by browser.ts (`data-cw-circle-wallet`). */
+export declare function circleCardBlockHTML(which: "apple" | "google"): string;
 export interface CircleViewInput extends CircleExtras {
     me: CircleModel;
     activity: {
@@ -131,6 +159,7 @@ export declare function circleViewHTML(input: CircleViewInput | null): string;
 export declare function circleLeftViewHTML(input: {
     left: CircleLeftModel;
     prefs?: CirclePrefs | null;
+    firstLevelLabel?: string;
 } | null): string;
 /** R5.4: the Credit & rewards page under the minimum age: one line. */
 export declare function circleMinorViewHTML(minor: {
@@ -146,7 +175,7 @@ export type LeavePreview = {
     kind: "left";
     left: CircleLeftModel;
 };
-export declare function readLeavePreview(body: unknown): LeavePreview | null;
+export declare function readLeavePreview(body: unknown, pointsPerEuro?: number): LeavePreview | null;
 export declare function leaveSheetBodyHTML(p: LeavePreview | null, state: "loading" | "ready" | "failed", alert?: string): string;
 export declare function leaveSheetFootHTML(p: LeavePreview | null, busy?: boolean): string;
 /** POST /client/loyalty/rejoin answered: the member is in again (or never left). */
@@ -198,6 +227,8 @@ export interface CreditMomentInput {
     } | null;
     /** Booked, not paid yet ("on its way", never "received"). */
     unpaid?: boolean;
+    /** The programme's rate (the API's `rules.pointsPerEuro`), for a figure sent without its points. */
+    pointsPerEuro?: number;
 }
 export interface CreditMoment {
     /**
@@ -214,8 +245,11 @@ export interface CreditMoment {
     quiet: string;
 }
 export declare function creditMoment(input: CreditMomentInput | null | undefined): CreditMoment;
-/** floor(eligible euros × multiplier) points — whole euros paid, VAT-inclusive (BRIEF §2 Earning). */
-export declare function earnPoints(eligibleCents: number, multiplier?: number): number;
+/**
+ * floor(eligible euros × points per €1 × multiplier) points — euros paid, VAT-inclusive (BRIEF §2 Earning).
+ * `earnPerEuro` is the API's `rules.earnPerEuro` (1 point per €1 today; 1 only as the fallback).
+ */
+export declare function earnPoints(eligibleCents: number, multiplier?: number, earnPerEuro?: number): number;
 /** The member model as the menu summary (the account page has the full read). */
 export { summaryOf as circleSummaryOf };
 //# sourceMappingURL=circle.d.ts.map

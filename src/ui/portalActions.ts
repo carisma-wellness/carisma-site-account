@@ -527,6 +527,12 @@ export const walletPassCall = (id: string, which: "apple" | "google"): ProxyCall
   method: "GET",
 });
 
+/** Circle v2 (ADDENDUM KIT-4): the member's own Circle card. Answers `{ url }` like the other passes. */
+export const circleWalletCardCall = (which: "apple" | "google"): ProxyCall => ({
+  path: `${PROXY}/client/wallet/circle/${which}`,
+  method: "GET",
+});
+
 /** `{ apple, google }` from the availability read; anything else is "no". */
 export function readWalletAvailability(body: unknown): { apple: boolean; google: boolean } {
   const envelope = body && typeof body === "object" ? (body as Record<string, unknown>) : {};

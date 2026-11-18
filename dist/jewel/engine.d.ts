@@ -125,6 +125,26 @@ export interface JewelHandle {
     update(next: Partial<JewelState>): void;
     dispose(): void;
 }
+/** What the loop reads of a jewel each frame (a JewelStage; a plain object in the tests). */
+export interface FrameStage {
+    alive: boolean;
+    near: boolean;
+    visible: boolean;
+    /** `prefers-reduced-motion: reduce` when the jewel mounted. */
+    readonly still: boolean;
+    /** A still jewel owes one frame (first paint, a change, a resize, back on screen). */
+    stillDue: boolean;
+}
+/**
+ * One jewel's turn in a frame: draw or not, and whether the loop must run again for it. Reduced motion
+ * (surfaces §3.3, §7.2): ONE exact still frame per change, then nothing — never a running loop.
+ */
+export declare function frameStep(stage: FrameStage): {
+    draw: boolean;
+    again: boolean;
+};
+/** The engine's reading of `prefers-reduced-motion` (exported for the reduced-motion test). */
+export declare function motionReduced(): boolean;
 /**
  * Mount one jewel on `canvas` (a 2D canvas the component reserved at its final
  * size). Throws only when WebGL cannot start — the caller then shows the flat

@@ -739,7 +739,25 @@ class JewelStage {
         this.motifFixed = null;
     }
 }
-// ── the ONE loop ──────────────────────────────────────────────────────────────
+/**
+ * One jewel's turn in a frame: draw or not, and whether the loop must run again for it. Reduced motion
+ * (surfaces §3.3, §7.2): ONE exact still frame per change, then nothing — never a running loop.
+ */
+export function frameStep(stage) {
+    if (!stage.alive || !stage.near || !stage.visible)
+        return { draw: false, again: false };
+    if (stage.still) {
+        if (!stage.stillDue)
+            return { draw: false, again: false };
+        stage.stillDue = false;
+        return { draw: true, again: false };
+    }
+    return { draw: true, again: true };
+}
+/** The engine's reading of `prefers-reduced-motion` (exported for the reduced-motion test). */
+export function motionReduced() {
+    return prefersReducedMotion();
+}
 function kick() {
     if (raf || failed || stages.size === 0 || typeof window === "undefined")
         return;
@@ -753,17 +771,11 @@ function frame(now) {
     let again = false;
     try {
         for (const stage of stages) {
-            if (!stage.alive || !stage.near || !stage.visible)
-                continue;
-            if (stage.still) {
-                if (!stage.stillDue)
-                    continue;
-                stage.stillDue = false;
+            const step = frameStep(stage);
+            if (step.draw)
                 stage.draw(now);
-                continue;
-            }
-            stage.draw(now);
-            again = true;
+            if (step.again)
+                again = true;
         }
     }
     catch {

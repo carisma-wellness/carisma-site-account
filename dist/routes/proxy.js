@@ -2,12 +2,25 @@ import { unseal } from "../seal/index.js";
 import { COOKIES, parseCookies } from "./cookies.js";
 import { isAllowed, normalizePath } from "./allowlist.js";
 import { originAllowed, json } from "./http.js";
+import { visitorIp as edgeVisitorIp } from "./pkce.js";
 /**
  * The member's consent doors: "Offers and reminders" (Carisma Circle W3,
  * marketing) and WhatsApp booking updates (W4, service). The backend records
  * each consent with its user agent, so the member's own browser travels with it.
  */
 const CONSENT_DOORS = new Set(["PATCH /client/loyalty/preferences", "PUT /client/loyalty/whatsapp-updates"]);
+/**
+ * Circle v2 (the WEB fix): a member's booking that carries a points or free Spa
+ * day code goes to the guest door through this proxy, so it carries her bearer.
+ * The guest door reads the VISITOR's browser from `X-Client-User-Agent` /
+ * `X-Client-IP` (a server's fetch is not the customer), and limits per shopper
+ * on the forwarded address, so this one door forwards both. The address is the
+ * one the site's own edge proved (CloudFront's viewer address, else the hop our
+ * edge appended: the same rule as the token exchange), or the host's
+ * `visitorIp` hook when it gives one; an unknown address is never sent.
+ */
+const BOOKING_DOORS = new Set(["POST /client/booking/guest/checkout"]);
+const IP_SHAPE = /^[0-9a-fA-F:.]{3,45}$/;
 /**
  * POST|GET|PATCH|DELETE /api/auth/proxy/[...path]
  *
@@ -51,6 +64,24 @@ export function makeProxy(cfg) {
             const ua = req.headers.get("user-agent");
             if (ua)
                 headers["user-agent"] = ua.slice(0, 512);
+        }
+        if (BOOKING_DOORS.has(`${method} ${sub}`)) {
+            const ua = req.headers.get("user-agent");
+            if (ua)
+                headers["x-client-user-agent"] = ua.slice(0, 512);
+            let ip = null;
+            try {
+                ip = cfg.visitorIp ? cfg.visitorIp(req) : edgeVisitorIp(req);
+            }
+            catch {
+                ip = null;
+            }
+            if (ip === "127.0.0.1")
+                ip = null;
+            if (ip && IP_SHAPE.test(ip)) {
+                headers["x-client-ip"] = ip;
+                headers["x-forwarded-for"] = ip;
+            }
         }
         let upstreamRes;
         try {
