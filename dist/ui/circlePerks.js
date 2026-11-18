@@ -56,12 +56,19 @@ export function spaDaysText(p) {
     const n = p.spaDays.entitlement;
     return `${n} free Spa day${n === 1 ? "" : "s"} this year · ${p.spaDays.left} left`;
 }
-/** The perks block. "" when nothing in the read is worth a line. `spaDayHref` = where "Book it" goes. */
+/**
+ * The perks block. "" when nothing in the read is worth a line. `spaDayHref` = where "Book it" goes.
+ *
+ * `live` is her own `/me.perks.live` (ADDENDUM X2 / BE-i): a row is drawn only while ITS perk is switched on —
+ * the Spa days with `spaDays`, the early-access line with `earlyAccess` (and something upcoming, R5.7), no deposit
+ * with `noDeposit`. Without `live` nothing is switched on, so nothing is drawn: the terms do not promise them yet.
+ */
 export function circlePerksHTML(p, opts = {}) {
     if (!p)
         return "";
+    const live = opts.live ?? null;
     const rows = [];
-    const spa = spaDaysText(p);
+    const spa = live?.spaDays === true ? spaDaysText(p) : "";
     if (spa) {
         rows.push(`<li class="cc-perk"><span ${M}>${escapeHtml(spa)}</span>` +
             (p.spaDays && p.spaDays.left > 0 && opts.spaDayHref
@@ -69,7 +76,7 @@ export function circlePerksHTML(p, opts = {}) {
                 : "") +
             `</li>`);
     }
-    if (p.earlyAccess.hours > 0 && p.earlyAccess.upcoming.length) {
+    if (live?.earlyAccess === true && p.earlyAccess.hours > 0 && p.earlyAccess.upcoming.length) {
         const items = p.earlyAccess.upcoming
             .map((u) => {
             const when = maltaWhen(u.opensAtForYou);
@@ -79,7 +86,7 @@ export function circlePerksHTML(p, opts = {}) {
         rows.push(`<li class="cc-perk cc-perk--early"><span>${escapeHtml(`You see sales ${p.earlyAccess.hours} hours before everyone`)}</span>` +
             `<ul class="cc-perk__soon">${items}</ul></li>`);
     }
-    if (p.noDeposit.active)
+    if (live?.noDeposit === true && p.noDeposit.active)
         rows.push(`<li class="cc-perk"><span>No deposit when you book by phone or at the desk</span></li>`);
     if (!rows.length)
         return "";

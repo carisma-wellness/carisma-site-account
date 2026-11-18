@@ -35,12 +35,27 @@ export interface CircleLevelView {
     /** "Level 3 · Ruby" — the API's label (built from number + name only when absent). */
     label: string;
 }
+/**
+ * Which level perks are switched ON (ADDENDUM X2 / BE-i: `perks.live {spaDays, earlyAccess, noDeposit}`, each
+ * default false, one setting each). The perk VALUES above are sent whether or not a perk is live (BE-1 always
+ * sends Ruby's free Spa day and no deposit), so a surface lists a Spa day, early access or no deposit ONLY while
+ * its flag here is true. The rate and the birthday credit are not perks: they always show.
+ */
+export interface CirclePerksLive {
+    spaDays: boolean;
+    earlyAccess: boolean;
+    noDeposit: boolean;
+}
+/** Nothing switched on: what an answer with no `live` block means (BE-1 today). */
+export declare const PERKS_NOT_LIVE: Readonly<CirclePerksLive>;
 export interface CirclePerkSet {
     multiplier: number;
     birthdayCreditCents: number;
     freeSpaDaysPerYear: number;
     earlyAccessHours: number;
     noDeposit: boolean;
+    /** Which of the three perks are switched on (only a literal `true` from the API counts). */
+    live: CirclePerksLive;
 }
 export interface CircleLevelRule extends CircleLevelView, CirclePerkSet {
     thresholdCents: number;
@@ -218,10 +233,19 @@ export declare function obj(v: unknown): Record<string, unknown> | null;
 export declare function int(v: unknown, fallback?: number): number;
 export declare function num(v: unknown, fallback?: number): number;
 export declare function str(v: unknown): string;
-/** True on every site that may show the Circle. Carisma Medical never does. */
+/**
+ * The sites that may show the Circle: Carisma Spa, Carisma Aesthetics and Carisma Slimming ONLY (ADDENDUM KIT-6:
+ * an allow-list, never "anything but Medical"). An unknown site ("" — localhost, an App Runner host), Carisma Hair
+ * Clinic, Pulse and Carisma Medical are all false, so a host must name its brand (`siteBrand`) to show it.
+ */
 export declare function circleAllowedOn(siteBrand?: string): boolean;
 /** A level from the wire, or null (no gem key = a v1 or unknown level: never guessed). */
 export declare function levelFrom(raw: unknown): CircleLevelView | null;
+/**
+ * A place's own `live` block (`{spaDays, earlyAccess, noDeposit}`), else its `perks.live` (a `levels[]` step may
+ * nest it), or null when the place sent none. Only a literal `true` switches a perk on.
+ */
+export declare function perksLiveFrom(raw: unknown): CirclePerksLive | null;
 /** The switched-on brands, never Carisma Medical (it never joins; this holds if a stray row ever arrived). */
 export declare function brandsFrom(raw: unknown): CircleBrand[];
 /**

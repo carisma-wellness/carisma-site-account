@@ -145,8 +145,9 @@ export function bodyFor(view, answers, ctx = {}) {
             const prefs = readCirclePrefs(answers[3]);
             if (!state)
                 return "";
+            const whatsappPref = ctx.circleWhatsappPref !== false;
             if (state.kind === "left")
-                return circleLeftViewHTML({ left: state.left, prefs });
+                return circleLeftViewHTML({ left: state.left, prefs, whatsappPref });
             // R5.4: under the minimum age, one line and nothing else (no prefs, no leave).
             if (state.kind === "minor")
                 return circleMinorViewHTML(state);
@@ -161,6 +162,7 @@ export function bodyFor(view, answers, ctx = {}) {
                 poster: ctx.circlePoster ?? null,
                 spaDayHref: ctx.spaDayHref ?? null,
                 prefs,
+                whatsappPref,
             });
         }
         default:

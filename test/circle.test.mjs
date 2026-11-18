@@ -31,7 +31,7 @@ import {
   PAY_STEP_DISCLOSURE,
   readCircleSummary,
 } from "../dist/index.js";
-import { MARIA, SUMMARY, SUMMARY_ASKED, REWARDS, THREE_BRANDS } from "./fixtures/circle-v2.mjs";
+import { MARIA, SUMMARY, SUMMARY_ASKED, SUMMARY_ASKED_LIVE, REWARDS, THREE_BRANDS } from "./fixtures/circle-v2.mjs";
 import { PORTAL_RULES_CSS } from "../dist/ui/styles/index.js";
 
 /**
@@ -196,7 +196,9 @@ test("the header panel: no loyalty (or loyalty off) is the panel it always was; 
   // caption from /me once the menu opens); a summary that carries it draws it at once.
   assert.doesNotMatch(live, /paid this year/);
   assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED })), /<span>€710 of €1,000 paid this year<\/span><span>Level 4 · Sapphire<\/span>/);
-  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED })), /Level 4 · Sapphire unlocks 8\.75% back and a second free Spa day every year/);
+  // BE-i: the summary's perk rows list the Spa day only while live; BE-1's real rows carry no live block.
+  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED })), /Level 4 · Sapphire unlocks 8\.75% back and €35\.00 birthday credit/);
+  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED_LIVE })), /Level 4 · Sapphire unlocks 8\.75% back and a second free Spa day every year/);
   assert.match(live, /data-cw-jewel data-gem="ruby"/);
   assert.match(live, /data-cw-jewel data-gem="sapphire" data-p="0\.000"/, "the next stone, beads dark");
   assert.match(live, /href="\/account\/rewards#rewards">Use my credit</, "ADDENDUM KIT-1: affordable → Use my credit");

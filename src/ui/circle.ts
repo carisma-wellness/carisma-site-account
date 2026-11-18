@@ -126,6 +126,11 @@ export interface CircleExtras {
   photo?: CircleRewardPhoto;
   /** The API's first-level label ("Level 1 · Pearl") for the rejoin sentence; "" = "the first level". */
   firstLevelLabel?: string;
+  /**
+   * ADDENDUM KIT-6: the WhatsApp row of "Offers and reminders" (default true). Carisma Slimming passes false: its
+   * WhatsApp number is locked by Meta, so its Credit & rewards page carries no WhatsApp switch.
+   */
+  whatsappPref?: boolean;
 }
 
 function terms(x: CircleExtras | undefined): string | null {
@@ -618,26 +623,29 @@ export function circleViewHTML(input: CircleViewInput | null): string {
         `<p class="cw-fine">${escapeHtml("Your level counts what you pay in a calendar year. It lasts the rest of the year you reach it and all of the next.")}</p>` +
         `</section>`
       : "") +
-    circlePerksHTML(input.perks ?? null, { spaDayHref: input.spaDayHref }) +
+    // BE-i: a perk row only while her own `perks.live` says that perk is switched on.
+    circlePerksHTML(input.perks ?? null, { spaDayHref: input.spaDayHref, live: own?.live ?? null }) +
     circleWaysHTML(m) +
     circleActivityHTML(m, input.activity) +
     memberNumberHTML(m) +
     `<p class="cw-fine cw-prose">${escapeHtml(PROMISE_QUALIFIER)}${age ? ` ${escapeHtml(`${age}.`)}` : ""}${t ? ` ${termsLinkHTML(t, "Terms of Carisma Circle")}` : ""}</p>` +
-    circlePrefsSlotHTML(input.prefs ?? null) +
+    circlePrefsSlotHTML(input.prefs ?? null, { whatsapp: input.whatsappPref !== false }) +
     circleLeaveFootHTML() +
     `</div>`
   );
 }
 
 /** The Credit & rewards page for a member who left: the date, Rejoin, then "Offers and reminders". */
-export function circleLeftViewHTML(input: { left: CircleLeftModel; prefs?: CirclePrefs | null; firstLevelLabel?: string } | null): string {
+export function circleLeftViewHTML(
+  input: { left: CircleLeftModel; prefs?: CirclePrefs | null; firstLevelLabel?: string; whatsappPref?: boolean } | null,
+): string {
   if (!input) return "";
   return (
     `<div class="cw-rec cw-circle cw-circle--left" data-cw-qc="${CIRCLE_V2_QC}">` +
     `<section class="cw-circle-left-wrap cw-rise" aria-label="Carisma Circle" data-cw-circle="left-view">` +
     circleLeftCardHTML(input.left, "primary", input.firstLevelLabel ?? "") +
     `</section>` +
-    circlePrefsSlotHTML(input.prefs ?? null) +
+    circlePrefsSlotHTML(input.prefs ?? null, { whatsapp: input.whatsappPref !== false }) +
     `</div>`
   );
 }
@@ -823,23 +831,37 @@ function offersRowHTML(p: CirclePrefs, channel: OffersChannel, busy: boolean): s
   );
 }
 
-export function circlePrefsHTML(p: CirclePrefs | null, msg?: { text: string; tone: "ok" | "bad" } | null, busy = false): string {
+/**
+ * "Offers and reminders". `opts.whatsapp: false` (ADDENDUM KIT-6, `circleWhatsappPref`) leaves the WhatsApp box out
+ * (the Slimming WhatsApp number is locked by Meta); the default draws both boxes, as before.
+ */
+export function circlePrefsHTML(
+  p: CirclePrefs | null,
+  msg?: { text: string; tone: "ok" | "bad" } | null,
+  busy = false,
+  opts: { whatsapp?: boolean } = {},
+): string {
   if (!p) return "";
+  const whatsapp = opts.whatsapp !== false;
   return (
     `<section class="cw-section cw-rise cw-circle-prefs" aria-labelledby="cw-circle-prefs-title" data-cw-circle="prefs">` +
     `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-prefs-title">Offers and reminders</h2></div>` +
     `<div class="cw-card cw-circle-prefs__card">` +
     offersRowHTML(p, "email", busy) +
-    offersRowHTML(p, "whatsapp", busy) +
-    `<p class="cw-fine">Optional, and not needed for Carisma Circle. No credit is given for ticking these. Untick either box at any time to stop.</p>` +
+    (whatsapp ? offersRowHTML(p, "whatsapp", busy) : "") +
+    `<p class="cw-fine">${
+      whatsapp
+        ? "Optional, and not needed for Carisma Circle. No credit is given for ticking these. Untick either box at any time to stop."
+        : "Optional, and not needed for Carisma Circle. No credit is given for ticking this. Untick it at any time to stop."
+    }</p>` +
     `<p class="cw-circle-prefs__msg${msg ? ` cw-circle-prefs__msg--${msg.tone}` : ""}" role="status" aria-live="polite" data-cw-circle-pref-msg>${msg ? escapeHtml(msg.text) : ""}</p>` +
     `</div>` +
     `</section>`
   );
 }
 
-export function circlePrefsSlotHTML(p: CirclePrefs | null): string {
-  return `<div class="cw-circle-slot" data-cw-circle-slot="prefs">${circlePrefsHTML(p)}</div>`;
+export function circlePrefsSlotHTML(p: CirclePrefs | null, opts: { whatsapp?: boolean } = {}): string {
+  return `<div class="cw-circle-slot" data-cw-circle-slot="prefs">${circlePrefsHTML(p, null, false, opts)}</div>`;
 }
 
 /* ── The credit moment (thank-you page, any brand site) ────────────────── */
@@ -878,28 +900,38 @@ export interface CreditMoment {
   sentence: string;
   conditions: string;
   quiet: string;
+  /**
+   * "Paid with points · 2,180 points · This treatment earns no points" when a line of this bill was paid with
+   * points, else "". On a bill with money lines too, the moment stays the earned one (what the paid lines gave)
+   * and this line is drawn beside it for the points line.
+   */
+  paidLine: string;
 }
 
-const NONE: CreditMoment = { kind: "none", hero: "", sentence: "", conditions: "", quiet: "" };
+const NONE: CreditMoment = { kind: "none", hero: "", sentence: "", conditions: "", quiet: "", paidLine: "" };
 
 export function creditMoment(input: CreditMomentInput | null | undefined): CreditMoment {
   if (!input || input.hasExcludedLine === true) return NONE;
-  if (input.paidWithPoints && input.paidWithPoints.points > 0) {
-    return {
-      kind: "paid",
-      hero: "",
-      sentence: "",
-      conditions: "",
-      quiet: `Paid with points · ${pointsText(input.paidWithPoints.points)} · This treatment earns no points`,
-    };
-  }
+  const paidLine =
+    input.paidWithPoints && input.paidWithPoints.points > 0
+      ? `Paid with points · ${pointsText(input.paidWithPoints.points)} · This treatment earns no points`
+      : "";
   const earned = Math.round(Number(input.earnedCents) || 0);
+  // Only a line paid with points, nothing paid with money: the one quiet line.
+  if (paidLine && earned <= 0) return { kind: "paid", hero: "", sentence: "", conditions: "", quiet: paidLine, paidLine };
   if (earned <= 0) return NONE;
   const points = Math.max(0, Math.round(Number(input.earnedPoints) || 0));
   if (input.unpaid) {
     const given = input.pointsPerEuro ?? input.member?.pointsPerEuro ?? 0;
     const ppe = given > 0 ? given : 100 / CENTS_PER_POINT;
-    return { kind: "onTheWay", hero: "", sentence: "", conditions: "", quiet: onTheWayText(earned, points || Math.round((earned * ppe) / 100)) };
+    return {
+      kind: "onTheWay",
+      hero: "",
+      sentence: "",
+      conditions: "",
+      quiet: onTheWayText(earned, points || Math.round((earned * ppe) / 100)),
+      paidLine,
+    };
   }
   const brands = input.member?.brands.length ? input.member.brands : input.brands ?? [];
   if (input.member) {
@@ -909,6 +941,7 @@ export function creditMoment(input: CreditMomentInput | null | undefined): Credi
       sentence: gainText(earned, brands, input.member.affordable),
       conditions: CONDITIONS_EARNED,
       quiet: "",
+      paidLine,
     };
   }
   return {
@@ -917,6 +950,7 @@ export function creditMoment(input: CreditMomentInput | null | undefined): Credi
     sentence: gainText(earned, brands, false),
     conditions: CONDITIONS_EARNED,
     quiet: "",
+    paidLine,
   };
 }
 

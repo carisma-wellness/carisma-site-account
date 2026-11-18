@@ -428,12 +428,13 @@ export function circleViewHTML(input) {
                 `<p class="cw-fine">${escapeHtml("Your level counts what you pay in a calendar year. It lasts the rest of the year you reach it and all of the next.")}</p>` +
                 `</section>`
             : "") +
-        circlePerksHTML(input.perks ?? null, { spaDayHref: input.spaDayHref }) +
+        // BE-i: a perk row only while her own `perks.live` says that perk is switched on.
+        circlePerksHTML(input.perks ?? null, { spaDayHref: input.spaDayHref, live: own?.live ?? null }) +
         circleWaysHTML(m) +
         circleActivityHTML(m, input.activity) +
         memberNumberHTML(m) +
         `<p class="cw-fine cw-prose">${escapeHtml(PROMISE_QUALIFIER)}${age ? ` ${escapeHtml(`${age}.`)}` : ""}${t ? ` ${termsLinkHTML(t, "Terms of Carisma Circle")}` : ""}</p>` +
-        circlePrefsSlotHTML(input.prefs ?? null) +
+        circlePrefsSlotHTML(input.prefs ?? null, { whatsapp: input.whatsappPref !== false }) +
         circleLeaveFootHTML() +
         `</div>`);
 }
@@ -445,7 +446,7 @@ export function circleLeftViewHTML(input) {
         `<section class="cw-circle-left-wrap cw-rise" aria-label="Carisma Circle" data-cw-circle="left-view">` +
         circleLeftCardHTML(input.left, "primary", input.firstLevelLabel ?? "") +
         `</section>` +
-        circlePrefsSlotHTML(input.prefs ?? null) +
+        circlePrefsSlotHTML(input.prefs ?? null, { whatsapp: input.whatsappPref !== false }) +
         `</div>`);
 }
 /** R5.4: the Credit & rewards page under the minimum age: one line. */
@@ -585,43 +586,54 @@ function offersRowHTML(p, channel, busy) {
         `</div>` +
         note);
 }
-export function circlePrefsHTML(p, msg, busy = false) {
+/**
+ * "Offers and reminders". `opts.whatsapp: false` (ADDENDUM KIT-6, `circleWhatsappPref`) leaves the WhatsApp box out
+ * (the Slimming WhatsApp number is locked by Meta); the default draws both boxes, as before.
+ */
+export function circlePrefsHTML(p, msg, busy = false, opts = {}) {
     if (!p)
         return "";
+    const whatsapp = opts.whatsapp !== false;
     return (`<section class="cw-section cw-rise cw-circle-prefs" aria-labelledby="cw-circle-prefs-title" data-cw-circle="prefs">` +
         `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-prefs-title">Offers and reminders</h2></div>` +
         `<div class="cw-card cw-circle-prefs__card">` +
         offersRowHTML(p, "email", busy) +
-        offersRowHTML(p, "whatsapp", busy) +
-        `<p class="cw-fine">Optional, and not needed for Carisma Circle. No credit is given for ticking these. Untick either box at any time to stop.</p>` +
+        (whatsapp ? offersRowHTML(p, "whatsapp", busy) : "") +
+        `<p class="cw-fine">${whatsapp
+            ? "Optional, and not needed for Carisma Circle. No credit is given for ticking these. Untick either box at any time to stop."
+            : "Optional, and not needed for Carisma Circle. No credit is given for ticking this. Untick it at any time to stop."}</p>` +
         `<p class="cw-circle-prefs__msg${msg ? ` cw-circle-prefs__msg--${msg.tone}` : ""}" role="status" aria-live="polite" data-cw-circle-pref-msg>${msg ? escapeHtml(msg.text) : ""}</p>` +
         `</div>` +
         `</section>`);
 }
-export function circlePrefsSlotHTML(p) {
-    return `<div class="cw-circle-slot" data-cw-circle-slot="prefs">${circlePrefsHTML(p)}</div>`;
+export function circlePrefsSlotHTML(p, opts = {}) {
+    return `<div class="cw-circle-slot" data-cw-circle-slot="prefs">${circlePrefsHTML(p, null, false, opts)}</div>`;
 }
-const NONE = { kind: "none", hero: "", sentence: "", conditions: "", quiet: "" };
+const NONE = { kind: "none", hero: "", sentence: "", conditions: "", quiet: "", paidLine: "" };
 export function creditMoment(input) {
     if (!input || input.hasExcludedLine === true)
         return NONE;
-    if (input.paidWithPoints && input.paidWithPoints.points > 0) {
-        return {
-            kind: "paid",
-            hero: "",
-            sentence: "",
-            conditions: "",
-            quiet: `Paid with points · ${pointsText(input.paidWithPoints.points)} · This treatment earns no points`,
-        };
-    }
+    const paidLine = input.paidWithPoints && input.paidWithPoints.points > 0
+        ? `Paid with points · ${pointsText(input.paidWithPoints.points)} · This treatment earns no points`
+        : "";
     const earned = Math.round(Number(input.earnedCents) || 0);
+    // Only a line paid with points, nothing paid with money: the one quiet line.
+    if (paidLine && earned <= 0)
+        return { kind: "paid", hero: "", sentence: "", conditions: "", quiet: paidLine, paidLine };
     if (earned <= 0)
         return NONE;
     const points = Math.max(0, Math.round(Number(input.earnedPoints) || 0));
     if (input.unpaid) {
         const given = input.pointsPerEuro ?? input.member?.pointsPerEuro ?? 0;
         const ppe = given > 0 ? given : 100 / CENTS_PER_POINT;
-        return { kind: "onTheWay", hero: "", sentence: "", conditions: "", quiet: onTheWayText(earned, points || Math.round((earned * ppe) / 100)) };
+        return {
+            kind: "onTheWay",
+            hero: "",
+            sentence: "",
+            conditions: "",
+            quiet: onTheWayText(earned, points || Math.round((earned * ppe) / 100)),
+            paidLine,
+        };
     }
     const brands = input.member?.brands.length ? input.member.brands : input.brands ?? [];
     if (input.member) {
@@ -631,6 +643,7 @@ export function creditMoment(input) {
             sentence: gainText(earned, brands, input.member.affordable),
             conditions: CONDITIONS_EARNED,
             quiet: "",
+            paidLine,
         };
     }
     return {
@@ -639,6 +652,7 @@ export function creditMoment(input) {
         sentence: gainText(earned, brands, false),
         conditions: CONDITIONS_EARNED,
         quiet: "",
+        paidLine,
     };
 }
 /**

@@ -143,3 +143,21 @@ export const PERKS = {
 
 export const LEFT = { enabled: true, left: true, leftAt: "2026-11-14T10:30:00.000Z", rejoinedAt: null };
 export const MINOR = { enabled: true, minor: true, minAge: 18 };
+
+/**
+ * ADDENDUM X2 / BE-i: `perks.live {spaDays, earlyAccess, noDeposit}`, each default false. BE-1's built answers
+ * (MARIA, SUMMARY, SUMMARY_ASKED, LEVELS, STATUS above) carry NO `live` block: no surface may list a free Spa day,
+ * early access or no deposit from them. These are the same answers once BE-2 switches every perk on.
+ */
+export const LIVE_ALL = { spaDays: true, earlyAccess: true, noDeposit: true };
+export const LEVELS_LIVE = LEVELS.map((l) => ({ ...l, live: LIVE_ALL }));
+export const MARIA_LIVE = {
+  ...MARIA,
+  perks: { ...MARIA.perks, live: LIVE_ALL },
+  nextLevelPerks: { ...MARIA.nextLevelPerks, live: LIVE_ALL },
+};
+export const SUMMARY_ASKED_LIVE = {
+  ...SUMMARY_ASKED,
+  perks: { ...SUMMARY_ASKED.perks, live: LIVE_ALL },
+  nextLevelPerks: { ...SUMMARY_ASKED.nextLevelPerks, live: LIVE_ALL },
+};

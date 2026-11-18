@@ -57,6 +57,8 @@ export const ON_HOLD_TEXT = "Paying with points is on hold while we review your 
 export const PAY_STEP_DISCLOSURE = "If you cancel, the credit this booking gives you is removed. If you've already used it, your balance can go below zero. We never take it from your refund.";
 const MALTA = "Europe/Malta";
 export const M = 'data-clarity-mask="True"';
+/** Nothing switched on: what an answer with no `live` block means (BE-1 today). */
+export const PERKS_NOT_LIVE = Object.freeze({ spaDays: false, earlyAccess: false, noDeposit: false });
 /* ── Reading the wire ──────────────────────────────────────────────────── */
 export function obj(v) {
     return v && typeof v === "object" && !Array.isArray(v) ? v : null;
@@ -76,9 +78,29 @@ function isoOrEmpty(v) {
     const s = str(v);
     return s && Number.isFinite(Date.parse(s)) ? s : "";
 }
-/** True on every site that may show the Circle. Carisma Medical never does. */
+/**
+ * The sites that may show the Circle: Carisma Spa, Carisma Aesthetics and Carisma Slimming ONLY (ADDENDUM KIT-6:
+ * an allow-list, never "anything but Medical"). An unknown site ("" — localhost, an App Runner host), Carisma Hair
+ * Clinic, Pulse and Carisma Medical are all false, so a host must name its brand (`siteBrand`) to show it.
+ */
 export function circleAllowedOn(siteBrand = "") {
-    return !/medical/i.test(siteBrand);
+    const s = String(siteBrand || "")
+        .toLowerCase()
+        .replace(/[^a-z]+/g, " ")
+        .trim();
+    if (!s || /\b(medical|hair|pulse)\b/.test(s))
+        return false;
+    return /^carisma (spa|aesthetics|slimming)\b/.test(s);
+}
+/** The three brands that join (the API's `house`); a brand row is one of them, never Carisma Medical. */
+const CIRCLE_HOUSES = new Set(["spa", "aesthetics", "slimming"]);
+/** A brand row from the API that may be named to a member: a Circle house, else (no house sent) an allowed name. */
+function circleBrandRow(b) {
+    const house = str(b.house);
+    const name = str(b.name);
+    if (/medical/i.test(name) || house === "medical")
+        return false;
+    return house ? CIRCLE_HOUSES.has(house) : circleAllowedOn(name);
 }
 /** A level from the wire, or null (no gem key = a v1 or unknown level: never guessed). */
 export function levelFrom(raw) {
@@ -93,7 +115,24 @@ export function levelFrom(raw) {
     const label = str(o.label).trim() || `Level ${number} · ${name}`;
     return { key, number, name, label };
 }
-function perksFrom(raw) {
+/**
+ * A place's own `live` block (`{spaDays, earlyAccess, noDeposit}`), else its `perks.live` (a `levels[]` step may
+ * nest it), or null when the place sent none. Only a literal `true` switches a perk on.
+ */
+export function perksLiveFrom(raw) {
+    const o = obj(raw);
+    if (!o)
+        return null;
+    const live = obj(o.live) ?? obj(obj(o.perks)?.live);
+    if (!live)
+        return null;
+    return { spaDays: live.spaDays === true, earlyAccess: live.earlyAccess === true, noDeposit: live.noDeposit === true };
+}
+/**
+ * One perk set. `fallbackLive` is her own `/me.perks.live` for a place that sent no `live` block (the switches are
+ * one setting each, so they hold for every level); with no fallback either, nothing is live.
+ */
+function perksFrom(raw, fallbackLive = null) {
     const o = obj(raw);
     if (!o)
         return null;
@@ -103,15 +142,16 @@ function perksFrom(raw) {
         freeSpaDaysPerYear: Math.max(0, int(o.freeSpaDaysPerYear)),
         earlyAccessHours: Math.max(0, int(o.earlyAccessHours)),
         noDeposit: o.noDeposit === true,
+        live: { ...(perksLiveFrom(o) ?? fallbackLive ?? PERKS_NOT_LIVE) },
     };
 }
-function levelRulesFrom(raw) {
+function levelRulesFrom(raw, fallbackLive = null) {
     if (!Array.isArray(raw))
         return [];
     const out = [];
     for (const r of raw) {
         const l = levelFrom(r);
-        const p = perksFrom(r);
+        const p = perksFrom(r, fallbackLive);
         const o = obj(r);
         if (!l || !p || !o)
             continue;
@@ -126,7 +166,7 @@ export function brandsFrom(raw) {
     return raw
         .map(obj)
         .filter((b) => Boolean(b && str(b.name)))
-        .filter((b) => str(b.house) !== "medical" && circleAllowedOn(str(b.name)))
+        .filter(circleBrandRow)
         .map((b) => ({ house: str(b.house), brandId: str(b.brandId), name: str(b.name) }));
 }
 function nextLevelFrom(raw, current) {
@@ -229,6 +269,8 @@ export function readCircle(body) {
     const kind = str(o.pointsExpireKind);
     const exp = obj(o.expiring);
     const minAge = int(o.minAge);
+    /* BE-i: her own `/me.perks.live` holds for every level that sent no `live` block of its own. */
+    const ownLive = perksLiveFrom(o.perks);
     return {
         points,
         creditCents,
@@ -242,9 +284,9 @@ export function readCircle(body) {
         spendThisYearCents: Math.max(0, int(o.spendThisYearCents)),
         toNextLevelCents: nextLevel ? Math.max(0, int(o.toNextLevelCents)) : 0,
         heldUntil: str(obj(o.level)?.heldUntil),
-        levels: levelRulesFrom(o.levels),
+        levels: levelRulesFrom(o.levels, ownLive),
         perks: perksFrom(o.perks),
-        nextLevelPerks: nextLevel ? perksFrom(o.nextLevelPerks) : null,
+        nextLevelPerks: nextLevel ? perksFrom(o.nextLevelPerks, ownLive) : null,
         brands,
         minAge: minAge > 0 ? minAge : null,
         brandBonusMinCents: Math.max(0, int(o.brandBonusMinCents)),
@@ -329,7 +371,7 @@ export function readCircleSummary(body) {
         heldUntil: str(o.heldUntil) || str(obj(o.level)?.heldUntil),
         spendThisYearCents: typeof o.spendThisYearCents === "number" && o.spendThisYearCents >= 0 ? Math.round(o.spendThisYearCents) : null,
         perks: perksFrom(o.perks),
-        nextLevelPerks: nextLevel ? perksFrom(o.nextLevelPerks) : null,
+        nextLevelPerks: nextLevel ? perksFrom(o.nextLevelPerks, perksLiveFrom(o.perks)) : null,
     };
 }
 export function readCircleSummaryState(body) {

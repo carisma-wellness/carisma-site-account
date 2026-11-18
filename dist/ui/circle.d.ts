@@ -30,6 +30,11 @@ export interface CircleExtras {
     photo?: CircleRewardPhoto;
     /** The API's first-level label ("Level 1 · Pearl") for the rejoin sentence; "" = "the first level". */
     firstLevelLabel?: string;
+    /**
+     * ADDENDUM KIT-6: the WhatsApp row of "Offers and reminders" (default true). Carisma Slimming passes false: its
+     * WhatsApp number is locked by Meta, so its Credit & rewards page carries no WhatsApp switch.
+     */
+    whatsappPref?: boolean;
 }
 /**
  * The header chip for a signed-in member: the flat mark and the balance in
@@ -160,6 +165,7 @@ export declare function circleLeftViewHTML(input: {
     left: CircleLeftModel;
     prefs?: CirclePrefs | null;
     firstLevelLabel?: string;
+    whatsappPref?: boolean;
 } | null): string;
 /** R5.4: the Credit & rewards page under the minimum age: one line. */
 export declare function circleMinorViewHTML(minor: {
@@ -203,11 +209,19 @@ export declare function offersState(p: CirclePrefs, channel: OffersChannel): {
 };
 export declare function offersErrorText(code: string): string;
 export declare function offersSavedText(p: CirclePrefs, channel: OffersChannel): string;
+/**
+ * "Offers and reminders". `opts.whatsapp: false` (ADDENDUM KIT-6, `circleWhatsappPref`) leaves the WhatsApp box out
+ * (the Slimming WhatsApp number is locked by Meta); the default draws both boxes, as before.
+ */
 export declare function circlePrefsHTML(p: CirclePrefs | null, msg?: {
     text: string;
     tone: "ok" | "bad";
-} | null, busy?: boolean): string;
-export declare function circlePrefsSlotHTML(p: CirclePrefs | null): string;
+} | null, busy?: boolean, opts?: {
+    whatsapp?: boolean;
+}): string;
+export declare function circlePrefsSlotHTML(p: CirclePrefs | null, opts?: {
+    whatsapp?: boolean;
+}): string;
 export interface CreditMomentInput {
     /** What THIS bill gives, in cents and points (the server's figures). */
     earnedCents: number;
@@ -243,6 +257,12 @@ export interface CreditMoment {
     sentence: string;
     conditions: string;
     quiet: string;
+    /**
+     * "Paid with points · 2,180 points · This treatment earns no points" when a line of this bill was paid with
+     * points, else "". On a bill with money lines too, the moment stays the earned one (what the paid lines gave)
+     * and this line is drawn beside it for the points line.
+     */
+    paidLine: string;
 }
 export declare function creditMoment(input: CreditMomentInput | null | undefined): CreditMoment;
 /**

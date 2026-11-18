@@ -10,7 +10,7 @@
  */
 import { escapeHtml } from "./html.js";
 import { unwrapEnvelope } from "./appointments.js";
-import { M, int, maltaWhen, obj, str } from "./circleCore.js";
+import { M, int, maltaWhen, obj, str, type CirclePerksLive } from "./circleCore.js";
 
 export interface CirclePerkUpcoming {
   kind: string;
@@ -74,11 +74,21 @@ export function spaDaysText(p: CirclePerks): string {
   return `${n} free Spa day${n === 1 ? "" : "s"} this year · ${p.spaDays.left} left`;
 }
 
-/** The perks block. "" when nothing in the read is worth a line. `spaDayHref` = where "Book it" goes. */
-export function circlePerksHTML(p: CirclePerks | null, opts: { spaDayHref?: string | null } = {}): string {
+/**
+ * The perks block. "" when nothing in the read is worth a line. `spaDayHref` = where "Book it" goes.
+ *
+ * `live` is her own `/me.perks.live` (ADDENDUM X2 / BE-i): a row is drawn only while ITS perk is switched on —
+ * the Spa days with `spaDays`, the early-access line with `earlyAccess` (and something upcoming, R5.7), no deposit
+ * with `noDeposit`. Without `live` nothing is switched on, so nothing is drawn: the terms do not promise them yet.
+ */
+export function circlePerksHTML(
+  p: CirclePerks | null,
+  opts: { spaDayHref?: string | null; live?: Partial<CirclePerksLive> | null } = {},
+): string {
   if (!p) return "";
+  const live = opts.live ?? null;
   const rows: string[] = [];
-  const spa = spaDaysText(p);
+  const spa = live?.spaDays === true ? spaDaysText(p) : "";
   if (spa) {
     rows.push(
       `<li class="cc-perk"><span ${M}>${escapeHtml(spa)}</span>` +
@@ -88,7 +98,7 @@ export function circlePerksHTML(p: CirclePerks | null, opts: { spaDayHref?: stri
         `</li>`,
     );
   }
-  if (p.earlyAccess.hours > 0 && p.earlyAccess.upcoming.length) {
+  if (live?.earlyAccess === true && p.earlyAccess.hours > 0 && p.earlyAccess.upcoming.length) {
     const items = p.earlyAccess.upcoming
       .map((u) => {
         const when = maltaWhen(u.opensAtForYou);
@@ -100,7 +110,7 @@ export function circlePerksHTML(p: CirclePerks | null, opts: { spaDayHref?: stri
         `<ul class="cc-perk__soon">${items}</ul></li>`,
     );
   }
-  if (p.noDeposit.active) rows.push(`<li class="cc-perk"><span>No deposit when you book by phone or at the desk</span></li>`);
+  if (live?.noDeposit === true && p.noDeposit.active) rows.push(`<li class="cc-perk"><span>No deposit when you book by phone or at the desk</span></li>`);
   if (!rows.length) return "";
   return (
     `<section class="cw-section cw-rise cc-perks" aria-labelledby="cw-circle-perks-title" data-cw-circle="perks">` +

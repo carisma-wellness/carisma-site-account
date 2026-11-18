@@ -1,10 +1,25 @@
 import type { ResolvedConfig } from "./config.js";
 import type { SessionPlaintext } from "../seal/index.js";
-import { unseal } from "../seal/index.js";
+import { seal, unseal } from "../seal/index.js";
 import { COOKIES, parseCookies } from "./cookies.js";
 import { isAllowed, normalizePath } from "./allowlist.js";
-import { originAllowed, json } from "./http.js";
+import { originAllowed, json, jsonClearing, appendSetSession, shouldClearSession } from "./http.js";
 import { visitorIp as edgeVisitorIp } from "./pkce.js";
+import type { RefreshResult } from "./refresh.js";
+
+/**
+ * Circle v2 (the WEB review's token finding): the doors that may be the FIRST signed-in call of a page that never
+ * reads /api/auth/session — the pay step's points row (/me, previews, redeem, release) and the points booking on
+ * the guest door. Access tokens last 15 minutes; a member who opened /book/checkout 20 minutes after her last
+ * session read would otherwise send an expired bearer: no points row, a "Sign in to pay with points" while
+ * signed in, and a release that cannot hand her points back. On these doors the proxy renews a token that is
+ * within 60 s of expiry first (the session route's single-flight refresher and the same rules: a dead refresh
+ * token signs out, a transient failure keeps the old token and clears nothing) and reseals the cookie on its
+ * answer. Every other door is forwarded exactly as before.
+ */
+function refreshesFirst(method: string, sub: string): boolean {
+  return sub.startsWith("/client/loyalty/") || BOOKING_DOORS.has(`${method} ${sub}`);
+}
 
 /**
  * The member's consent doors: "Offers and reminders" (Carisma Circle W3,
@@ -36,7 +51,7 @@ const IP_SHAPE = /^[0-9a-fA-F:.]{3,45}$/;
  * the brand origin; the response carries the upstream status and body verbatim with
  * only content-type forwarded.
  */
-export function makeProxy(cfg: ResolvedConfig) {
+export function makeProxy(cfg: ResolvedConfig, refresh?: (sid: string, rt: string) => Promise<RefreshResult>) {
   return async function proxy(req: Request): Promise<Response> {
     const url = new URL(req.url);
     let sub = url.pathname;
@@ -62,8 +77,25 @@ export function makeProxy(cfg: ResolvedConfig) {
       return json({ signedIn: false }, 401);
     }
 
+    let at = sess.at;
+    let resealed: string | null = null;
+    if (refresh && refreshesFirst(method, sub) && typeof sess.atExp === "number" && sess.atExp - cfg.now() / 1000 < 60) {
+      const r = await refresh(sess.sid, sess.rt);
+      // The refresh token is dead: signed out, exactly as the session route answers it (cookie and hints cleared).
+      if (shouldClearSession(r.status)) return jsonClearing({ signedIn: false }, cfg, 401);
+      if (r.status === 200 && r.tokens) {
+        at = r.tokens.accessToken;
+        resealed = seal(
+          { ...sess, at, atExp: r.tokens.atExp, rt: r.tokens.refreshToken ?? sess.rt },
+          cfg.sessionSecret,
+          cfg.rpId,
+        );
+      }
+      // Transient (0 / 5xx): the old token goes; nothing is cleared (W-9: a failure never signs out).
+    }
+
     const reqBody = method === "GET" || method === "HEAD" ? undefined : await req.text();
-    const headers: Record<string, string> = { authorization: `Bearer ${sess.at}` };
+    const headers: Record<string, string> = { authorization: `Bearer ${at}` };
     if (reqBody != null && reqBody.length > 0) headers["content-type"] = "application/json";
     // A consent write records its proof (wording, time, user agent) at the
     // backend: send the member's own browser, not this server's fetch client.
@@ -96,14 +128,19 @@ export function makeProxy(cfg: ResolvedConfig) {
         body: reqBody,
       });
     } catch {
-      return json({ error: "upstream_unreachable" }, 502);
+      if (!resealed) return json({ error: "upstream_unreachable" }, 502);
+      // A renewed token is kept even when the API did not answer: the old refresh token may already be rotated.
+      const h = new Headers({ "content-type": "application/json", "cache-control": "private, no-store" });
+      appendSetSession(h, cfg, resealed, sess.initials, Boolean(sess.keep));
+      return new Response(JSON.stringify({ error: "upstream_unreachable" }), { status: 502, headers: h });
     }
 
     const text = await upstreamRes.text();
     const outHeaders = new Headers({ "cache-control": "private, no-store" });
     const ct = upstreamRes.headers.get("content-type");
     if (ct) outHeaders.set("content-type", ct);
-    // W-8: never replay an upstream Set-Cookie onto the brand origin.
+    // W-8: never replay an upstream Set-Cookie onto the brand origin. Our OWN reseal (a renewed token) rides along.
+    if (resealed) appendSetSession(outHeaders, cfg, resealed, sess.initials, Boolean(sess.keep));
     return new Response(text, { status: upstreamRes.status, headers: outHeaders });
   };
 }

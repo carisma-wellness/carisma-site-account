@@ -1,4 +1,5 @@
 import type { ResolvedConfig } from "./config.js";
+import type { RefreshResult } from "./refresh.js";
 /**
  * POST|GET|PATCH|DELETE /api/auth/proxy/[...path]
  *
@@ -9,5 +10,5 @@ import type { ResolvedConfig } from "./config.js";
  * the brand origin; the response carries the upstream status and body verbatim with
  * only content-type forwarded.
  */
-export declare function makeProxy(cfg: ResolvedConfig): (req: Request) => Promise<Response>;
+export declare function makeProxy(cfg: ResolvedConfig, refresh?: (sid: string, rt: string) => Promise<RefreshResult>): (req: Request) => Promise<Response>;
 //# sourceMappingURL=proxy.d.ts.map

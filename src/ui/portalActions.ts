@@ -11,6 +11,7 @@
  * question — never a bare "Are you sure?", and never our guess at the fee.
  */
 import type { BookingActions } from "./bookingDetail.js";
+import type { PointsCancelLine } from "./circlePointsCancel.js";
 
 const PROXY = "/api/auth/proxy";
 
@@ -298,6 +299,11 @@ export const circleLeaveCall = (): ProxyCall => ({ path: `${PROXY}/client/loyalt
 export const circleRejoinCall = (): ProxyCall => ({ path: `${PROXY}/client/loyalty/rejoin`, method: "POST", body: {} });
 /** Circle v2: the Instagram follow award, fired on the tap that opens the brand's profile (BE-1 §9.7). */
 export const circleInstagramCall = (brandId: string): ProxyCall => ({ path: `${PROXY}/client/loyalty/actions/instagram`, method: "POST", body: { brandId } });
+/** Circle v2: the points (or free Spa day) that paid these bookings and the server's cancel verdict (BE-2 §6). */
+export const circlePointsBookingsCall = (appointmentIds: readonly string[]): ProxyCall => ({
+  path: `${PROXY}/client/loyalty/points-bookings?appointmentIds=${appointmentIds.map((id) => encodeURIComponent(id)).join(",")}`,
+  method: "GET",
+});
 /**
  * One "Offers and reminders" box = all three brands: `brandId` is left out on
  * purpose (B3b: omitted = Carisma Spa, Aesthetics and Slimming together).
@@ -452,7 +458,61 @@ export interface CancelSummary {
  * true we never read the preview (the server has already said so), and when
  * the preview could not be read we say so instead of implying it is free.
  */
-export function cancelSummary(preview: CancellationPreview | null, free: boolean, fallbackPolicy = ""): CancelSummary {
+export function cancelSummary(
+  preview: CancellationPreview | null,
+  free: boolean,
+  fallbackPolicy = "",
+  points?: PointsCancelLine | null,
+): CancelSummary {
+  const money = moneyCancelSummary(preview, free, fallbackPolicy);
+  return points ? withPointsLine(money, points) : money;
+}
+
+/**
+ * Carisma Circle v2: the points (or free Spa day) that paid this booking, on the sheet. Points that come back are
+ * said beside the money summary; points that are lost — or a verdict we do not have — never sit under a "Free to
+ * cancel" headline. A money fee keeps its own headline, figure and `acceptFee` (the points need no consent flag:
+ * the server applies its own verdict).
+ */
+function withPointsLine(s: CancelSummary, p: PointsCancelLine): CancelSummary {
+  const freeHead = s.headline === "Free to cancel";
+  const moneyLines = s.lines.filter((l) => l !== NOTHING_TO_PAY);
+  if (p.back === true) {
+    return { ...s, lines: [...p.lines, ...s.lines] };
+  }
+  if (p.back === false) {
+    if (!freeHead && s.headline) return { ...s, lines: [...s.lines, ...p.lines] };
+    return {
+      ...s,
+      headline: "Points lost if you cancel now",
+      amount: p.lostPoints !== null ? pointsCountText(p.lostPoints) : null,
+      tone: "warn",
+      lines: [...p.lines, ...moneyLines],
+    };
+  }
+  // Not known: say so, and never "Free to cancel".
+  return {
+    ...s,
+    headline: freeHead ? null : s.headline,
+    amount: freeHead ? null : s.amount,
+    tone: freeHead ? "neutral" : s.tone,
+    lines: [...s.lines, p.failed ? POINTS_NOT_READ : POINTS_NOT_CHECKED],
+  };
+}
+
+/** "There's nothing to pay." — about money only. */
+const NOTHING_TO_PAY = "There's nothing to pay.";
+/** A points booking whose verdict the server did not send. */
+export const POINTS_NOT_CHECKED = "We couldn't check what happens to the points on this booking just now.";
+/** Circle is live, but the points read gave no answer (we do not know whether points paid this booking). */
+export const POINTS_NOT_READ = "We couldn't check your Carisma credit just now, so we can't say whether cancelling affects it.";
+
+function pointsCountText(n: number): string {
+  const v = Math.max(0, Math.round(n));
+  return `${v.toLocaleString("en-GB")} point${v === 1 ? "" : "s"}`;
+}
+
+function moneyCancelSummary(preview: CancellationPreview | null, free: boolean, fallbackPolicy = ""): CancelSummary {
   const policyText = (preview && preview.policyText) || fallbackPolicy || "";
   if (free && !preview) {
     return {

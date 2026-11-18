@@ -49,6 +49,9 @@ export {
   PAY_STEP_DISCLOSURE,
   CONDITIONS_EARNED,
   circleAllowedOn,
+  // ADDENDUM X2 / BE-i: which level perks are switched on.
+  PERKS_NOT_LIVE,
+  perksLiveFrom,
   readCircle,
   readCircleState,
   readCircleLeft,
@@ -180,6 +183,7 @@ export type {
   CircleLevelView,
   CircleLevelRule,
   CirclePerkSet,
+  CirclePerksLive,
   CircleBrand,
   CircleAction,
   CircleMember,
@@ -367,7 +371,13 @@ export {
   walletPassCall,
   readWalletAvailability,
   circleWalletCardCall,
+  circlePointsBookingsCall,
+  POINTS_NOT_CHECKED,
+  POINTS_NOT_READ,
 } from "./portalActions.js";
+// Circle v2: what cancelling does to the points (or free Spa day) that paid a booking (BE-2 points-bookings).
+export { readPointsBookings, pointsCancelLine, POINTS_CANCEL_UNKNOWN, POINTS_CANCEL_NOT_READ } from "./circlePointsCancel.js";
+export type { CirclePointsBooking, PointsCancelLine } from "./circlePointsCancel.js";
 export type { ProxyCall, CancellationPreview, PortalActionName, CancelSummary } from "./portalActions.js";
 
 export { extractAppointmentList, formatWhen, isMedicalAppointment } from "./appointments.js";
@@ -388,6 +398,9 @@ export {
   loadAccountMarkPhoto,
   accountMarkPhotoUrl,
   paymentReturnNote,
+  // ADDENDUM KIT-6: the clinic host options' two readers.
+  circleOnFor,
+  circlePlacesOf,
 } from "./browser.js";
 export type { HydrateOptions, FetchLike, StorageLike } from "./browser.js";
 

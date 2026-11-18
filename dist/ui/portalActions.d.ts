@@ -11,6 +11,7 @@
  * question — never a bare "Are you sure?", and never our guess at the fee.
  */
 import type { BookingActions } from "./bookingDetail.js";
+import type { PointsCancelLine } from "./circlePointsCancel.js";
 export type PortalActionName = "confirm" | "cancel" | "reschedule" | "pay" | "rebook" | "membership-pause" | "membership-resume";
 export interface ProxyCall {
     path: string;
@@ -130,6 +131,8 @@ export declare const circleLeaveCall: () => ProxyCall;
 export declare const circleRejoinCall: () => ProxyCall;
 /** Circle v2: the Instagram follow award, fired on the tap that opens the brand's profile (BE-1 §9.7). */
 export declare const circleInstagramCall: (brandId: string) => ProxyCall;
+/** Circle v2: the points (or free Spa day) that paid these bookings and the server's cancel verdict (BE-2 §6). */
+export declare const circlePointsBookingsCall: (appointmentIds: readonly string[]) => ProxyCall;
 /**
  * One "Offers and reminders" box = all three brands: `brandId` is left out on
  * purpose (B3b: omitted = Carisma Spa, Aesthetics and Slimming together).
@@ -204,7 +207,11 @@ export interface CancelSummary {
  * true we never read the preview (the server has already said so), and when
  * the preview could not be read we say so instead of implying it is free.
  */
-export declare function cancelSummary(preview: CancellationPreview | null, free: boolean, fallbackPolicy?: string): CancelSummary;
+export declare function cancelSummary(preview: CancellationPreview | null, free: boolean, fallbackPolicy?: string, points?: PointsCancelLine | null): CancelSummary;
+/** A points booking whose verdict the server did not send. */
+export declare const POINTS_NOT_CHECKED = "We couldn't check what happens to the points on this booking just now.";
+/** Circle is live, but the points read gave no answer (we do not know whether points paid this booking). */
+export declare const POINTS_NOT_READ = "We couldn't check your Carisma credit just now, so we can't say whether cancelling affects it.";
 export declare const walletAvailabilityCall: () => ProxyCall;
 /** Answers `{ url }` — a signed pass download (Apple) or a save link (Google). */
 export declare const walletPassCall: (id: string, which: "apple" | "google") => ProxyCall;

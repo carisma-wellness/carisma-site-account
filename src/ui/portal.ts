@@ -320,6 +320,10 @@ export interface PortalModel extends PanelModel {
    * answers enabled:true. Off (the default) draws nothing at all.
    */
   circleRail: boolean;
+  /** ADDENDUM KIT-6 `circlePlaces.overview` (default true): Overview's Circle slot. */
+  circleOverview?: boolean;
+  /** ADDENDUM KIT-6 `circlePlaces.rewards` (default true): Credit & rewards on the rail. */
+  circleRewardsRail?: boolean;
 }
 
 /** `/account/bookings/<id>` — the local detail page, when the row has an id. */
@@ -353,6 +357,10 @@ export interface PortalExtra {
   now?: Date;
   referRail?: boolean;
   circleRail?: boolean;
+  /** ADDENDUM KIT-6: the Overview place (default true). */
+  circleOverview?: boolean;
+  /** ADDENDUM KIT-6: the Credit & rewards place (default true). */
+  circleRewardsRail?: boolean;
 }
 
 export function buildPortalModel(session: unknown, view: PortalView, extra: PortalExtra = {}): PortalModel {
@@ -393,6 +401,8 @@ export function buildPortalModel(session: unknown, view: PortalView, extra: Port
     now: extra.now ?? new Date(),
     referRail: extra.referRail === true,
     circleRail: extra.circleRail === true && circleAllowedOn(siteBrand),
+    circleOverview: extra.circleOverview !== false,
+    circleRewardsRail: extra.circleRewardsRail !== false,
   };
 }
 
@@ -771,8 +781,13 @@ function walletStripHTML(w: WalletModel | null): string {
  * that browser.ts fills only when the member read says enabled:true. Absent
  * altogether unless the site opted in.
  */
-export function circleSlotHTML(m: { circleRail: boolean }, where: "home" | "wallet" | "details"): string {
-  return m.circleRail ? `<div class="cw-circle-slot" data-cw-circle-slot="${where}" hidden></div>` : "";
+export function circleSlotHTML(
+  m: { circleRail: boolean; circleOverview?: boolean },
+  where: "home" | "wallet" | "details",
+): string {
+  // KIT-6: Overview's block and the Wallet line are the Overview place; Details (her own settings) is always there.
+  const place = where === "details" ? true : m.circleOverview !== false;
+  return m.circleRail && place ? `<div class="cw-circle-slot" data-cw-circle-slot="${where}" hidden></div>` : "";
 }
 
 export function overviewBodyHTML(m: PortalModel): string {
@@ -894,6 +909,6 @@ export function accountPortalHTML(model: PortalModel): string {
     memberName: model.firstName || model.name || "Your account",
     siteBrand: model.siteBrand,
     referRail: model.referRail,
-    circleRail: model.circleRail,
+    circleRail: model.circleRail && model.circleRewardsRail !== false,
   });
 }

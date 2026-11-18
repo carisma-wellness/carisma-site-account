@@ -42,7 +42,7 @@ import {
   circleViewHTML,
   bodyFor,
 } from "../dist/index.js";
-import { MARIA, SUMMARY, SUMMARY_ASKED, STATUS, PERKS, REWARDS, LEVELS, SPA_ONLY, THREE_BRANDS, LEFT, MINOR } from "./fixtures/circle-v2.mjs";
+import { MARIA, MARIA_LIVE, LIVE_ALL, LEVELS_LIVE, SUMMARY, SUMMARY_ASKED, STATUS, PERKS, REWARDS, LEVELS, SPA_ONLY, THREE_BRANDS, LEFT, MINOR } from "./fixtures/circle-v2.mjs";
 
 /**
  * Circle v2 (carisma-circle-v2-20261117): the kit reads the BE-1 / BE-2 answers
@@ -162,9 +162,15 @@ test("the level track: her stone, the bar, the next stone; the caption; what the
   // BE-1's built summary sends no threshold: the caption is NOT invented (the menu fills it from /me).
   assert.equal(paidLineText(readCircleSummary(SUMMARY)), "", "no threshold on BE-1's summary → no caption, never €0 of €0");
   assert.equal(paidLineText(readCircleSummary(SUMMARY_ASKED)), "€710 of €1,000 paid this year", "once BE-1 sends it");
+  // BE-1's real /me: perk VALUES from Ruby up, no `live` block → no perk is listed (ADDENDUM X2 / BE-i).
   const unlocks = unlocksList(ownPerksOf(m), nextPerksOf(m), m.pointsPerEuro);
-  assert.deepEqual(unlocks, ["8.75% back in Carisma credit, up from 7.5%", "A second free Spa day every year", "€35.00 birthday credit, up from €20.00"]);
-  assert.equal(unlockLineText(m.nextLevel.label, unlocks), "Level 4 · Sapphire unlocks 8.75% back and a second free Spa day every year");
+  assert.deepEqual(unlocks, ["8.75% back in Carisma credit, up from 7.5%", "€35.00 birthday credit, up from €20.00"]);
+  assert.equal(unlockLineText(m.nextLevel.label, unlocks), "Level 4 · Sapphire unlocks 8.75% back and €35.00 birthday credit");
+  // Once BE-2 marks the Spa days live, the second free Spa day is listed.
+  const ml = readCircle(MARIA_LIVE);
+  const liveUnlocks = unlocksList(ownPerksOf(ml), nextPerksOf(ml), ml.pointsPerEuro);
+  assert.deepEqual(liveUnlocks, ["8.75% back in Carisma credit, up from 7.5%", "A second free Spa day every year", "€35.00 birthday credit, up from €20.00"]);
+  assert.equal(unlockLineText(ml.nextLevel.label, liveUnlocks), "Level 4 · Sapphire unlocks 8.75% back and a second free Spa day every year");
   const html = circleTrackHTML(m, { unlocks });
   assert.match(html, /data-gem="ruby" data-p="0\.420"[\s\S]*cc-bar[\s\S]*aria-valuenow="42"[\s\S]*data-gem="sapphire" data-p="0\.000"/);
   assert.match(html, /<span>€710 of €1,000 paid this year<\/span><span>Level 4 · Sapphire<\/span>/);
@@ -178,10 +184,16 @@ test("the level track: her stone, the bar, the next stone; the caption; what the
   // From the levels table when nextLevelPerks is absent; from her level's row when perks is absent.
   const noPerks = readCircle({ ...MARIA, perks: undefined, nextLevelPerks: undefined });
   assert.deepEqual(unlocksList(ownPerksOf(noPerks), nextPerksOf(noPerks), 20), unlocks);
+  // The table's own `live` (a levels[] step) counts too; so does `step.perks.live`.
+  const tableLive = readCircle({ ...MARIA, perks: undefined, nextLevelPerks: undefined, levels: LEVELS_LIVE });
+  assert.deepEqual(unlocksList(ownPerksOf(tableLive), nextPerksOf(tableLive), 20), liveUnlocks);
+  const nested = readCircle({ ...MARIA, perks: undefined, nextLevelPerks: undefined, levels: LEVELS.map((l) => ({ ...l, perks: { live: LIVE_ALL } })) });
+  assert.deepEqual(unlocksList(ownPerksOf(nested), nextPerksOf(nested), 20), liveUnlocks);
   // Early access is left out of both lists until the CEO and the advocate word it (RECONCILED Q5, R5.7).
-  assert.deepEqual(benefitsList(ownPerksOf(m), 20), ["7.5% back in Carisma credit", "€20.00 birthday credit", "A free Spa day every year", "No deposit when you book by phone or at the desk"]);
+  assert.deepEqual(benefitsList(ownPerksOf(m), 20), ["7.5% back in Carisma credit", "€20.00 birthday credit"], "not live: rate + birthday only");
+  assert.deepEqual(benefitsList(ownPerksOf(ml), 20), ["7.5% back in Carisma credit", "€20.00 birthday credit", "A free Spa day every year", "No deposit when you book by phone or at the desk"]);
   assert.deepEqual(
-    unlocksList({ ...ownPerksOf(m), earlyAccessHours: 0 }, { ...nextPerksOf(m), earlyAccessHours: 72 }, 20).filter((u) => /early|hours/i.test(u)),
+    unlocksList({ ...ownPerksOf(ml), earlyAccessHours: 0 }, { ...nextPerksOf(ml), earlyAccessHours: 72 }, 20).filter((u) => /early|hours/i.test(u)),
     [],
     "a bigger early-access window never reaches the unlock list",
   );
@@ -205,14 +217,21 @@ test("the ladder: all five levels from the API's table, hers marked, every stone
 
 test("perks: Spa days and no deposit from the read; early access ONLY with something upcoming (R5.7)", () => {
   const p = readCirclePerks(PERKS);
-  const html = circlePerksHTML(p, { spaDayHref: "/spa-day" });
+  // ADDENDUM X2 / BE-i: nothing switched on (her /me sent no live block) → no perk row at all.
+  assert.equal(circlePerksHTML(p, { spaDayHref: "/spa-day" }), "", "not live → nothing");
+  assert.equal(circlePerksHTML(p, { spaDayHref: "/spa-day", live: { spaDays: false, earlyAccess: false, noDeposit: false } }), "");
+  const html = circlePerksHTML(p, { spaDayHref: "/spa-day", live: LIVE_ALL });
   assert.match(html, /1 free Spa day this year · 1 left/);
   assert.match(html, /href="\/spa-day">Book it/);
   assert.match(html, /No deposit when you book by phone or at the desk/);
   assert.doesNotMatch(html, /hours before everyone/, "no upcoming item → no early-access line");
   const soon = readCirclePerks({ ...PERKS, earlyAccess: { hours: 48, upcoming: [{ kind: "coupon", id: "c1", name: "Black Friday at Carisma Spa", brand: { slug: "carisma-spa" }, opensAt: "2026-11-27T08:00:00Z", opensAtForYou: "2026-11-25T08:00:00Z" }] } });
-  assert.match(circlePerksHTML(soon), /You see sales 48 hours before everyone[\s\S]*Black Friday at Carisma Spa · opens for you Wed 25 Nov, 09:00/);
-  assert.equal(circlePerksHTML(readCirclePerks({ ...PERKS, spaDays: { entitlement: 0 }, noDeposit: { active: false } })), "", "nothing worth a line → nothing");
+  assert.match(circlePerksHTML(soon, { live: LIVE_ALL }), /You see sales 48 hours before everyone[\s\S]*Black Friday at Carisma Spa · opens for you Wed 25 Nov, 09:00/);
+  // One switch at a time: only the Spa days live → the Spa day row alone.
+  const onlySpa = circlePerksHTML(soon, { spaDayHref: "/spa-day", live: { spaDays: true } });
+  assert.match(onlySpa, /1 free Spa day this year/);
+  assert.doesNotMatch(onlySpa, /hours before everyone|No deposit/);
+  assert.equal(circlePerksHTML(readCirclePerks({ ...PERKS, spaDays: { entitlement: 0 }, noDeposit: { active: false } }), { live: LIVE_ALL }), "", "nothing worth a line → nothing");
   assert.equal(circlePerksHTML(null), "");
 });
 

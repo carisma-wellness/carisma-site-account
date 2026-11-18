@@ -117,6 +117,8 @@ export interface RecordsContext {
   spaDayHref?: string | null;
   /** Circle v2 (ADDENDUM X3/KIT-3): the site's own photo for a featured service. */
   circlePhoto?: (item: import("./circleFeatured.js").CircleReward) => { src: string; alt?: string } | null | undefined;
+  /** ADDENDUM KIT-6: the WhatsApp box of "Offers and reminders" on Credit & rewards (default true). */
+  circleWhatsappPref?: boolean;
 }
 
 const CIRCLE_WALLET_SLOT = `<div class="cw-circle-slot" data-cw-circle-slot="wallet" hidden></div>`;

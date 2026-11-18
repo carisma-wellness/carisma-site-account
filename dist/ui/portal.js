@@ -252,6 +252,8 @@ export function buildPortalModel(session, view, extra = {}) {
         now: extra.now ?? new Date(),
         referRail: extra.referRail === true,
         circleRail: extra.circleRail === true && circleAllowedOn(siteBrand),
+        circleOverview: extra.circleOverview !== false,
+        circleRewardsRail: extra.circleRewardsRail !== false,
     };
 }
 /* ── Navigation ────────────────────────────────────────────────────────── */
@@ -539,7 +541,9 @@ function walletStripHTML(w) {
  * altogether unless the site opted in.
  */
 export function circleSlotHTML(m, where) {
-    return m.circleRail ? `<div class="cw-circle-slot" data-cw-circle-slot="${where}" hidden></div>` : "";
+    // KIT-6: Overview's block and the Wallet line are the Overview place; Details (her own settings) is always there.
+    const place = where === "details" ? true : m.circleOverview !== false;
+    return m.circleRail && place ? `<div class="cw-circle-slot" data-cw-circle-slot="${where}" hidden></div>` : "";
 }
 export function overviewBodyHTML(m) {
     if (m.upcomingState === "failed") {
@@ -641,7 +645,7 @@ export function accountPortalHTML(model) {
         memberName: model.firstName || model.name || "Your account",
         siteBrand: model.siteBrand,
         referRail: model.referRail,
-        circleRail: model.circleRail,
+        circleRail: model.circleRail && model.circleRewardsRail !== false,
     });
 }
 //# sourceMappingURL=portal.js.map

@@ -113,8 +113,12 @@ const M = 'data-clarity-mask="True"';
  * Render the settled panel. Every personal string carries the recorder mask.
  * `circle` = what the menu's Circle block may add once the member read and the
  * featured read answer (the unlock line, the "Yours now" row, posters).
+ * `places` (ADDENDUM KIT-6, each default true): `menu: false` leaves the Circle
+ * Card out of the menu, `rewards: false` the "Credit & rewards" link.
  */
-export function accountPanelHTML(model, circle = {}) {
+export function accountPanelHTML(model, circle = {}, places = {}) {
+    const menu = places.menu !== false;
+    const rewards = places.rewards !== false;
     const header = `<header class="carisma-panel__header">` +
         `<span class="carisma-panel__initials" ${M} aria-hidden="true">${escapeHtml(model.initials)}</span>` +
         `<span class="carisma-panel__name" ${M}>${escapeHtml(model.name || "Your account")}</span>` +
@@ -136,7 +140,7 @@ export function accountPanelHTML(model, circle = {}) {
     const links = `<nav class="carisma-panel__links">` +
         `<a href="${escapeHtml(model.hub.home)}">My account</a>` +
         `<a href="${escapeHtml(model.hub.appointments)}">My bookings</a>` +
-        (model.circle || model.circleLeft ? `<a href="${CIRCLE_HREF}">Credit &amp; rewards</a>` : "") +
+        (rewards && (model.circle || model.circleLeft) ? `<a href="${CIRCLE_HREF}">Credit &amp; rewards</a>` : "") +
         `<a href="${escapeHtml(model.hub.details)}">My details</a>` +
         `</nav>`;
     const footer = `<footer class="carisma-panel__footer">` +
@@ -144,7 +148,7 @@ export function accountPanelHTML(model, circle = {}) {
         `<button type="button" data-carisma-signout-all>Sign out of every Carisma site</button>` +
         `</footer>`;
     return (`<section class="carisma-panel" role="dialog" aria-modal="true" aria-label="Your account" data-cw-qc="${PANEL_QC}">` +
-        `${header}${panelCircleSlotHTML(model, circle)}<div class="carisma-panel__visits">${rows}</div>${links}${footer}</section>`);
+        `${header}${menu ? panelCircleSlotHTML(model, circle) : ""}<div class="carisma-panel__visits">${rows}</div>${links}${footer}</section>`);
 }
 /** The menu's Circle block in its own slot, so browser.ts can redraw it when the extra reads answer. "" when off. */
 export function panelCircleSlotHTML(model, circle = {}) {

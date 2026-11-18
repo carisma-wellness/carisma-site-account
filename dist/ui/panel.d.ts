@@ -46,8 +46,13 @@ export declare function buildPanelModel(session: unknown): PanelModel;
  * Render the settled panel. Every personal string carries the recorder mask.
  * `circle` = what the menu's Circle block may add once the member read and the
  * featured read answer (the unlock line, the "Yours now" row, posters).
+ * `places` (ADDENDUM KIT-6, each default true): `menu: false` leaves the Circle
+ * Card out of the menu, `rewards: false` the "Credit & rewards" link.
  */
-export declare function accountPanelHTML(model: PanelModel, circle?: PanelCircleExtras): string;
+export declare function accountPanelHTML(model: PanelModel, circle?: PanelCircleExtras, places?: {
+    menu?: boolean;
+    rewards?: boolean;
+}): string;
 /** The menu's Circle block in its own slot, so browser.ts can redraw it when the extra reads answer. "" when off. */
 export declare function panelCircleSlotHTML(model: PanelModel, circle?: PanelCircleExtras): string;
 //# sourceMappingURL=panel.d.ts.map

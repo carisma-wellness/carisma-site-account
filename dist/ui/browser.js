@@ -28,7 +28,8 @@ import { ACCOUNT_BOOKINGS_HREF } from "./panel.js";
 import { linkifyPhones } from "./portal.js";
 import { bookingSkeletonHTML, bookingTreatment, bookingViewParts, buildBookingDetailModel, isActiveBooking, } from "./bookingDetail.js";
 import { buildSlotsModel, venueDateString, venueLocalToUtcIso } from "./reschedule.js";
-import { cancelCall, cancelSummary, circleBirthdayCall, circleBirthdayReadCall, circleComfortCall, circleComfortReadCall, circleWhatsappCall, circleWhatsappReadCall, circleLeaveCall, circleLeavePreviewCall, circleOffersCall, circleRejoinCall, errorCodeOf, cancellationPreviewCall, confirmCall, membershipCall, messageFromError, needsPreview, payBalanceCall, isTakenTimeRefusal, packageBookCall, packageBookFailureMessage, packagePayCall, packagePayConfirmCall, packageReturnFrom, invoicePayCall, invoicePayConfirmCall, invoiceReturnFrom, statementPayFailureMessage, readBookedAppointmentId, readCheckoutUrl, readCancellationPreview, readWalletAvailability, LATE_WINDOW_SENTENCE, rescheduleCall, slotsCall, readStaffList, staffCall, walletAvailabilityCall, walletPassCall, circleInstagramCall, circleWalletCardCall, } from "./portalActions.js";
+import { cancelCall, cancelSummary, circleBirthdayCall, circleBirthdayReadCall, circleComfortCall, circleComfortReadCall, circleWhatsappCall, circleWhatsappReadCall, circleLeaveCall, circleLeavePreviewCall, circleOffersCall, circleRejoinCall, errorCodeOf, cancellationPreviewCall, confirmCall, membershipCall, messageFromError, needsPreview, payBalanceCall, isTakenTimeRefusal, packageBookCall, packageBookFailureMessage, packagePayCall, packagePayConfirmCall, packageReturnFrom, invoicePayCall, invoicePayConfirmCall, invoiceReturnFrom, statementPayFailureMessage, readBookedAppointmentId, readCheckoutUrl, readCancellationPreview, readWalletAvailability, LATE_WINDOW_SENTENCE, rescheduleCall, slotsCall, readStaffList, staffCall, walletAvailabilityCall, walletPassCall, circleInstagramCall, circlePointsBookingsCall, circleWalletCardCall, } from "./portalActions.js";
+import { POINTS_CANCEL_NOT_READ, pointsCancelLine, readPointsBookings, } from "./circlePointsCancel.js";
 import { buildDayStrip, cancelBodyHTML, cancelDialogHTML, cancelFootHTML, clockOf, dateWords, dayChipsHTML, dialogFrameHTML, instantWords, packageBookBarHTML, packageBookDialogHTML, rescheduleDialogHTML, rescheduleTimesHTML, reviewBarHTML, } from "./dialogs.js";
 import { buildIcs, icsFileName, icsLocation } from "./ics.js";
 import { installBrandLinkInterceptor } from "./linkInterceptor.js";
@@ -42,6 +43,20 @@ import { ACCOUNT_CHROME_CSS, ACCOUNT_CHROME_STYLE_ID } from "./chromeCss.js";
  */
 let currentAvatarUrl = null;
 const panelBound = new WeakSet();
+/** The most the booking page waits for the points verdict before it draws without a "Free to cancel" claim. */
+const POINTS_READ_BUDGET_MS = 2500;
+function withinBudget(p, ms, fallback) {
+    let timer;
+    return Promise.race([
+        p.catch(() => fallback),
+        new Promise((resolve) => {
+            timer = setTimeout(() => resolve(fallback), ms);
+        }),
+    ]).finally(() => {
+        if (timer)
+            clearTimeout(timer);
+    });
+}
 const jewelLoads = new WeakMap();
 const jewelDisposers = new WeakMap();
 /** Stop every live jewel this kit mounted under `root` (before its HTML is replaced). */
@@ -289,6 +304,30 @@ function writeCachedAvatar(storage, url) {
         /* private mode, blocked storage: the photo is simply re-read next page */
     }
 }
+/**
+ * ADDENDUM KIT-6: is the Circle on for this site right now? `circleV2`, when the host gives it, decides (read at
+ * this moment: a function is called here); else `circle`. Never on a site off the allow-list.
+ */
+export function circleOnFor(opts, siteBrand) {
+    let on = false;
+    if (opts.circleV2 !== undefined) {
+        try {
+            on = typeof opts.circleV2 === "function" ? opts.circleV2() === true : opts.circleV2 === true;
+        }
+        catch {
+            on = false;
+        }
+    }
+    else {
+        on = opts.circle === true;
+    }
+    return on && circleAllowedOn(siteBrand);
+}
+/** ADDENDUM KIT-6: the places, each true unless the host says false. */
+export function circlePlacesOf(opts) {
+    const p = opts.circlePlaces ?? {};
+    return { menu: p.menu !== false, overview: p.overview !== false, rewards: p.rewards !== false };
+}
 const BACKDROP_ID = "carisma-account-backdrop";
 function cookieFallbackSession(cookie) {
     return {
@@ -403,7 +442,9 @@ export function mountAccountPanel(doc, opts = {}) {
     const navigate = opts.navigate || (() => { });
     const fetchImpl = opts.fetchImpl;
     const close = () => setOpen(doc, mountId, false);
-    const openPanel = (body) => {
+    /** ADDENDUM KIT-6: the site's own brand first, the host's guess only when the site gave none. */
+    const siteBrand = () => opts.siteBrand ?? siteBrandFromHost(doc.location?.host ?? "");
+    const openPanel = (body, places) => {
         const mount = ensureMounts(doc, mountId);
         if (!mount)
             return;
@@ -414,8 +455,10 @@ export function mountAccountPanel(doc, opts = {}) {
             poster: opts.circlePoster ?? null,
             bookHref: opts.bookHref,
             photo: opts.circleRewardPhoto,
-        });
+        }, places);
         setOpen(doc, mountId, true);
+        if (!places.menu)
+            return;
         if (model.circleLeft)
             nameFirstLevel(mount, opts);
         if (!model.circle)
@@ -497,25 +540,30 @@ export function mountAccountPanel(doc, opts = {}) {
             return;
         }
         const fallback = cookieFallbackSession(doc.cookie || "");
+        /* KIT-6: the switch and the places are read at THIS open (a clinic's per-page rule). The loyalty fold is asked
+           only when the menu may show the Card or the Credit & rewards link; off, the read is exactly as before. */
+        const on = circleOnFor(opts, siteBrand());
+        const where = circlePlacesOf(opts);
+        const places = { menu: on && where.menu, rewards: on && where.rewards };
         if (!fetchImpl) {
-            openPanel(fallback);
+            openPanel(fallback, places);
             return;
         }
-        fetchImpl(opts.circle === true ? PANEL_SESSION_URL_CIRCLE : PANEL_SESSION_URL, { credentials: "same-origin" })
+        fetchImpl(places.menu || places.rewards ? PANEL_SESSION_URL_CIRCLE : PANEL_SESSION_URL, { credentials: "same-origin" })
             .then((r) => (r.ok ? r.json() : null))
             .then((body) => {
-            openPanel(body && typeof body === "object" ? body : fallback);
+            openPanel(body && typeof body === "object" ? body : fallback, places);
         })
             .catch(() => {
-            openPanel(fallback);
+            openPanel(fallback, places);
         });
     }, false);
     doc.addEventListener("keydown", (e) => {
         if (e.key === "Escape")
             close();
     }, false);
-    // Circle v2: the Instagram rows' award (only on a site that opted in to Circle).
-    if (opts.circle === true)
+    // Circle v2: the Instagram rows' award (only on a site that opted in to Circle; inert where no row is drawn).
+    if (opts.circle === true || opts.circleV2 !== undefined)
         bindCircleInstagram(doc, fetchImpl);
 }
 /**
@@ -802,19 +850,33 @@ function mountAccountPortalOnce(doc, opts) {
     const initialSearch = loc?.search ?? "";
     const siteBrand = opts.siteBrand ?? siteBrandFromHost(loc?.host ?? "");
     const referRail = opts.referRail === true;
-    const circleRail = opts.circle === true && circleAllowedOn(siteBrand);
-    const extras = { siteBrand, bookHref: opts.bookHref, contactPhone: opts.contactPhone, referRail, circleRail };
+    /* KIT-6: the switch read at THIS mount (`circleV2` when given, else `circle`; allow-list sites only), and where
+       the Circle may show. `circleRail` keeps its meaning — the Circle is on for this site — and gates the member
+       read; Overview's block / the Wallet line and Credit & rewards each also need their place. */
+    const circleRail = circleOnFor(opts, siteBrand);
+    const places = circlePlacesOf(opts);
+    const circleOverview = circleRail && places.overview;
+    const circleRewards = circleRail && places.rewards;
+    const extras = {
+        siteBrand,
+        bookHref: opts.bookHref,
+        contactPhone: opts.contactPhone,
+        referRail,
+        circleRail,
+        circleOverview: places.overview,
+        circleRewardsRail: places.rewards,
+    };
     /** Every shell this mount paints knows the site, so the rail shows only this site's sections. */
-    const shellHTML = (o) => portalShellHTML({ siteBrand, referRail, circleRail, ...o });
+    const shellHTML = (o) => portalShellHTML({ siteBrand, referRail, circleRail: circleRewards, ...o });
     if (!readSignedInHint(doc.cookie || "")) {
         navigate(`/member?next=${encodeURIComponent(next)}`);
         return;
     }
     if (!mount)
         return;
-    // Credit & rewards on a site that did not opt in (or Medical): the page
-    // does not exist for this site — back to the account, nothing drawn.
-    if (view === "rewards" && !circleRail) {
+    // Credit & rewards on a site that did not opt in (or Medical, or a site that keeps the Circle off this place):
+    // the page does not exist for this site — back to the account, nothing drawn.
+    if (view === "rewards" && !circleRewards) {
         navigate("/account");
         return;
     }
@@ -949,6 +1011,8 @@ function mountAccountPortalOnce(doc, opts) {
     };
     /** The one member read in flight (or answered), so Details can wait for it (W4). */
     let circleOnce = null;
+    /** The member read has answered (`circleNow` is then its answer, never "still in flight"). */
+    let circleAnswered = false;
     const readCircleOnce = () => {
         if (!circleRail || !fetchImpl)
             return Promise.resolve(null);
@@ -961,14 +1025,41 @@ function mountAccountPortalOnce(doc, opts) {
             .then((r) => (r.ok ? r.json() : null))
             .then((body) => {
             circleNow = readCircleState(body);
+            circleAnswered = true;
             fillCircle();
             return circleNow;
         }, () => {
             circleNow = null;
+            circleAnswered = true;
             return null;
         });
         return circleOnce;
     };
+    /**
+     * Circle v2: the points (or free Spa day) on one booking, as the server's verdict (BE-2 `points-bookings`).
+     * `null` = nothing to say (the site has no Circle, the programme is not live for her, an API without the door
+     * (404), or no spend on it); "failed" = live, but the read gave no answer in time: the page then makes no
+     * "Free to cancel" claim. Bounded, so a slow loyalty read never holds the booking page up.
+     */
+    let detailPoints = null;
+    /** The booking `detailPoints` was read for ("" = none yet). */
+    let detailPointsFor = "";
+    const readPointsFor = (id) => {
+        if (!circleRail || !fetchImpl)
+            return Promise.resolve(null);
+        return readCircleOnce().then((state) => {
+            if (!state || state.kind !== "live")
+                return null;
+            const read = readT(circlePointsBookingsCall([id]).path).then((r) => {
+                if (r.state === "failed")
+                    return r.status === 404 ? null : "failed";
+                return readPointsBookings(r.body);
+            });
+            return withinBudget(read, POINTS_READ_BUDGET_MS, "failed");
+        });
+    };
+    /** The line for the booking on screen, as of NOW (a "come back" verdict never outlives its deadline). */
+    const pointsLineFor = (read, id) => read === "failed" ? { ...POINTS_CANCEL_NOT_READ, lines: [] } : pointsCancelLine(read, id, Date.now());
     const paint = (html) => {
         disposeCircleJewels(mount);
         mount.innerHTML = html;
@@ -1034,7 +1125,10 @@ function mountAccountPortalOnce(doc, opts) {
                 // USED when the server says cancelling is not free, but waiting for
                 // the booking to find that out would cost a whole round trip.
                 const previewRead = postJson(fetchImpl, cancellationPreviewCall(bookingId)).then((r) => r.ok ? readCancellationPreview(r.body) : null);
-                return Promise.all([readT(`/api/auth/proxy/client/booking/appointments/${id}`), readWallet(), previewRead]).then(([read, wallet, preview]) => {
+                // Circle v2: what cancelling does to the points that paid it — asked only once the member read says
+                // live (off: no request at all, the page byte for byte as before).
+                const pointsRead = readPointsFor(bookingId);
+                return Promise.all([readT(`/api/auth/proxy/client/booking/appointments/${id}`), readWallet(), previewRead, pointsRead]).then(([read, wallet, preview, pointsItems]) => {
                     if (read.status === 401)
                         return signIn();
                     if (read.state === "failed" && read.status !== 404) {
@@ -1050,12 +1144,15 @@ function mountAccountPortalOnce(doc, opts) {
                     }
                     const model = buildBookingDetailModel(read.state === "failed" ? null : read.body, bookingId);
                     detail = model.found && !model.isMedical ? model : null;
+                    detailPoints = pointsItems;
+                    detailPointsFor = model.id;
                     const needPreview = model.found && !model.actions.cancelIsFree && model.actions.canCancel;
                     const parts = bookingViewParts(model, {
                         siteBrand,
                         wallet,
                         preview: needPreview ? preview : null,
                         bookHref: opts.bookHref,
+                        points: pointsLineFor(pointsItems, model.id),
                     });
                     paint(shellHTML({ view, title: parts.title, lede: parts.lede, body: parts.body, emailMasked, memberName }));
                 });
@@ -1152,13 +1249,16 @@ function mountAccountPortalOnce(doc, opts) {
                                 siteBrand,
                                 siteOrigin: loc?.origin,
                                 invoicePay: opts.invoicePay === true,
-                                circleSlot: circleRail,
+                                // The Wallet page's Circle line is an Overview place (KIT-6).
+                                circleSlot: circleOverview,
                                 bookHref: opts.bookHref,
                                 // Circle v2: the reward photos, the jewel posters and the free Spa day's "Book it" link.
                                 circleArt: opts.circleArt,
                                 circlePoster: opts.circlePoster ?? null,
                                 circlePhoto: opts.circleRewardPhoto,
                                 spaDayHref: opts.circleSpaDayHref ?? null,
+                                // KIT-6: no WhatsApp box on Credit & rewards where the host says so (Slimming).
+                                circleWhatsappPref: opts.circleWhatsappPref !== false,
                             })}</div>`,
                 }));
                 if (!portalMembershipBound.has(mount)) {
@@ -1796,7 +1896,19 @@ function mountAccountPortalOnce(doc, opts) {
         if (!m)
             return;
         const free = !needsPreview(m.actions);
-        let summary = free ? cancelSummary(null, true, m.policyText) : null;
+        /* Circle v2: the points on this booking. The page's own read when it was for THIS booking (its deadline checked
+           against now); a sheet opened from a list card asks for them and WAITS (a "Free to cancel" must never show
+           first for a booking her points paid). Off — the site has no Circle, or her member read said not live — the
+           sheet is exactly what it was: no read, no wait. */
+        const pointsKnown = detailPointsFor === m.id;
+        let points = pointsKnown ? pointsLineFor(detailPoints, m.id) : null;
+        const circleOff = !circleRail || (circleAnswered && (!circleNow || circleNow.kind !== "live"));
+        const askPoints = !circleOff && (!pointsKnown || points !== null);
+        let pointsRead = !askPoints || pointsKnown;
+        let preview = null;
+        let previewRead = free;
+        const compute = () => previewRead && pointsRead ? cancelSummary(free ? null : preview, free, m.policyText, points) : null;
+        let summary = compute();
         const dlg = openDialog(cancelDialogHTML({ startIso: m.startIso, treatment: bookingTreatment(m), summary, canReschedule: canRescheduleNow(m) }), opener);
         if (!dlg)
             return;
@@ -1819,7 +1931,25 @@ function mountAccountPortalOnce(doc, opts) {
             void postJson(fetchImpl, cancellationPreviewCall(m.id)).then((r) => {
                 if (!alive)
                     return;
-                summary = cancelSummary(r.ok ? readCancellationPreview(r.body) : null, false, m.policyText);
+                preview = r.ok ? readCancellationPreview(r.body) : null;
+                previewRead = true;
+                summary = compute();
+                render();
+                qs(dlg, ".cw-btn--primary")?.focus?.();
+            });
+        }
+        if (askPoints) {
+            // Ask the server: its verdict as of now (a late cancel's share), or the first read for a list card's booking.
+            void readPointsFor(m.id).then((fresh) => {
+                if (!alive)
+                    return;
+                detailPoints = fresh;
+                detailPointsFor = m.id;
+                points = pointsLineFor(fresh, m.id);
+                pointsRead = true;
+                if (!previewRead)
+                    return;
+                summary = compute();
                 render();
                 qs(dlg, ".cw-btn--primary")?.focus?.();
             });
@@ -1990,7 +2120,7 @@ function mountAccountPortalOnce(doc, opts) {
             const s = slot();
             if (!s || !prefsNow)
                 return;
-            s.innerHTML = circlePrefsHTML(prefsNow, msg, busy);
+            s.innerHTML = circlePrefsHTML(prefsNow, msg, busy, { whatsapp: opts.circleWhatsappPref !== false });
             markMixed();
             if (!busy)
                 qs(s, `#cw-circle-pref-${channel}`)?.focus?.();

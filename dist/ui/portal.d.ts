@@ -80,6 +80,10 @@ export interface PortalModel extends PanelModel {
      * answers enabled:true. Off (the default) draws nothing at all.
      */
     circleRail: boolean;
+    /** ADDENDUM KIT-6 `circlePlaces.overview` (default true): Overview's Circle slot. */
+    circleOverview?: boolean;
+    /** ADDENDUM KIT-6 `circlePlaces.rewards` (default true): Credit & rewards on the rail. */
+    circleRewardsRail?: boolean;
 }
 /** `/account/bookings/<id>` — the local detail page, when the row has an id. */
 export declare function bookingDetailHref(row: Record<string, unknown>): string;
@@ -95,6 +99,10 @@ export interface PortalExtra {
     now?: Date;
     referRail?: boolean;
     circleRail?: boolean;
+    /** ADDENDUM KIT-6: the Overview place (default true). */
+    circleOverview?: boolean;
+    /** ADDENDUM KIT-6: the Credit & rewards place (default true). */
+    circleRewardsRail?: boolean;
 }
 export declare function buildPortalModel(session: unknown, view: PortalView, extra?: PortalExtra): PortalModel;
 /**
@@ -186,6 +194,7 @@ export declare function walletSummary(w: WalletModel | null): string;
  */
 export declare function circleSlotHTML(m: {
     circleRail: boolean;
+    circleOverview?: boolean;
 }, where: "home" | "wallet" | "details"): string;
 export declare function overviewBodyHTML(m: PortalModel): string;
 export declare function bookingsBodyHTML(m: PortalModel): string;

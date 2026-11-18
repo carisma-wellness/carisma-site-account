@@ -188,7 +188,8 @@ export function bodyFor(view: PortalView, answers: unknown[], ctx: RecordsContex
       const state = readCircleState(answers[0]);
       const prefs = readCirclePrefs(answers[3]);
       if (!state) return "";
-      if (state.kind === "left") return circleLeftViewHTML({ left: state.left, prefs });
+      const whatsappPref = ctx.circleWhatsappPref !== false;
+      if (state.kind === "left") return circleLeftViewHTML({ left: state.left, prefs, whatsappPref });
       // R5.4: under the minimum age, one line and nothing else (no prefs, no leave).
       if (state.kind === "minor") return circleMinorViewHTML(state);
       return circleViewHTML({
@@ -202,6 +203,7 @@ export function bodyFor(view: PortalView, answers: unknown[], ctx: RecordsContex
         poster: ctx.circlePoster ?? null,
         spaDayHref: ctx.spaDayHref ?? null,
         prefs,
+        whatsappPref,
       });
     }
     default:

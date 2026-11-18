@@ -34,9 +34,15 @@ export declare function paidLineText(t: TrackInput): string;
  * offers opened in the Carisma account, not the website's offer pages or
  * Klaviyo sends, and its wording waits on the CEO and the advocate (RECONCILED
  * Q5; R5.7 keeps the one perks line, drawn only with something upcoming).
+ *
+ * ADDENDUM X2 / BE-i: a free Spa day and no deposit are listed ONLY while the API
+ * marks that perk live (`live.spaDays`, `live.noDeposit`); the values alone say
+ * nothing (BE-1 sends them from Ruby up whether or not the perk is switched on,
+ * and the terms do not promise them yet). The rate and the birthday credit are
+ * not perks and always show.
  */
 export declare function unlocksList(cur: CirclePerkSet | null, next: CirclePerkSet | null, pointsPerEuro: number, earnPerEuro?: number): string[];
-/** Everything a level gives (the account's "What Level 3 · Ruby gives you"). */
+/** Everything a level gives (the account's "What Level 3 · Ruby gives you"). Perks only while live (X2 / BE-i). */
 export declare function benefitsList(p: CirclePerkSet | null, pointsPerEuro: number, earnPerEuro?: number): string[];
 /** One line for tight places: "Level 4 · Sapphire unlocks 8.75% back and a second free Spa day every year". */
 export declare function unlockLineText(nextLabel: string, unlocks: string[]): string;

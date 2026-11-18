@@ -21,7 +21,7 @@ import {
   CIRCLE_CARD_LINE,
 } from "../dist/index.js";
 import { frameStep, motionReduced } from "../dist/jewel/index.js";
-import { MARIA, SUMMARY, SUMMARY_ASKED, REWARDS, LEVELS, STATUS, LEFT } from "./fixtures/circle-v2.mjs";
+import { MARIA, MARIA_LIVE, SUMMARY, SUMMARY_ASKED, REWARDS, LEVELS, STATUS, LEFT } from "./fixtures/circle-v2.mjs";
 import { El, miniDocument } from "./fixtures/mini-dom.mjs";
 
 /**
@@ -274,7 +274,8 @@ test("Credit & rewards: 'Your card' only with circleWallet, a phone Wallet and c
 });
 
 test("Credit & rewards: the free Spa day's 'Book it', the posters and the photos reach the page (they never did)", async () => {
-  const h = portalHarness({ view: "rewards", path: "/account/rewards" });
+  // The Spa days are live (BE-i); BE-1's real shape (no live block) is the next test's.
+  const h = portalHarness({ view: "rewards", path: "/account/rewards", me: MARIA_LIVE });
   const perks = { enabled: true, year: 2026, level: { key: "ruby", number: 3, name: "Ruby" }, spaDays: { entitlement: 1, used: 0, left: 1, serviceIds: ["x"], resetsOn: "2027-01-01" }, noDeposit: { active: false }, earlyAccess: { hours: 48, upcoming: [] } };
   const fetchImpl = (url) => (url === "/api/auth/proxy/client/loyalty/perks" ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(perks) }) : h.fetchImpl(url));
   mountAccountPortal(h.doc, {
@@ -328,7 +329,7 @@ function panelHarness(loyalty, me = MARIA) {
 }
 
 test("menu Card on BE-1's real summary: the caption and the unlock line come from ONE /me read after it opens", async () => {
-  const h = panelHarness(SUMMARY);
+  const h = panelHarness(SUMMARY, MARIA_LIVE);
   mountAccountPanel(h.doc, { fetchImpl: h.fetchImpl, circle: true, bookHref: "/book" });
   h.doc.click(h.mark);
   await settle(40);
@@ -336,7 +337,13 @@ test("menu Card on BE-1's real summary: the caption and the unlock line come fro
   assert.ok(panel, "precondition: the panel opened");
   const html = panel.innerHTML;
   assert.match(html, /<div class="cc-track-row"[\s\S]*?<\/div><p class="cc-track-cap" data-clarity-mask="True"><span>€710 of €1,000 paid this year<\/span><span>Level 4 · Sapphire<\/span><\/p>/, "the caption, from /me");
-  assert.match(html, /<p class="cc-track-line">Level 4 · Sapphire unlocks 8\.75% back and a second free Spa day every year<\/p>/);
+  assert.match(html, /<p class="cc-track-line">Level 4 · Sapphire unlocks 8\.75% back and a second free Spa day every year<\/p>/, "Spa days live");
+  // BE-1's real /me (no live block): the line names the rate and the birthday credit only (X2 / BE-i).
+  const real = panelHarness(SUMMARY);
+  mountAccountPanel(real.doc, { fetchImpl: real.fetchImpl, circle: true, bookHref: "/book" });
+  real.doc.click(real.mark);
+  await settle(40);
+  assert.match(real.doc.getElementById("carisma-account-panel").innerHTML, /<p class="cc-track-line">Level 4 · Sapphire unlocks 8\.75% back and €35\.00 birthday credit<\/p>/);
   assert.match(html, /cc-now/, "the Yours now row");
   assert.equal(h.reads.filter((u) => u === "/api/auth/proxy/client/loyalty/me").length, 1);
   // Once the summary carries the threshold and both perk rows, the menu draws them at once and never reads /me.

@@ -49,6 +49,8 @@ export interface RecordsContext {
         src: string;
         alt?: string;
     } | null | undefined;
+    /** ADDENDUM KIT-6: the WhatsApp box of "Offers and reminders" on Credit & rewards (default true). */
+    circleWhatsappPref?: boolean;
 }
 /** "September 2026" + a sortable "2026-09" key, on the Malta clock. */
 export declare function monthOf(raw: string): {

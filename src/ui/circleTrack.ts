@@ -13,6 +13,7 @@ import { escapeHtml } from "./html.js";
 import { jewelSlotHTML } from "./circleMark.js";
 import {
   M,
+  PERKS_NOT_LIVE,
   creditText,
   levelSentenceText,
   rateText,
@@ -72,18 +73,32 @@ export function paidLineText(t: TrackInput): string {
  * offers opened in the Carisma account, not the website's offer pages or
  * Klaviyo sends, and its wording waits on the CEO and the advocate (RECONCILED
  * Q5; R5.7 keeps the one perks line, drawn only with something upcoming).
+ *
+ * ADDENDUM X2 / BE-i: a free Spa day and no deposit are listed ONLY while the API
+ * marks that perk live (`live.spaDays`, `live.noDeposit`); the values alone say
+ * nothing (BE-1 sends them from Ruby up whether or not the perk is switched on,
+ * and the terms do not promise them yet). The rate and the birthday credit are
+ * not perks and always show.
  */
 export function unlocksList(cur: CirclePerkSet | null, next: CirclePerkSet | null, pointsPerEuro: number, earnPerEuro = 1): string[] {
   if (!next) return [];
-  const a: CirclePerkSet = cur ?? { multiplier: 0, birthdayCreditCents: 0, freeSpaDaysPerYear: 0, earlyAccessHours: 0, noDeposit: false };
+  const a: CirclePerkSet = cur ?? {
+    multiplier: 0,
+    birthdayCreditCents: 0,
+    freeSpaDaysPerYear: 0,
+    earlyAccessHours: 0,
+    noDeposit: false,
+    live: { ...PERKS_NOT_LIVE },
+  };
   const out: string[] = [];
   if (next.multiplier > a.multiplier) {
     const to = rateText(next.multiplier, pointsPerEuro, earnPerEuro);
     const from = rateText(a.multiplier, pointsPerEuro, earnPerEuro);
     if (to) out.push(`${to} back in Carisma credit${from ? `, up from ${from}` : ""}`);
   }
-  if (next.freeSpaDaysPerYear > a.freeSpaDaysPerYear) {
-    const n = next.freeSpaDaysPerYear;
+  const spaDays = (p: CirclePerkSet) => (p.live?.spaDays === true ? p.freeSpaDaysPerYear : 0);
+  if (spaDays(next) > spaDays(a)) {
+    const n = spaDays(next);
     out.push(n === 1 ? "A free Spa day every year" : `A ${ORDINAL[n] || `${n}th`} free Spa day every year`);
   }
   if (next.birthdayCreditCents > a.birthdayCreditCents) {
@@ -93,21 +108,22 @@ export function unlocksList(cur: CirclePerkSet | null, next: CirclePerkSet | nul
     );
   }
   // D7: no deposit applies to desk, phone and Cara bookings only (online keeps its payment).
-  if (next.noDeposit && !a.noDeposit) out.push("No deposit when you book by phone or at the desk");
+  const noDeposit = (p: CirclePerkSet) => p.noDeposit && p.live?.noDeposit === true;
+  if (noDeposit(next) && !noDeposit(a)) out.push("No deposit when you book by phone or at the desk");
   return out;
 }
 
-/** Everything a level gives (the account's "What Level 3 · Ruby gives you"). */
+/** Everything a level gives (the account's "What Level 3 · Ruby gives you"). Perks only while live (X2 / BE-i). */
 export function benefitsList(p: CirclePerkSet | null, pointsPerEuro: number, earnPerEuro = 1): string[] {
   if (!p) return [];
   const out: string[] = [];
   const r = rateText(p.multiplier, pointsPerEuro, earnPerEuro);
   if (r) out.push(`${r} back in Carisma credit`);
   if (p.birthdayCreditCents > 0) out.push(`${creditText(p.birthdayCreditCents)} birthday credit`);
-  if (p.freeSpaDaysPerYear > 0) {
+  if (p.freeSpaDaysPerYear > 0 && p.live?.spaDays === true) {
     out.push(p.freeSpaDaysPerYear === 1 ? "A free Spa day every year" : `${p.freeSpaDaysPerYear} free Spa days every year`);
   }
-  if (p.noDeposit) out.push("No deposit when you book by phone or at the desk");
+  if (p.noDeposit && p.live?.noDeposit === true) out.push("No deposit when you book by phone or at the desk");
   return out;
 }
 

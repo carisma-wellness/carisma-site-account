@@ -64,6 +64,14 @@ export declare function signService(opts: ServiceSignOptions): Record<string, st
  * CloudFront's `cloudfront-viewer-address` wins where present — CloudFront overwrites it.
  */
 export declare function visitorIp(req: Request): string;
+/**
+ * CloudFront's `cloudfront-viewer-address` → the address. CloudFront ALWAYS appends the source port as the last
+ * `:` segment, and sends IPv6 UNBRACKETED ("2001:db8::1:443"), so the port is cut at the last colon for every
+ * form; "[2001:db8::1]:443" (bracketed) is read too. Until 18 Nov an unbracketed IPv6 address kept its port
+ * ("2001:db8::1:443" has more than one colon), so a booking's forwarded shopper IP was wrong and new per
+ * connection. A value without a numeric port is not CloudFront's: nothing ("" fails `ipish`).
+ */
+export declare function viewerAddressIp(value: string): string;
 /** Validate a `next` target: relative, no scheme, no backslash, no protocol-relative. */
 export declare function safeNext(next: string | null, fallback?: string): string;
 //# sourceMappingURL=pkce.d.ts.map
