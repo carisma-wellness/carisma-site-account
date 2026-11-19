@@ -379,13 +379,20 @@ test("earnPerEuro and the level count come from the API", () => {
   assert.ok(page.levels.length === 4);
 });
 
-test("a Diamond short of the top level (the next stone, beads dark) never shows the all-gold Diamond still", () => {
+test("a Diamond short of the top level (the next stone, beads dark) never shows the all-gold Diamond still (W-15: its own dark still)", () => {
   const poster = (gem, kind) => `/circle/jewel/v1/${gem}-${kind}.webp`;
+  // WEB-3 W-15: the generator's diamond-small is now the dark-beaded next stone (JA, 19 Nov): the track shows it.
   const next = jewelSlotHTML({ gem: "diamond", progress: 0, height: 44, kind: "small", poster: poster("diamond", "small") });
-  assert.doesNotMatch(next, /<img/, "no poster: the flat mark with its empty ring");
-  assert.match(next, /cc-jw__mark/);
+  assert.match(next, /<img class="cc-jw__poster" src="\/circle\/jewel\/v1\/diamond-small\.webp"/, "the next stone: every bead dark");
+  // Her own Level 5 small jewel is every bead gold: the icon still (same box), never the dark next stone.
   const top = jewelSlotHTML({ gem: "diamond", progress: 1, height: 44, kind: "small", poster: poster("diamond", "small") });
-  assert.match(top, /<img class="cc-jw__poster" src="\/circle\/jewel\/v1\/diamond-small\.webp"/, "her own Level 5 jewel: every bead gold, the still is right");
+  assert.match(top, /<img class="cc-jw__poster" src="\/circle\/jewel\/v1\/diamond-icon\.webp"/, "her own Level 5 jewel: every bead gold");
+  const topQ = jewelSlotHTML({ gem: "diamond", progress: 1, height: 96, kind: "small", poster: "/x/diamond-small.webp?v=2" });
+  assert.match(topQ, /src="\/x\/diamond-icon\.webp\?v=2"/);
+  // A full Diamond short of the top has no still of its own: the flat mark.
+  const fullNext = jewelSlotHTML({ gem: "diamond", progress: 0.4, height: 240, kind: "full", poster: poster("diamond", "full") });
+  assert.doesNotMatch(fullNext, /<img/);
+  assert.match(jewelSlotHTML({ gem: "diamond", progress: 1, height: 240, kind: "full", poster: poster("diamond", "full") }), /diamond-full\.webp/);
   const sapphire = jewelSlotHTML({ gem: "sapphire", progress: 0, height: 44, kind: "small", poster: poster("sapphire", "small") });
   assert.match(sapphire, /sapphire-small\.webp/, "every other stone keeps its dark-beaded still");
   const icon = jewelSlotHTML({ gem: "diamond", progress: 0, height: 56, kind: "icon", poster: poster("diamond", "icon") });

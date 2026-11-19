@@ -73,11 +73,18 @@ export function jewelSlotHTML(opts) {
     const kind = opts.kind ?? (h >= 200 ? "full" : "small");
     const p = Math.max(0, Math.min(1, opts.progress));
     const markSize = Math.max(24, Math.min(w, Math.round(h * 0.62)));
-    // The generator's Diamond stills carry every bead gold (the prototype's Level 5 rule), so a Diamond short of the
-    // top level — the NEXT stone in a track, every bead dark (ADDENDUM X2) — shows its flat mark (the true, empty
-    // ring) until the live jewel draws, never an all-gold still that reads as earned. A dark Diamond still is a JA
-    // follow-up (PACK/build/WEB-log.md).
-    const poster = opts.poster && !(opts.gem === "diamond" && kind !== "icon" && p < 1) ? opts.poster : "";
+    // Diamond (WEB-3 W-15): the generator's `diamond-small` still is now the NEXT stone of a track, every bead dark
+    // (ADDENDUM X2), like every other gem's small still; her OWN Level 5 small jewel (p = 1) is every bead gold, so it
+    // shows the `diamond-icon` still (same box and camera, all beads gold). Her full Diamond is always Level 5; a full
+    // Diamond short of the top has no still of its own, so it keeps the flat mark until the live jewel draws.
+    const own = opts.gem === "diamond" && kind === "small" && p >= 1;
+    const poster = !opts.poster
+        ? ""
+        : opts.gem === "diamond" && kind === "full" && p < 1
+            ? ""
+            : own
+                ? opts.poster.replace(/diamond-small\.webp(?=$|[?#])/, "diamond-icon.webp")
+                : opts.poster;
     // The box lays itself out (inline styles): a slot works on any host page, with or without the kit's CSS.
     return (`<span class="cc-jw${opts.cls ? ` ${opts.cls}` : ""}" data-cw-jewel data-gem="${opts.gem}" data-p="${p.toFixed(3)}" data-k="${kind}"` +
         ` style="display:inline-grid;place-items:center;position:relative;flex:none;vertical-align:middle;width:${w}px;height:${h}px" aria-hidden="true">` +
