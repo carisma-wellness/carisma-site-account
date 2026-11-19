@@ -223,19 +223,43 @@ test("W-4 menu: the summary's levelOnItsWay is the track head (BE-4 sends it the
   strict.equal(stale.levelOnItsWay, null);
 });
 
-test("W-4 liftPct: booked-not-paid spend from the API only; partial width from the API's own span; none without it", () => {
-  // 4200 bp done, €290 left → span €500; €90 booked → 18% of the bar.
-  const t = { level: { key: "ruby" }, nextLevel: { key: "sapphire", thresholdCents: 100000 }, progressBp: 4200, toNextLevelCents: 29000, levelSentence: "" };
+test("W-4 liftPct: booked-not-paid spend from the API only, placed with her level's threshold; none without it", () => {
+  // Ruby (from €500) → Sapphire (€1,000), €710 paid this year (42%), €90 booked → the bar would reach 80%: 18% hatched.
+  const t = {
+    level: { key: "ruby", label: "Level 3 · Ruby" },
+    nextLevel: { key: "sapphire", label: "Level 4 · Sapphire", thresholdCents: 100000 },
+    progressBp: 4200,
+    toNextLevelCents: 29000,
+    levelSentence: "",
+    spendThisYearCents: 71000,
+    levels: [{ key: "ruby", thresholdCents: 50000 }, { key: "sapphire", thresholdCents: 100000 }],
+  };
   strict.equal(liftPct({ ...t, pendingSpendCents: 9000 }, 42), 18);
   strict.equal(liftPct({ ...t, pendingSpendCents: 900000 }, 42), 58, "never past the next stone");
   strict.equal(liftPct({ ...t, pendingSpendCents: 0 }, 42), 0);
   strict.equal(liftPct({ ...t, pendingSpendCents: null }, 42), 0);
   strict.equal(liftPct(t, 42), 0, "absent: no hatch, never local maths from her bookings");
+  strict.equal(liftPct({ ...t, levels: undefined, pendingSpendCents: 9000 }, 42), 0, "no level table (the summary): no partial hatch");
   strict.equal(liftPct({ ...t, nextLevel: null, pendingSpendCents: 9000 }, 100), 0, "Level 5: no next stone, no hatch");
-  const html = circleTrackHTML({ ...t, level: { key: "ruby", label: "Level 3 · Ruby" }, nextLevel: { key: "sapphire", label: "Level 4 · Sapphire", thresholdCents: 100000 }, pendingSpendCents: 9000 });
+  const html = circleTrackHTML({ ...t, pendingSpendCents: 9000 });
   strict.match(html, /style="left:42%;width:18%"/);
   strict.match(circleOverviewHTML(readCircle({ ...MARIA, pendingSpendCents: 9000 }), { now: NOV1 }), /cc-bar__lift[^>]*width:18%/);
   strict.doesNotMatch(circleOverviewHTML(readCircle(MARIA), { now: NOV1 }), /cc-bar__lift/);
+});
+
+test("W-4 liftPct (review WEB-3 major #2): a level held over from last year, spend this year below its own threshold", () => {
+  // Holds Ruby (from €500) from last year; €100 paid this year → the bar shows 0 (the backend clamps progressBp).
+  const carried = {
+    level: { key: "ruby", label: "Level 3 · Ruby" },
+    nextLevel: { key: "sapphire", label: "Level 4 · Sapphire", thresholdCents: 100000 },
+    progressBp: 0,
+    toNextLevelCents: 90000,
+    levelSentence: "",
+    spendThisYearCents: 10000,
+    levels: [{ key: "ruby", thresholdCents: 50000 }],
+  };
+  strict.equal(liftPct({ ...carried, pendingSpendCents: 20000 }, 0), 0, "€300 after paying is still below Ruby's €500: the bar does not move");
+  strict.equal(liftPct({ ...carried, pendingSpendCents: 50000 }, 0), 20, "€600 after paying: the bar moves to 20% (€100 of the €500 span)");
 });
 
 /* ── W-5: a review hold ─────────────────────────────────────────────────── */
@@ -254,6 +278,15 @@ test("W-5 onHold: the hold sentence under the balance on menu, Hero and Credit a
   strict.doesNotMatch(menu, /ready to use|Use my credit/);
   const view = circleViewHTML({ me: held, activity: null, rewards: null, bookHref: "/book", now: NOV1 });
   strict.match(view, /data-cw-circle="on-hold"/);
+  // Review WEB-3 major #3: the thank-you sentence never says "You can use it already." while on hold.
+  const gainHeld = creditMoment({ earnedCents: 1190, earnedPoints: 238, member: held, hasExcludedLine: false });
+  strict.equal(gainHeld.kind, "earned");
+  strict.doesNotMatch(gainHeld.sentence, /use it already/);
+  strict.match(creditMoment({ earnedCents: 1190, earnedPoints: 238, member: readCircle(MARIA), hasExcludedLine: false }).sentence, /You can use it already\./);
+  // Minor #9: the menu builder itself leaves out "Yours now" while on hold (not only the host's late fill).
+  const items = readCircleRewards(REWARDS);
+  strict.doesNotMatch(circlePanelRowHTML(readCircleSummary({ ...SUMMARY_BE4, onHold: true }), { rewards: items, now: NOV1 }), /Yours now/);
+  strict.match(circlePanelRowHTML(readCircleSummary(SUMMARY_BE4), { rewards: items, now: NOV1 }), /Yours now/);
   // Control: no hold → the reading and the action are the affordable ones.
   const free = circleHeroHTML(readCircle(MARIA), { bookHref: "/book", now: NOV1 });
   strict.doesNotMatch(free, /on-hold/);

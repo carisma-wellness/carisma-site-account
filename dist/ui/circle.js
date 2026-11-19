@@ -137,7 +137,8 @@ export function circlePanelRowHTML(s, x = {}) {
         holdHTML(s) +
         `</div></div>` +
         `<div class="cc-menu__sec">${track}</div>` +
-        `<div class="cw-circle-slot" data-cw-circle-slot="menu-now">${circleNowRowHTML(x.rewards ?? null, x.art, x.photo)}</div>` +
+        // W-5: no "Yours now" row while a review holds her spending (the host fill checks it too).
+        `<div class="cw-circle-slot" data-cw-circle-slot="menu-now">${circleNowRowHTML(s.onHold ? null : x.rewards ?? null, x.art, x.photo)}</div>` +
         `<div class="cc-menu__act">${act}</div>` +
         `</div>`);
 }
@@ -743,7 +744,8 @@ export function creditMoment(input) {
         return {
             kind: "earned",
             hero: creditText(input.member.creditCents),
-            sentence: gainText(earned, brands, input.member.affordable),
+            // W-5 (review WEB-3 major #3): "You can use it already." never while a review holds her spending.
+            sentence: gainText(earned, brands, spendable(input.member)),
             conditions: CONDITIONS_EARNED,
             quiet: "",
             paidLine,

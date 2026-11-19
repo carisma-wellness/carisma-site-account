@@ -120,8 +120,10 @@ export function ownPerksOf(m) {
 }
 /**
  * The hatched end's width in percent of the bar (0 = none): to the next stone when a visit on its way crosses, else
- * the booked spend over the span this level covers. The span comes from the API's own figures (the gap left and the
- * share done: span = gap ÷ (1 − share)), never a typed threshold.
+ * where this year's paid spend plus the booked spend would put the bar, from the API's own figures — her level's
+ * threshold (`levels[]`), the next level's, and this year's paid spend. A level held over from last year whose spend
+ * this year is still below its own threshold shows the bar at 0, and booked spend that stays below that threshold
+ * moves nothing, so it draws nothing (review WEB-3 major #2). Without her level's threshold: no partial hatch.
  */
 export function liftPct(t, pct) {
     if (!t.nextLevel || pct >= 100)
@@ -129,11 +131,16 @@ export function liftPct(t, pct) {
     if (t.onItsWay && t.onItsWay.sentence)
         return 100 - pct;
     const lift = typeof t.pendingSpendCents === "number" && t.pendingSpendCents > 0 ? t.pendingSpendCents : 0;
-    const share = Math.max(0, Math.min(9999, t.progressBp)) / 10000;
-    if (!lift || !(t.toNextLevelCents > 0))
+    const from = t.levels?.find((l) => l.key === t.level.key)?.thresholdCents;
+    const next = t.nextLevel.thresholdCents;
+    const spend = typeof t.spendThisYearCents === "number" && t.spendThisYearCents >= 0 ? t.spendThisYearCents : null;
+    if (!lift || typeof from !== "number" || spend === null || !(next > from))
         return 0;
-    const span = t.toNextLevelCents / (1 - share);
-    const w = Math.min(100 - pct, (lift / span) * 100);
+    const start = Math.max(spend, from);
+    const end = Math.min(next, spend + lift);
+    if (end <= start)
+        return 0;
+    const w = Math.min(100 - pct, ((end - start) / (next - from)) * 100);
     return w >= 0.5 ? Math.round(w * 10) / 10 : 0;
 }
 /** The track as HTML. "" for a null input. */
