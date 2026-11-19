@@ -1,0 +1,823 @@
+{
+  "about": "REAL answers of the Circle client doors on STAGING (api-stage.carismasoft.com), recorded read-only on 19 Nov 2026 for WEB-3 (audit W-20, rule §81: no degenerate fixture). Staging = BE-1 + BE-2 (backend #4352, #4367 merged); BE-3 (#4382) queued, BE-4 not pushed. Pilot mode: the public status answers enabled:false by design. Probe client 'QC Circle E2E' (test client, @carismaspa.com QC sink). The /me card's QR payload and desk code are scrubbed; nothing else is edited.",
+  "doors": {
+    "me": {
+      "door": "GET /client/loyalty/me",
+      "status": 200,
+      "recordedAt": "2026-11-19T08:36:55+00:00",
+      "body": {
+        "success": true,
+        "data": {
+          "tier": "new",
+          "tierLabel": "New",
+          "realizedLtv": 243,
+          "computedAt": "2026-11-19T03:25:14.317Z",
+          "perks": {
+            "multiplier": 1,
+            "birthdayCreditCents": 500,
+            "freeSpaDaysPerYear": 0,
+            "earlyAccessHours": 0,
+            "noDeposit": false,
+            "live": {
+              "spaDays": false,
+              "earlyAccess": false,
+              "noDeposit": false
+            }
+          },
+          "birthdayDeal": null,
+          "enabled": true,
+          "programme": {
+            "name": "Carisma Circle",
+            "currencyName": "Carisma credit",
+            "unitName": "points",
+            "tagline": "Come back to more."
+          },
+          "level": {
+            "key": "pearl",
+            "number": 1,
+            "name": "Pearl",
+            "label": "Level 1 · Pearl",
+            "numeral": "I",
+            "multiplier": 1,
+            "heldUntil": "2027-12-31"
+          },
+          "nextLevel": {
+            "key": "rose",
+            "number": 2,
+            "name": "Rose",
+            "label": "Level 2 · Rose",
+            "numeral": "II",
+            "thresholdCents": 15000
+          },
+          "spendThisYearCents": 0,
+          "headStartCents": 0,
+          "toNextLevelCents": 15000,
+          "progressBp": 0,
+          "levelSentence": "€150 more this year to reach Level 2 · Rose",
+          "credit": {
+            "points": 100,
+            "cents": 500,
+            "display": "€5.00 · 100 points"
+          },
+          "pending": {
+            "points": 0,
+            "cents": 0
+          },
+          "awaitingEmail": null,
+          "expiring": null,
+          "pointsExpireAt": "2027-11-15",
+          "pointsExpireKind": "balance",
+          "balanceLapse": {
+            "at": "2027-11-15",
+            "points": 100
+          },
+          "datedEnds": null,
+          "passport": {
+            "spa": true,
+            "aesthetics": false,
+            "slimming": false,
+            "count": 1
+          },
+          "fullCircleAt": null,
+          "actions": [
+            {
+              "id": "verified_email",
+              "key": "verified_email",
+              "label": "Verified email on your account",
+              "points": 50,
+              "done": true
+            },
+            {
+              "id": "app",
+              "key": "app",
+              "label": "First sign-in to the Carisma app",
+              "points": 50,
+              "done": true
+            },
+            {
+              "id": "first_house",
+              "key": "first_house",
+              "label": "Your first purchase of €20 or more at a Carisma brand",
+              "points": 100,
+              "done": true
+            },
+            {
+              "id": "second_house",
+              "key": "second_house",
+              "label": "Your first purchase of €20 or more at a second brand",
+              "points": 200,
+              "done": false
+            },
+            {
+              "id": "full_circle",
+              "key": "full_circle",
+              "label": "Full Circle: your first purchase of €20 or more at the third brand",
+              "points": 500,
+              "done": false
+            }
+          ],
+          "actionsSummary": {
+            "done": 3,
+            "of": 5,
+            "leftPoints": 700,
+            "leftCents": 3500
+          },
+          "nextVisitCredit": null,
+          "rules": {
+            "earnPerEuro": 1,
+            "pointsPerEuro": 20
+          },
+          "nextLevelPerks": {
+            "multiplier": 1.25,
+            "birthdayCreditCents": 1000,
+            "freeSpaDaysPerYear": 0,
+            "earlyAccessHours": 24,
+            "noDeposit": false,
+            "live": {
+              "spaDays": false,
+              "earlyAccess": false,
+              "noDeposit": false
+            }
+          },
+          "affordable": false,
+          "levelOnItsWay": null,
+          "savedThisYearCents": 0,
+          "levels": [
+            {
+              "key": "pearl",
+              "number": 1,
+              "name": "Pearl",
+              "label": "Level 1 · Pearl",
+              "multiplier": 1,
+              "thresholdCents": 0,
+              "birthdayCreditCents": 500,
+              "freeSpaDaysPerYear": 0,
+              "earlyAccessHours": 0,
+              "noDeposit": false,
+              "live": {
+                "spaDays": false,
+                "earlyAccess": false,
+                "noDeposit": false
+              }
+            },
+            {
+              "key": "rose",
+              "number": 2,
+              "name": "Rose",
+              "label": "Level 2 · Rose",
+              "multiplier": 1.25,
+              "thresholdCents": 15000,
+              "birthdayCreditCents": 1000,
+              "freeSpaDaysPerYear": 0,
+              "earlyAccessHours": 24,
+              "noDeposit": false,
+              "live": {
+                "spaDays": false,
+                "earlyAccess": false,
+                "noDeposit": false
+              }
+            },
+            {
+              "key": "ruby",
+              "number": 3,
+              "name": "Ruby",
+              "label": "Level 3 · Ruby",
+              "multiplier": 1.5,
+              "thresholdCents": 50000,
+              "birthdayCreditCents": 2000,
+              "freeSpaDaysPerYear": 1,
+              "earlyAccessHours": 48,
+              "noDeposit": true,
+              "live": {
+                "spaDays": false,
+                "earlyAccess": false,
+                "noDeposit": false
+              }
+            },
+            {
+              "key": "sapphire",
+              "number": 4,
+              "name": "Sapphire",
+              "label": "Level 4 · Sapphire",
+              "multiplier": 1.75,
+              "thresholdCents": 100000,
+              "birthdayCreditCents": 3500,
+              "freeSpaDaysPerYear": 2,
+              "earlyAccessHours": 48,
+              "noDeposit": true,
+              "live": {
+                "spaDays": false,
+                "earlyAccess": false,
+                "noDeposit": false
+              }
+            },
+            {
+              "key": "diamond",
+              "number": 5,
+              "name": "Diamond",
+              "label": "Level 5 · Diamond",
+              "multiplier": 2,
+              "thresholdCents": 250000,
+              "birthdayCreditCents": 5000,
+              "freeSpaDaysPerYear": 3,
+              "earlyAccessHours": 72,
+              "noDeposit": true,
+              "live": {
+                "spaDays": false,
+                "earlyAccess": false,
+                "noDeposit": false
+              }
+            }
+          ],
+          "brands": [
+            {
+              "house": "spa",
+              "brandId": "a1379a72-b58a-4c8f-a508-6caee260fc07",
+              "name": "Carisma Spa"
+            }
+          ],
+          "minAge": 18,
+          "brandBonusMinCents": 2000,
+          "member": {
+            "number": "CC 2702 1825",
+            "emailVerified": true,
+            "spendPausedUntil": null,
+            "since": "2026-11-15"
+          },
+          "card": {
+            "memberNumber": "CC 2702 1825",
+            "qrPayload": "SCRUBBED",
+            "deskCode": "SCRUBBED",
+            "deskCodeExpiresAt": "2026-11-19T08:40:00.000Z"
+          }
+        }
+      }
+    },
+    "summary": {
+      "door": "GET /client/loyalty/summary",
+      "status": 200,
+      "recordedAt": "2026-11-19T08:36:56+00:00",
+      "body": {
+        "success": true,
+        "data": {
+          "enabled": true,
+          "level": {
+            "key": "pearl",
+            "number": 1,
+            "name": "Pearl",
+            "label": "Level 1 · Pearl"
+          },
+          "balance": {
+            "points": 100,
+            "cents": 500,
+            "display": "€5.00 · 100 points"
+          },
+          "nextLevel": {
+            "key": "rose",
+            "number": 2,
+            "name": "Rose",
+            "label": "Level 2 · Rose",
+            "thresholdCents": 15000
+          },
+          "toNextLevelCents": 15000,
+          "progressBp": 0,
+          "levelSentence": "€150 more this year to reach Level 2 · Rose",
+          "spendThisYearCents": 0,
+          "perks": {
+            "multiplier": 1,
+            "birthdayCreditCents": 500,
+            "freeSpaDaysPerYear": 0,
+            "earlyAccessHours": 0,
+            "noDeposit": false,
+            "live": {
+              "spaDays": false,
+              "earlyAccess": false,
+              "noDeposit": false
+            }
+          },
+          "nextLevelPerks": {
+            "multiplier": 1.25,
+            "birthdayCreditCents": 1000,
+            "freeSpaDaysPerYear": 0,
+            "earlyAccessHours": 24,
+            "noDeposit": false,
+            "live": {
+              "spaDays": false,
+              "earlyAccess": false,
+              "noDeposit": false
+            }
+          },
+          "affordable": false,
+          "pointsExpireAt": "2027-11-15",
+          "memberNumber": "CC 2702 1825",
+          "spendPausedUntil": null
+        }
+      }
+    },
+    "perks": {
+      "door": "GET /client/loyalty/perks",
+      "status": 200,
+      "recordedAt": "2026-11-19T08:36:56+00:00",
+      "body": {
+        "success": true,
+        "data": {
+          "enabled": true,
+          "year": 2026,
+          "level": {
+            "key": "pearl",
+            "number": 1,
+            "name": "Pearl",
+            "label": "Level 1 · Pearl"
+          },
+          "live": {
+            "spaDays": false,
+            "earlyAccess": false,
+            "noDeposit": false
+          },
+          "spaDays": {
+            "year": 2026,
+            "entitlement": 0,
+            "used": 0,
+            "left": 0,
+            "serviceIds": [
+              "b8a48ed1-8fe8-4eba-a5de-2df79be7ddd9",
+              "3e182fed-b546-4521-a96b-93430e69e123"
+            ],
+            "resetsOn": "2027-01-01"
+          },
+          "noDeposit": {
+            "active": false,
+            "fromLevel": {
+              "key": "ruby",
+              "number": 3,
+              "name": "Ruby",
+              "label": "Level 3 · Ruby"
+            }
+          },
+          "earlyAccess": {
+            "hours": 0,
+            "upcoming": []
+          }
+        }
+      }
+    },
+    "rewards": {
+      "door": "GET /client/loyalty/rewards",
+      "status": 200,
+      "recordedAt": "2026-11-19T08:36:56+00:00",
+      "body": {
+        "success": true,
+        "data": {
+          "enabled": true,
+          "items": [
+            {
+              "brand": {
+                "id": "a1379a72-b58a-4c8f-a508-6caee260fc07",
+                "slug": "carisma-spa",
+                "name": "Carisma Spa",
+                "house": "spa"
+              },
+              "serviceId": "b8a48ed1-8fe8-4eba-a5de-2df79be7ddd9",
+              "serviceOptionId": null,
+              "name": "Day of Indulgence — Spa Facility Pass",
+              "optionName": null,
+              "durationMinutes": 0,
+              "fromCents": 2500,
+              "fromPoints": 500,
+              "venues": [
+                {
+                  "locationId": "7172982c-354a-4a18-981e-412803ef5bc1",
+                  "brandLocationId": "717e0939-54d7-4d5a-90cb-55d32552a3de",
+                  "name": "InterContinental Malta",
+                  "priceCents": 2500,
+                  "points": 500
+                },
+                {
+                  "locationId": "b608520c-bc7f-4240-a4c9-6a83ce88f40c",
+                  "brandLocationId": "adaab18d-2ec2-444d-b770-41f64e129737",
+                  "name": "Novotel Malta Sliema",
+                  "priceCents": 2500,
+                  "points": 500
+                },
+                {
+                  "locationId": "41aad661-4553-46d1-aab9-c52e3a285338",
+                  "brandLocationId": "9b0298d6-640b-4914-b8a6-fb67f15a1eda",
+                  "name": "Ramla Bay Resort",
+                  "priceCents": 2500,
+                  "points": 500
+                },
+                {
+                  "locationId": "436874d7-0f48-43ca-83d3-0b0f6a9c5a89",
+                  "brandLocationId": "efa03daa-d6ed-4ec9-9374-a6c6d3aa73d1",
+                  "name": "Riviera Spa Resort",
+                  "priceCents": 2500,
+                  "points": 500
+                },
+                {
+                  "locationId": "e333b2bf-d021-4624-8331-5124510a24b5",
+                  "brandLocationId": "a47bd389-7867-4502-83fd-fc0262e56aad",
+                  "name": "Hugo's H Hotel",
+                  "priceCents": 3500,
+                  "points": 700
+                },
+                {
+                  "locationId": "5500eed3-ac13-45ef-ae70-85f38f9c32be",
+                  "brandLocationId": "4b344ca4-98ac-4159-a881-762d0a61ef2f",
+                  "name": "Carisma Spa, Grand Hotel Excelsior",
+                  "priceCents": 4000,
+                  "points": 800
+                }
+              ],
+              "imageUrl": "https://www.carismaspa.com/assets/img/sauna-spa-day-facility-pass-malta.webp",
+              "spaDay": false,
+              "affordable": false
+            },
+            {
+              "brand": {
+                "id": "a1379a72-b58a-4c8f-a508-6caee260fc07",
+                "slug": "carisma-spa",
+                "name": "Carisma Spa",
+                "house": "spa"
+              },
+              "serviceId": "3e182fed-b546-4521-a96b-93430e69e123",
+              "serviceOptionId": null,
+              "name": "Day of Indulgence - Weekend Spa Facility Pass",
+              "optionName": null,
+              "durationMinutes": 0,
+              "fromCents": 2500,
+              "fromPoints": 500,
+              "venues": [
+                {
+                  "locationId": "7172982c-354a-4a18-981e-412803ef5bc1",
+                  "brandLocationId": "717e0939-54d7-4d5a-90cb-55d32552a3de",
+                  "name": "InterContinental Malta",
+                  "priceCents": 2500,
+                  "points": 500
+                },
+                {
+                  "locationId": "b608520c-bc7f-4240-a4c9-6a83ce88f40c",
+                  "brandLocationId": "adaab18d-2ec2-444d-b770-41f64e129737",
+                  "name": "Novotel Malta Sliema",
+                  "priceCents": 2500,
+                  "points": 500
+                },
+                {
+                  "locationId": "41aad661-4553-46d1-aab9-c52e3a285338",
+                  "brandLocationId": "9b0298d6-640b-4914-b8a6-fb67f15a1eda",
+                  "name": "Ramla Bay Resort",
+                  "priceCents": 2500,
+                  "points": 500
+                },
+                {
+                  "locationId": "436874d7-0f48-43ca-83d3-0b0f6a9c5a89",
+                  "brandLocationId": "efa03daa-d6ed-4ec9-9374-a6c6d3aa73d1",
+                  "name": "Riviera Spa Resort",
+                  "priceCents": 2500,
+                  "points": 500
+                },
+                {
+                  "locationId": "5500eed3-ac13-45ef-ae70-85f38f9c32be",
+                  "brandLocationId": "4b344ca4-98ac-4159-a881-762d0a61ef2f",
+                  "name": "Carisma Spa, Grand Hotel Excelsior",
+                  "priceCents": 4000,
+                  "points": 800
+                },
+                {
+                  "locationId": "e333b2bf-d021-4624-8331-5124510a24b5",
+                  "brandLocationId": "a47bd389-7867-4502-83fd-fc0262e56aad",
+                  "name": "Hugo's H Hotel",
+                  "priceCents": 4000,
+                  "points": 800
+                }
+              ],
+              "imageUrl": "https://www.carismaspa.com/assets/img/sauna-spa-day-facility-pass-malta.webp",
+              "spaDay": false,
+              "affordable": false
+            },
+            {
+              "brand": {
+                "id": "a1379a72-b58a-4c8f-a508-6caee260fc07",
+                "slug": "carisma-spa",
+                "name": "Carisma Spa",
+                "house": "spa"
+              },
+              "serviceId": "b3ce259a-98e7-4974-aee3-986915606a97",
+              "serviceOptionId": null,
+              "name": "Japanese Short & Sweet 30 min",
+              "optionName": null,
+              "durationMinutes": 40,
+              "fromCents": 5900,
+              "fromPoints": 1180,
+              "venues": [
+                {
+                  "locationId": "b608520c-bc7f-4240-a4c9-6a83ce88f40c",
+                  "brandLocationId": "adaab18d-2ec2-444d-b770-41f64e129737",
+                  "name": "Novotel Malta Sliema",
+                  "priceCents": 5900,
+                  "points": 1180
+                },
+                {
+                  "locationId": "41aad661-4553-46d1-aab9-c52e3a285338",
+                  "brandLocationId": "9b0298d6-640b-4914-b8a6-fb67f15a1eda",
+                  "name": "Ramla Bay Resort",
+                  "priceCents": 5900,
+                  "points": 1180
+                },
+                {
+                  "locationId": "436874d7-0f48-43ca-83d3-0b0f6a9c5a89",
+                  "brandLocationId": "efa03daa-d6ed-4ec9-9374-a6c6d3aa73d1",
+                  "name": "Riviera Spa Resort",
+                  "priceCents": 5900,
+                  "points": 1180
+                },
+                {
+                  "locationId": "5500eed3-ac13-45ef-ae70-85f38f9c32be",
+                  "brandLocationId": "4b344ca4-98ac-4159-a881-762d0a61ef2f",
+                  "name": "Carisma Spa, Grand Hotel Excelsior",
+                  "priceCents": 6500,
+                  "points": 1300
+                },
+                {
+                  "locationId": "e333b2bf-d021-4624-8331-5124510a24b5",
+                  "brandLocationId": "a47bd389-7867-4502-83fd-fc0262e56aad",
+                  "name": "Hugo's H Hotel",
+                  "priceCents": 6500,
+                  "points": 1300
+                },
+                {
+                  "locationId": "5af6cf0f-afa5-4d3e-a0c9-672ce6f33bcc",
+                  "brandLocationId": "d0f0905a-959b-497b-94d3-e0714971c71b",
+                  "name": "Hyatt Regency",
+                  "priceCents": 6500,
+                  "points": 1300
+                },
+                {
+                  "locationId": "7172982c-354a-4a18-981e-412803ef5bc1",
+                  "brandLocationId": "717e0939-54d7-4d5a-90cb-55d32552a3de",
+                  "name": "InterContinental Malta",
+                  "priceCents": 6500,
+                  "points": 1300
+                }
+              ],
+              "imageUrl": "https://www.carismaspa.com/assets/img/wix/f940f0_bbbf979cef704a1896ab6a9c26c6e558/fill-1600x1200.webp",
+              "spaDay": false,
+              "affordable": false
+            },
+            {
+              "brand": {
+                "id": "a1379a72-b58a-4c8f-a508-6caee260fc07",
+                "slug": "carisma-spa",
+                "name": "Carisma Spa",
+                "house": "spa"
+              },
+              "serviceId": "111bec59-5dfc-4ea5-85d9-76859e2ea595",
+              "serviceOptionId": "fdd0a369-b752-464a-a443-14398a09054a",
+              "name": "Anti-Stress Massage",
+              "optionName": "55 min",
+              "durationMinutes": 55,
+              "fromCents": 9900,
+              "fromPoints": 1980,
+              "venues": [
+                {
+                  "locationId": "b608520c-bc7f-4240-a4c9-6a83ce88f40c",
+                  "brandLocationId": "adaab18d-2ec2-444d-b770-41f64e129737",
+                  "name": "Novotel Malta Sliema",
+                  "priceCents": 9900,
+                  "points": 1980
+                },
+                {
+                  "locationId": "41aad661-4553-46d1-aab9-c52e3a285338",
+                  "brandLocationId": "9b0298d6-640b-4914-b8a6-fb67f15a1eda",
+                  "name": "Ramla Bay Resort",
+                  "priceCents": 9900,
+                  "points": 1980
+                },
+                {
+                  "locationId": "436874d7-0f48-43ca-83d3-0b0f6a9c5a89",
+                  "brandLocationId": "efa03daa-d6ed-4ec9-9374-a6c6d3aa73d1",
+                  "name": "Riviera Spa Resort",
+                  "priceCents": 9900,
+                  "points": 1980
+                },
+                {
+                  "locationId": "5500eed3-ac13-45ef-ae70-85f38f9c32be",
+                  "brandLocationId": "4b344ca4-98ac-4159-a881-762d0a61ef2f",
+                  "name": "Carisma Spa, Grand Hotel Excelsior",
+                  "priceCents": 10900,
+                  "points": 2180
+                },
+                {
+                  "locationId": "e333b2bf-d021-4624-8331-5124510a24b5",
+                  "brandLocationId": "a47bd389-7867-4502-83fd-fc0262e56aad",
+                  "name": "Hugo's H Hotel",
+                  "priceCents": 10900,
+                  "points": 2180
+                },
+                {
+                  "locationId": "5af6cf0f-afa5-4d3e-a0c9-672ce6f33bcc",
+                  "brandLocationId": "d0f0905a-959b-497b-94d3-e0714971c71b",
+                  "name": "Hyatt Regency",
+                  "priceCents": 10900,
+                  "points": 2180
+                },
+                {
+                  "locationId": "7172982c-354a-4a18-981e-412803ef5bc1",
+                  "brandLocationId": "717e0939-54d7-4d5a-90cb-55d32552a3de",
+                  "name": "InterContinental Malta",
+                  "priceCents": 10900,
+                  "points": 2180
+                }
+              ],
+              "imageUrl": "https://www.carismaspa.com/assets/img/wix/f940f0_499bb26771d54fbcba57af113bfdc3e4/fill-1600x1200.webp",
+              "spaDay": false,
+              "affordable": false
+            },
+            {
+              "brand": {
+                "id": "a1379a72-b58a-4c8f-a508-6caee260fc07",
+                "slug": "carisma-spa",
+                "name": "Carisma Spa",
+                "house": "spa"
+              },
+              "serviceId": "b8d8382b-ab57-4e02-8bf7-43bbef27c018",
+              "serviceOptionId": "fe773697-5687-46ab-8176-a17ecd28f390",
+              "name": "Carisma Signature Massage",
+              "optionName": "85 min",
+              "durationMinutes": 85,
+              "fromCents": 14900,
+              "fromPoints": 2980,
+              "venues": [
+                {
+                  "locationId": "b608520c-bc7f-4240-a4c9-6a83ce88f40c",
+                  "brandLocationId": "adaab18d-2ec2-444d-b770-41f64e129737",
+                  "name": "Novotel Malta Sliema",
+                  "priceCents": 14900,
+                  "points": 2980
+                },
+                {
+                  "locationId": "41aad661-4553-46d1-aab9-c52e3a285338",
+                  "brandLocationId": "9b0298d6-640b-4914-b8a6-fb67f15a1eda",
+                  "name": "Ramla Bay Resort",
+                  "priceCents": 14900,
+                  "points": 2980
+                },
+                {
+                  "locationId": "436874d7-0f48-43ca-83d3-0b0f6a9c5a89",
+                  "brandLocationId": "efa03daa-d6ed-4ec9-9374-a6c6d3aa73d1",
+                  "name": "Riviera Spa Resort",
+                  "priceCents": 14900,
+                  "points": 2980
+                },
+                {
+                  "locationId": "5500eed3-ac13-45ef-ae70-85f38f9c32be",
+                  "brandLocationId": "4b344ca4-98ac-4159-a881-762d0a61ef2f",
+                  "name": "Carisma Spa, Grand Hotel Excelsior",
+                  "priceCents": 15900,
+                  "points": 3180
+                },
+                {
+                  "locationId": "e333b2bf-d021-4624-8331-5124510a24b5",
+                  "brandLocationId": "a47bd389-7867-4502-83fd-fc0262e56aad",
+                  "name": "Hugo's H Hotel",
+                  "priceCents": 15900,
+                  "points": 3180
+                },
+                {
+                  "locationId": "5af6cf0f-afa5-4d3e-a0c9-672ce6f33bcc",
+                  "brandLocationId": "d0f0905a-959b-497b-94d3-e0714971c71b",
+                  "name": "Hyatt Regency",
+                  "priceCents": 15900,
+                  "points": 3180
+                },
+                {
+                  "locationId": "7172982c-354a-4a18-981e-412803ef5bc1",
+                  "brandLocationId": "717e0939-54d7-4d5a-90cb-55d32552a3de",
+                  "name": "InterContinental Malta",
+                  "priceCents": 15900,
+                  "points": 3180
+                }
+              ],
+              "imageUrl": "https://www.carismaspa.com/assets/img/wix/f940f0_9efbc6d803fd48fe9c99b0abc3f2fafa/fill-1600x1200.webp",
+              "spaDay": false,
+              "affordable": false
+            }
+          ]
+        }
+      }
+    },
+    "points-bookings": {
+      "door": "GET /client/loyalty/points-bookings",
+      "status": 200,
+      "recordedAt": "2026-11-19T08:36:57+00:00",
+      "body": {
+        "success": true,
+        "data": {
+          "enabled": true,
+          "items": []
+        }
+      }
+    },
+    "activity": {
+      "door": "GET /client/loyalty/activity",
+      "status": 200,
+      "recordedAt": "2026-11-19T08:36:57+00:00",
+      "body": {
+        "success": true,
+        "data": {
+          "enabled": true,
+          "items": [
+            {
+              "id": "66aba897-2ac2-4a44-8094-c9df341e08dc",
+              "at": "2026-11-19T08:36:49.668Z",
+              "day": "2026-11-19",
+              "brand": null,
+              "kind": "BONUS",
+              "type": "verified_email",
+              "label": "Verified email on your account",
+              "points": 50,
+              "cents": 250,
+              "status": "received",
+              "expiresAt": null
+            },
+            {
+              "id": "2329884c-f9f4-4458-b502-6897dba6940b",
+              "at": "2026-11-19T03:07:00.134Z",
+              "day": "2026-11-19",
+              "brand": null,
+              "kind": "BONUS",
+              "type": "app_sign_in",
+              "label": "First sign-in to the Carisma app",
+              "points": 50,
+              "cents": 250,
+              "status": "received",
+              "expiresAt": null
+            },
+            {
+              "id": "2c71825d-beae-4fc7-8d0a-10a7d4b390a4",
+              "at": "2026-11-15T17:24:00.248Z",
+              "day": "2026-11-15",
+              "brand": {
+                "id": "a1379a72-b58a-4c8f-a508-6caee260fc07",
+                "name": "Carisma Spa",
+                "house": "spa"
+              },
+              "kind": "RELEASE",
+              "type": "returned",
+              "label": "Carisma credit returned",
+              "points": 2,
+              "cents": 10,
+              "status": "returned",
+              "expiresAt": null
+            }
+          ],
+          "nextCursor": "MjAyNi0xMS0xNVQxNzoyNDowMC4yNDhafDJjNzE4MjVkLWJlYWUtNGZjNy04ZDBhLTEwYTdkNGIzOTBhNA"
+        }
+      }
+    },
+    "public-status": {
+      "door": "GET /public/loyalty/status",
+      "status": 200,
+      "recordedAt": "2026-11-19T08:36:57+00:00",
+      "body": {
+        "success": true,
+        "data": {
+          "enabled": false
+        }
+      }
+    },
+    "earn-preview": {
+      "door": "POST /client/loyalty/earn/preview",
+      "status": 200,
+      "recordedAt": "2026-11-19T08:37:21+00:00",
+      "request": {
+        "brandId": "a1379a72-b58a-4c8f-a508-6caee260fc07",
+        "lines": [
+          {
+            "serviceId": "111bec59-5dfc-4ea5-85d9-76859e2ea595",
+            "serviceOptionId": "fdd0a369-b752-464a-a443-14398a09054a",
+            "priceCents": 9900
+          }
+        ]
+      },
+      "body": {
+        "success": true,
+        "data": {
+          "enabled": true,
+          "points": 99,
+          "cents": 495,
+          "display": "€4.95 · 99 points",
+          "levelName": "Pearl",
+          "level": {
+            "key": "pearl",
+            "number": 1,
+            "name": "Pearl",
+            "label": "Level 1 · Pearl"
+          },
+          "multiplier": 1,
+          "promo": null,
+          "reason": null
+        }
+      }
+    }
+  }
+}

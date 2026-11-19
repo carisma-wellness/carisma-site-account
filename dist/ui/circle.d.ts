@@ -1,173 +1,133 @@
-export declare const CIRCLE_QC = "carisma-circle-20261115";
-export declare const CIRCLE_HREF = "/account/rewards";
+import { summaryOf, type CircleBrand, type CircleLeftModel, type CircleLevelRule, type CircleLevelView, type CircleModel, type CircleSummary, type CircleSummaryState } from "./circleCore.js";
+import { type CirclePerks } from "./circlePerks.js";
+import { type CircleReward, type CircleRewardArt, type CircleRewardPhoto } from "./circleFeatured.js";
+export * from "./circleCore.js";
+export { asGemKey, circleMarkSVG, jewelSlotHTML, progressFraction, CIRCLE_GEM_KEYS, type CircleGemKey } from "./circleMark.js";
+export { benefitsList, circleTrackHTML, liftPct, nextPerksOf, ownPerksOf, paidLineText, unlockLineText, unlocksList, type TrackInput, type TrackOptions, } from "./circleTrack.js";
+export { actionValueText, circleWaysCardsHTML, circleWaysHTML, instagramLinkHTML, waysSummaryText } from "./circleWays.js";
+export { circlePerksHTML, readCirclePerks, spaDaysText, type CirclePerks, type CirclePerkUpcoming } from "./circlePerks.js";
+export { circleNowRowHTML, circleRewardsHTML, REWARDS_FOOT, nextRewardText, readCircleRewards, rewardGroups, rewardPriceText, rewardTitle, type CircleReward, type CircleRewardArt, type CircleRewardPhoto, } from "./circleFeatured.js";
+/** Same literal as panel.ts ACCOUNT_DETAILS_HREF (not imported: panel.ts imports this module). */
+export declare const REJOIN_LABEL = "Rejoin Carisma Circle";
 /**
- * The Carisma Circle terms, served by each Circle site at this path (W2, 15 Nov 2026).
- * Every "Terms" beside a credit sentence links here. A site that does not host
- * the page passes its own address (or `null` for no link) where the HTML builders take one.
+ * The rejoin sentence WITHOUT a level name ("the first level"), for a site that cannot read the public status.
+ * Every left state draws `rejoinNoteText(firstLevelLabel)` instead, inside `[data-cw-circle-rejoin-note]`, and
+ * the browser puts the API's first-level label in ("Level 1 · Pearl", R5.1) as soon as the host hands it over.
  */
-export declare const CIRCLE_TERMS_HREF = "/carisma-circle/terms";
-/** Every brand a member can earn at and spend at, in customer words. */
-export declare const CIRCLE_BRANDS = "Carisma Spa, Aesthetics and Slimming";
-/** 20 points = €1, so a point is 5 cents (Bible pointValue). */
-export declare const CENTS_PER_POINT = 5;
-export declare const DEFAULT_MIN_REDEEM_POINTS = 100;
-export declare const DEFAULT_MAX_SHARE_PCT = 50;
-/** Counsel's corrected wording (surface-consistency row 1, terms v1.0 §3–§4), word for word. */
-export declare const PROMISE_QUALIFIER = "Medical treatments, consultations with a doctor, prescription-only medicines, fees and tips don't earn credit. A gift card someone bought earns for the person who uses it.";
-export declare const EARN_TERMS_LINE = "No credit is given for reviews, ratings, follows, posts, tags or shares.";
+export declare const REJOIN_NOTE: string;
+/** What a site may hand the Circle builders. */
+export interface CircleExtras {
+    /** Where every "Terms" points (default CIRCLE_TERMS_HREF; null = no link). */
+    termsHref?: string | null;
+    /** Photos and booking links per featured service id. */
+    art?: CircleRewardArt;
+    /** Poster stills for the jewel slots (`/circle/jewel/v1/<gem>-<kind>.webp`). */
+    poster?: ((gem: string, kind: "small" | "full" | "icon") => string) | null;
+    /** Where "Book a visit" / "Book it" go on this brand. */
+    bookHref?: string;
+    spaDayHref?: string | null;
+    /** ADDENDUM X3/KIT-3: the site's own photo for a featured service (then the API's `imageUrl`). */
+    photo?: CircleRewardPhoto;
+    /** The API's first-level label ("Level 1 · Pearl") for the rejoin sentence; "" = "the first level". */
+    firstLevelLabel?: string;
+    /**
+     * ADDENDUM KIT-6: the WhatsApp row of "Offers and reminders" (default true). Carisma Slimming passes false: its
+     * WhatsApp number is locked by Meta, so its Credit & rewards page carries no WhatsApp switch.
+     */
+    whatsappPref?: boolean;
+    /** The clock for the ending-soon window (W-2); `Date.now()` when absent (tests pin it). */
+    now?: number;
+}
 /**
- * Under the shop: rewards are taken at the desk by showing the member card in the Carisma app (terms v1.0 §10).
- * Counsel's corrected wording for the same sentence on the Spa page (surface-consistency row 26).
+ * W-2 (ADDENDUM X4 + X5): the line directly under the balance. Inside the LAST expiry notice window (the API's
+ * `rules.endingSoonDays`, else 14 days) while her birthday credit is the part that ends first, the X5 sentence
+ * ("Your €20.00 birthday credit ends Mon 7 Dec. Use it on a treatment before then."); otherwise the dated part
+ * ("€20.00 of it until Mon 7 Dec"). Never both: one figure, said once. The Hero's next step and its button stay the
+ * design's (`CK.hero`: the gap / a level on its way; "Use my credit" when affordable).
  */
-export declare const SHOP_FOOT = "Rewards are paid in full with credit: show your card in the Carisma app at the desk. Prices include VAT.";
-/** The five levels, in order. Names and numerals are fixed by the Bible; thresholds are euros a calendar year. */
-export declare const CIRCLE_LEVELS: ReadonlyArray<{
-    key: string;
-    name: string;
-    numeral: string;
-    thresholdEur: number;
-}>;
-/** The verb-gap only shows when one visit closes it (Bible tierRules.nudgeGapRule; €150 = the new-member figure). */
-export declare const GAP_NUDGE_MAX_CENTS = 15000;
-export interface CircleLevelView {
-    key: string;
-    name: string;
-    numeral: string;
-    /** 0..4 on the ladder. */
-    index: number;
-}
-export interface CircleAction {
-    key: string;
-    label: string;
-    points: number;
-    cents: number;
-    done: boolean;
-    /** W4 (B4): for `profile`, what is still missing ('email_verified' | 'birthday' | 'comfort'). */
-    missing?: string[];
-}
-export interface CircleModel {
-    creditCents: number;
-    points: number;
-    minRedeemCents: number;
-    /** The balance can be used now (≥ the minimum redemption). */
-    ready: boolean;
-    /** How much more credit until it can be used; 0 when ready. */
-    toReadyCents: number;
-    maxSharePct: number;
-    level: CircleLevelView;
-    nextLevel: (CircleLevelView & {
-        thresholdCents: number;
-    }) | null;
-    spendThisYearCents: number;
-    headStartCents: number;
-    toNextLevelCents: number;
-    pendingCents: number;
-    expiring: {
-        cents: number;
-        date: string;
+export declare function underBalanceText(m: {
+    pointsExpireKind: string;
+    datedEnds: {
+        at: string;
+        points: number;
     } | null;
-    nextVisitCredit: {
-        cents: number;
-        useBy: string;
-    } | null;
-    passport: {
-        spa: boolean;
-        aesthetics: boolean;
-        slimming: boolean;
-        count: number;
-    };
-    actions: CircleAction[];
-    actionsDone: number;
-    actionsLeftCents: number;
-}
-/** True on every site that may show the Circle. Carisma Medical never does. */
-export declare function circleAllowedOn(siteBrand?: string): boolean;
-/**
- * `/client/loyalty/me` → the model, or null when the programme is not live for
- * this member. Null for: `enabled` anything but `true`, no credit block, an
- * unknown level, a non-object body, an envelope around any of those.
- */
-export declare function readCircle(body: unknown): CircleModel | null;
-/** A member who used "Leave Carisma Circle": the date they left, and nothing else. */
-export interface CircleLeftModel {
-    /** ISO instant, or "" when the server did not say. */
-    leftAt: string;
-}
-/** What the member read says about this member: live, left, or nothing to show (null). */
-export type CircleState = {
-    kind: "live";
-    model: CircleModel;
-} | {
-    kind: "left";
-    left: CircleLeftModel;
+    pointsPerEuro: number;
+    endingSoonDays?: number | null;
+}, now?: number): {
+    text: string;
+    ending: boolean;
 };
 /**
- * `/client/loyalty/me` → the left state, or null. Only a clean `enabled: true`
- * with `left: true` is a left member; anything else (off, live, garbage) is null.
+ * The header chip for a signed-in member: the flat mark and the balance in
+ * euros ("€72.40"). The live jewel opens in the account menu, so three.js never
+ * loads on a page just because the header is there (surfaces §9 Q2 default).
  */
-export declare function readCircleLeft(body: unknown): CircleLeftModel | null;
-/** One read, three outcomes: live (the full model), left (the date only), or null (draw nothing). */
-export declare function readCircleState(body: unknown): CircleState | null;
+export declare function circleChipHTML(s: CircleSummary | null): string;
+/** The chip's spoken label (`CK.chip`'s aria): "Carisma credit €84.30, Level 3 · Ruby" (no figure below zero). */
+export declare function circleChipLabel(s: Pick<CircleSummary, "belowZero" | "creditCents" | "level">): string;
+export interface PanelCircleExtras extends CircleExtras {
+    /** "Level 4 · Sapphire unlocks …" (from the member read, filled after the menu opens). */
+    unlockLine?: string;
+    /** The featured read, for the "Yours now" row. */
+    rewards?: CircleReward[] | null;
+}
+/**
+ * The menu's Circle block: her jewel beside level, balance and reading; the
+ * compact level track with the one-line unlock; what her points buy now (with
+ * its photo); ONE button. "" for null. Left / minor states have their own
+ * builders below.
+ */
+export declare function circlePanelRowHTML(s: CircleSummary | null, x?: PanelCircleExtras): string;
+/** The menu block for a member who left: the date and Rejoin, nothing else. "" when null. */
+export declare function circlePanelLeftHTML(l: CircleLeftModel | null, firstLevelLabel?: string): string;
+/** R5.4: under the minimum age, one line and nothing else. */
+export declare function circlePanelMinorHTML(minor: {
+    minAge: number | null;
+} | null): string;
+/** The whole menu block for one summary state. */
+export declare function circlePanelStateHTML(st: CircleSummaryState | null, x?: PanelCircleExtras): string;
 /** "You left Carisma Circle on 14 November 2026" (Malta date; no date when the server gave none). */
 export declare function leftText(l: CircleLeftModel): string;
-/**
- * Beside every Rejoin: what rejoining does, that nothing forfeited comes back, and (counsel, surface-consistency
- * row 8; terms v1.0 §13) that a balance below zero comes back too unless it has been written off.
- */
-export declare const REJOIN_NOTE = "If you rejoin, you start again at I First Light with no credit. The credit you gave up when you left does not come back. If your balance was below zero when you left, that comes back too, unless it has been written off.";
-export declare const REJOIN_LABEL = "Rejoin Carisma Circle";
-/** "€62.00" — credit is always two decimals. */
-export declare function creditText(cents: number): string;
-/** "1,240 points" / "1 point". */
-export declare function pointsText(points: number): string;
-/** "€40" — level-spend euros are whole and rounded UP (never undersell a gap). */
-export declare function wholeEuroUp(cents: number): string;
-/** "III Golden Hour" — a level never appears without its numeral. */
-export declare function levelText(l: {
-    numeral: string;
-    name: string;
+/** The Overview card for a member who left. "" when null. */
+export declare function circleOverviewLeftHTML(l: CircleLeftModel | null, firstLevelLabel?: string): string;
+/** R5.4 on the account: one line, nothing else. */
+export declare function circleOverviewMinorHTML(minor: {
+    minAge: number | null;
+} | null): string;
+/** The server's own sentence for a booked visit that takes her up a level, or "" (never one the kit writes). */
+export declare function circleOnItsWayText(m: {
+    levelOnItsWay: {
+        sentence: string;
+    } | null;
+    nextLevel: unknown;
 }): string;
-/** "€20.00 of it until 7 Dec" — the soonest use-by, so nothing lapses unseen. "" when none. */
-export declare function useByText(m: CircleModel): string;
-/** "€62.00 ready to use", or below the minimum "€3.25 Carisma credit · €1.75 more and you can use it". */
-export declare function readyText(m: CircleModel): string;
 /**
- * "Spend €40 more this year to reach Moonlight" — only when one visit closes
- * the gap (≤ €150); otherwise "" and the bar alone tells the story.
+ * Under "Good evening, Maria": "Level 3 · Ruby · Member since 2024 · CC 0042 1187". "Member since" only from the
+ * API's `member.since` (BE-e; absent → left out), the number only when she has one. "" for null.
  */
-export declare function gapText(m: CircleModel, cap?: number): string;
-/** "2 of 5 done · €29.00 more to earn". */
-export declare function waysToEarnText(m: CircleModel): string;
-/** Progress toward the next level, 0..100, including the Welcome start segment. */
-export declare function levelProgress(m: CircleModel): {
-    spentPct: number;
-    headStartPct: number;
-};
-/** The five-step ladder, current step marked. Numerals always shown. */
-export declare function ladderHTML(level: CircleLevelView, cls?: string): string;
+export declare function circleMemberLineText(m: CircleModel | null): string;
+export declare function circleMemberLineHTML(m: CircleModel | null): string;
 /**
- * The header-panel row: "€62.00 ready to use", points and the soonest use-by,
- * the level with its ladder, the verb-gap when one visit closes it. One link
- * to Credit & rewards. "" when the model is null.
+ * The Hero: jewel 240, level, balance, reading, what ends first, ONE next step,
+ * ONE action, conditions. `say` replaces the next step (the thank-you page's
+ * gain sentence); `conditions: "earned"` on an earned moment.
  */
-export declare function circlePanelRowHTML(m: CircleModel | null): string;
-/**
- * The header-panel row for a member who left: the date and Rejoin, nothing
- * else (no credit, no level). "" when null.
- */
-export declare function circlePanelLeftHTML(l: CircleLeftModel | null): string;
-/** The Overview card for a member who left: the date, what rejoining means, Rejoin. "" when null. */
-export declare function circleOverviewLeftHTML(l: CircleLeftModel | null): string;
-export declare function circleOverviewHTML(m: CircleModel | null, termsHref?: string | null): string;
-/**
- * Carisma credit as its own line in the Wallet, NOT added to "Available to
- * spend" (it covers up to half of a booking, so summing it would overstate
- * what a member can pay with). "" when null.
- */
-export declare function circleWalletLineHTML(m: CircleModel | null): string;
+export declare function circleHeroHTML(m: CircleModel | null, x?: CircleExtras & {
+    say?: string;
+    conditions?: "earned" | "spend";
+    action?: {
+        label: string;
+        href: string;
+    } | false;
+}): string;
+export declare function circleLadderHTML(levels: CircleLevelRule[], current: CircleLevelView | null, pointsPerEuro: number, x?: CircleExtras & {
+    earnPerEuro?: number;
+}): string;
 export interface CircleActivityItem {
     id: string;
     at: string;
+    day: string;
+    type: string;
     brand: string;
     label: string;
     points: number;
@@ -175,53 +135,91 @@ export interface CircleActivityItem {
     status: string;
     expiresAt: string | null;
 }
-export declare function readCircleActivity(body: unknown): {
+export declare function readCircleActivity(body: unknown, pointsPerEuro?: number): {
     items: CircleActivityItem[];
     nextCursor: string | null;
 } | null;
 export declare function circleActivityRowsHTML(items: CircleActivityItem[]): string;
-export interface CircleReward {
-    id: string;
-    brand: string;
-    name: string;
-    points: number;
-    valueCents: number;
-    levelLock: string;
-    discovery: boolean;
-    discoveryPoints: number | null;
-    affordable: boolean;
-}
-export declare function readCircleRewards(body: unknown): CircleReward[] | null;
-/** "Yours now" (all affordable, server order) then at most two "Next up", nearest first. */
-export declare function shopGroups(items: CircleReward[]): {
-    now: CircleReward[];
-    next: CircleReward[];
+export declare function circleActivityHTML(m: CircleModel, activity: {
+    items: CircleActivityItem[];
+    nextCursor: string | null;
+} | null, opts?: {
+    limit?: number;
+    moreHref?: string;
+}): string;
+/**
+ * Board 10's right column, shared by the Overview and Credit and rewards (W-16, KIT-2: "Hero, 'Your level', …"):
+ * the eyebrow "Your next level" ("Your level" at the top), the level track with what the next level unlocks (and its
+ * hatched "on its way" end from the API's lift, W-4), a box "Your Level 3 · Ruby benefits" (live perks only, X2) kept
+ * "until 31 Dec 2027" for Levels 2–4, then "See all five levels" (`levelsHref`; on Credit and rewards the ladder is
+ * on the same page, so `#levels`).
+ */
+export declare function circleLevelColumnHTML(m: CircleModel, x?: CircleExtras & {
+    levelsHref?: string;
+}): string;
+/**
+ * Overview's Circle block: the Circle panel (her Hero on the left; the level
+ * track with what the next level unlocks and what hers gives on the right),
+ * then what her points buy (photo cards, filled after a second read), more
+ * ways to earn, and three rows of activity. "" for null.
+ */
+export declare function circleOverviewHTML(m: CircleModel | null, x?: CircleExtras & {
+    rewards?: CircleReward[] | null;
+    activity?: {
+        items: CircleActivityItem[];
+        nextCursor: string | null;
+    } | null;
+    /** The public status's retail boost (the "Spa products" card); unknown → no card. */
+    retailBoostPct?: number | null;
+}): string;
+/**
+ * Carisma credit as its own line in the Wallet, NOT added to "Available to
+ * spend" (points pay one whole treatment, never part of a bill). "" when null.
+ */
+export declare function circleWalletLineHTML(m: CircleModel | null): string;
+/** The one quiet line under the Wallet button: the card identifies her; it never pays. */
+export declare const CIRCLE_CARD_LINE = "Your card shows the desk who you are. Paying with points at the desk needs the code in the Carisma app.";
+/**
+ * Which Wallet this browser may offer: "apple" on an iPhone or iPad in Safari, "google" on Android in Chrome,
+ * null everywhere else (never on a desktop browser, ADDENDUM KIT-4). `touchPoints` tells iPadOS (which reports
+ * a Mac) from a Mac.
+ */
+export declare function circleWalletPlatform(ua: string, touchPoints?: number): "apple" | "google" | null;
+/**
+ * `GET /client/wallet/availability` → the Circle card per platform (`circle: {apple, google}`, ADD-W4). Any
+ * other shape — the old `{apple, google}` with no `circle`, an error, garbage — is "no".
+ */
+export declare function readCircleWalletAvailability(body: unknown): {
+    apple: boolean;
+    google: boolean;
 };
-export declare function circleShopHTML(items: CircleReward[] | null, m: CircleModel): string;
-export interface CircleViewInput {
+/** The "Your card" block for one platform. Its button is bound by browser.ts (`data-cw-circle-wallet`). */
+export declare function circleCardBlockHTML(which: "apple" | "google"): string;
+export interface CircleViewInput extends CircleExtras {
     me: CircleModel;
     activity: {
         items: CircleActivityItem[];
         nextCursor: string | null;
     } | null;
     rewards: CircleReward[] | null;
-    bookHref?: string;
-    /** Where "Terms of Carisma Circle" points (default CIRCLE_TERMS_HREF; null = no link). */
-    termsHref?: string | null;
+    perks?: CirclePerks | null;
     /** The member's "Offers and reminders" answer (null = the box is not drawn). */
     prefs?: CirclePrefs | null;
+    /** The public status's retail boost (the "Spa products" card); unknown → no card until the host fills it. */
+    retailBoostPct?: number | null;
 }
-export declare function circleActivityHTML(m: CircleModel, activity: CircleViewInput["activity"]): string;
 /** The whole Credit & rewards page body. "" when the member read is null. */
 export declare function circleViewHTML(input: CircleViewInput | null): string;
-/**
- * The Credit & rewards page for a member who left: the date and Rejoin, then
- * "Offers and reminders" (an opt-out must always be possible). No credit, no
- * level, no activity, no shop.
- */
+/** The Credit & rewards page for a member who left: the date, Rejoin, then "Offers and reminders". */
 export declare function circleLeftViewHTML(input: {
     left: CircleLeftModel;
     prefs?: CirclePrefs | null;
+    firstLevelLabel?: string;
+    whatsappPref?: boolean;
+} | null): string;
+/** R5.4: the Credit & rewards page under the minimum age: one line. */
+export declare function circleMinorViewHTML(minor: {
+    minAge: number | null;
 } | null): string;
 /** GET /client/loyalty/leave, read for the confirm sheet. */
 export type LeavePreview = {
@@ -233,21 +231,12 @@ export type LeavePreview = {
     kind: "left";
     left: CircleLeftModel;
 };
-/**
- * The server's answer → what the sheet shows, or null (off, 404, garbage): with
- * null the sheet never offers the confirm button. A missing `warning` falls back
- * to the backend's own sentence, built from the same figures.
- */
-export declare function readLeavePreview(body: unknown): LeavePreview | null;
-/** The sheet's body: the figure given up, then the server's warning word for word. */
+export declare function readLeavePreview(body: unknown, pointsPerEuro?: number): LeavePreview | null;
 export declare function leaveSheetBodyHTML(p: LeavePreview | null, state: "loading" | "ready" | "failed", alert?: string): string;
-/** The sheet's foot. Staying is primary and takes focus; leaving names the figure. */
 export declare function leaveSheetFootHTML(p: LeavePreview | null, busy?: boolean): string;
-/**
- * The Bible's two consent sentences, word for word (§ "Account claim / create").
- * One box per channel, covering all three brands; never pre-ticked, never
- * rewarded, never needed to join.
- */
+/** POST /client/loyalty/rejoin answered: the member is in again (or never left). */
+export declare function readRejoined(body: unknown): boolean;
+/** The two consent sentences, word for word. One box per channel; never pre-ticked, never rewarded. */
 export declare const OFFERS_EMAIL_SENTENCE = "Email me offers and reminders from Carisma Spa, Carisma Aesthetics and Carisma Slimming.";
 export declare const OFFERS_WHATSAPP_SENTENCE = "Send me offers and reminders on WhatsApp from Carisma Spa, Carisma Aesthetics and Carisma Slimming.";
 export type OffersChannel = "email" | "whatsapp";
@@ -263,89 +252,81 @@ export interface CirclePrefs {
     left: boolean;
     brands: CirclePrefsBrand[];
 }
-/**
- * GET/PATCH /client/loyalty/preferences → the model, or null (off, 404,
- * garbage, no brands). A flag is true ONLY when the server says so: a
- * missing field is never consent.
- */
 export declare function readCirclePrefs(body: unknown): CirclePrefs | null;
-/** One box over three brands: on (every brand), off (none) or mixed (some), with the brands it is on for. */
 export declare function offersState(p: CirclePrefs, channel: OffersChannel): {
     state: "on" | "off" | "mixed";
     onFor: string[];
 };
-/** The plain words for a refused or failed save. */
 export declare function offersErrorText(code: string): string;
-/** What to say after a save, from the state the server answered. */
 export declare function offersSavedText(p: CirclePrefs, channel: OffersChannel): string;
-/** The "Offers and reminders" box. "" when null. `msg` is the line under it after a save. */
+/**
+ * "Offers and reminders". `opts.whatsapp: false` (ADDENDUM KIT-6, `circleWhatsappPref`) leaves the WhatsApp box out
+ * (the Slimming WhatsApp number is locked by Meta); the default draws both boxes, as before.
+ */
 export declare function circlePrefsHTML(p: CirclePrefs | null, msg?: {
     text: string;
     tone: "ok" | "bad";
-} | null, busy?: boolean): string;
-/** The box inside its own slot, so browser.ts can redraw it after a save without touching the page. */
-export declare function circlePrefsSlotHTML(p: CirclePrefs | null): string;
+} | null, busy?: boolean, opts?: {
+    whatsapp?: boolean;
+}): string;
+export declare function circlePrefsSlotHTML(p: CirclePrefs | null, opts?: {
+    whatsapp?: boolean;
+}): string;
 export interface CreditMomentInput {
-    /** What THIS bill gave, in cents. */
+    /** What THIS bill gives, in cents and points (the server's figures). */
     earnedCents: number;
+    earnedPoints?: number;
     /**
-     * The spendable balance after this bill, in cents — ONLY from the signed-in
-     * member's own read. `null` when unknown: a guest page never carries a
-     * balance (a guest checkout can name anyone's email, so the guest-session
-     * answer leaves the balance and the account state out on purpose).
+     * The signed-in member's own read. `null` for a guest: a guest page never
+     * carries a balance (a guest checkout can name anyone's email).
      */
-    balanceCents: number | null;
+    member: CircleModel | null;
+    /** The switched-on brands (from the member read, or the public status for a guest). */
+    brands?: CircleBrand[];
     /** The booking has a line that never earns (a medical / excluded treatment). */
     hasExcludedLine: boolean;
-    /** The soonest use-by part of the credit, when there is one. */
-    useBy?: {
-        cents: number;
-        date: string;
+    /** A line was paid with points: that booking earns nothing on it. */
+    paidWithPoints?: {
+        points: number;
     } | null;
-    minRedeemCents?: number;
+    /** Booked, not paid yet ("on its way", never "received"). */
+    unpaid?: boolean;
+    /** The programme's rate (the API's `rules.pointsPerEuro`), for a figure sent without its points. */
+    pointsPerEuro?: number;
+    /**
+     * W-1: what she still needs for her FIRST reward (`firstRewardGapCents` of her own read and the featured read);
+     * above 0, a member's moment is board 02's one quiet line instead of the panel. 0 / absent: the panel as before.
+     */
+    firstRewardGapCents?: number;
 }
 export interface CreditMoment {
     /**
-     * `hero`     — balance known: "€62.00 ready to use" + the CEO sentence + the conditions line;
-     * `received` — balance NOT known (a guest) and this bill alone reaches the minimum:
-     *              the bill's figure + the CEO sentence + the conditions line;
-     * `quiet`    — one line ("€3.25 added … €1.75 more and you can use it.", or,
-     *              balance unknown, just "€3.25 added to your Carisma credit.");
-     * `none`     — nothing on this page (no credit, or an excluded line: that visit
-     *              is a quiet ledger entry in the account, never a thank-you hero).
+     * `earned`   — a member: the Hero with the CEO sentence and the earned conditions;
+     * `received` — a guest: this bill's figure + the sentence (never a balance);
+     * `paid`     — paid with points: one quiet line + "This treatment earns no points";
+     * `onTheWay` — unpaid: "€11.90 · 238 points on the way when you pay";
+     * `first`    — a member short of her first reward (W-1, board 02): ONE quiet line, no panel, no track —
+     *              "€3.25 added to your Carisma credit · €6.75 more credit for your first reward" (+ " · Terms");
+     * `none`     — nothing on this page (off, an excluded line, no figure).
      */
-    kind: "hero" | "received" | "quiet" | "none";
-    /** The big figure: "€62.00 ready to use" (hero) or "€15.45" (received). */
+    kind: "earned" | "received" | "paid" | "onTheWay" | "first" | "none";
     hero: string;
     sentence: string;
-    /** The conditions line, without "Terms" (the page links its own terms). */
-    conditions: string[];
+    conditions: string;
     quiet: string;
+    /**
+     * "Paid with points · 2,180 points · This treatment earns no points" when a line of this bill was paid with
+     * points, else "". On a bill with money lines too, the moment stays the earned one (what the paid lines gave)
+     * and this line is drawn beside it for the points line.
+     */
+    paidLine: string;
 }
-/**
- * The Bible's render rule (storeCredit.renderRule), in one place for every
- * site: the hero and "You can use it already" only when this bill gave credit,
- * the spendable balance is at least €5.00 and there is no excluded line;
- * otherwise the one quiet line; an excluded line shows nothing here. With the
- * balance unknown, "You can use it already" is said only when THIS bill alone
- * reaches the minimum (then the balance does too), and the figure is the
- * bill's — never a balance we were not given.
- */
 export declare function creditMoment(input: CreditMomentInput | null | undefined): CreditMoment;
 /**
- * The pay-step disclosure. Counsel's corrected wording (surface-consistency row 6; terms v1.0 §12–§13: spent credit
- * is never taken from a refund, the balance goes below zero instead), word for word.
+ * floor(eligible euros × points per €1 × multiplier) points — euros paid, VAT-inclusive (BRIEF §2 Earning).
+ * `earnPerEuro` is the API's `rules.earnPerEuro` (1 point per €1 today; 1 only as the fallback).
  */
-export declare const PAY_STEP_DISCLOSURE = "If you cancel, the credit this booking gives you is removed. If you've already used it, your balance can go below zero. We never take it from your refund.";
-/**
- * "You'll receive €X in Carisma credit" for a pre-payment line, from the euros
- * a booking will charge on eligible lines and the member's level multiplier.
- * floor(euros × multiplier) points, 20 points = €1 (Bible amountRule). Returns
- * "" below one point. `from` prefixes "from" for a price that is a floor.
- */
-export declare function earnLine(eligibleCents: number, multiplier?: number, from?: boolean): string;
-/** floor(eligible euros × multiplier) points — whole euros paid, VAT-inclusive. */
-export declare function earnPoints(eligibleCents: number, multiplier?: number): number;
-/** POST /client/loyalty/rejoin answered: the member is in again (or never left). */
-export declare function readRejoined(body: unknown): boolean;
+export declare function earnPoints(eligibleCents: number, multiplier?: number, earnPerEuro?: number): number;
+/** The member model as the menu summary (the account page has the full read). */
+export { summaryOf as circleSummaryOf };
 //# sourceMappingURL=circle.d.ts.map

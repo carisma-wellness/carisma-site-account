@@ -41,6 +41,8 @@ export interface ApptCard {
     /** The server's block, all-false when the row carried none. */
     actions: BookingActions;
     due: number;
+    /** ADDENDUM BE-g / KIT-6 strict listing: the server marked every line of this booking as earning (missing = false). */
+    circleEligible: boolean;
 }
 /** "+35627802062" → "+356 2780 2062"; anything else unchanged. */
 export declare function formatPhone(raw: string): string;
@@ -80,6 +82,10 @@ export interface PortalModel extends PanelModel {
      * answers enabled:true. Off (the default) draws nothing at all.
      */
     circleRail: boolean;
+    /** ADDENDUM KIT-6 `circlePlaces.overview` (default true): Overview's Circle slot. */
+    circleOverview?: boolean;
+    /** ADDENDUM KIT-6 `circlePlaces.rewards` (default true): Credit & rewards on the rail. */
+    circleRewardsRail?: boolean;
 }
 /** `/account/bookings/<id>` — the local detail page, when the row has an id. */
 export declare function bookingDetailHref(row: Record<string, unknown>): string;
@@ -95,6 +101,10 @@ export interface PortalExtra {
     now?: Date;
     referRail?: boolean;
     circleRail?: boolean;
+    /** ADDENDUM KIT-6: the Overview place (default true). */
+    circleOverview?: boolean;
+    /** ADDENDUM KIT-6: the Credit & rewards place (default true). */
+    circleRewardsRail?: boolean;
 }
 export declare function buildPortalModel(session: unknown, view: PortalView, extra?: PortalExtra): PortalModel;
 /**
@@ -154,6 +164,11 @@ export declare function portalShellHTML(opts: {
     referRail?: boolean;
     /** Draw the (hidden until live) Carisma Circle rail row. */
     circleRail?: boolean;
+    /**
+     * ADDENDUM KIT-2: an empty, hidden slot under the greeting for her Circle line ("Level 3 · Ruby · Member since
+     * 2024 · CC 0042 1187"); browser.ts fills it only when the member read says live. Absent unless asked.
+     */
+    circleLine?: boolean;
 }): string;
 /** The failed-read block. Never the empty state: "you have no bookings" is a lie when we could not ask. */
 export declare function errorBlockHTML(what: string, phone?: string): string;
@@ -186,6 +201,7 @@ export declare function walletSummary(w: WalletModel | null): string;
  */
 export declare function circleSlotHTML(m: {
     circleRail: boolean;
+    circleOverview?: boolean;
 }, where: "home" | "wallet" | "details"): string;
 export declare function overviewBodyHTML(m: PortalModel): string;
 export declare function bookingsBodyHTML(m: PortalModel): string;

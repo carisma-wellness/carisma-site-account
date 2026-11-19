@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import assert from "node:assert/strict";
+import assert from "./fixtures/plain-assert.mjs";
 import {
   createAccountRoutes,
   seal,
@@ -35,6 +35,7 @@ import {
   requestsFor,
 } from "../dist/index.js";
 import { PORTAL_RULES_CSS } from "../dist/ui/styles/index.js";
+import { MARIA } from "./fixtures/circle-v2.mjs";
 
 /**
  * Carisma Circle W3 (backend B3b): "Leave Carisma Circle", a member who left,
@@ -48,19 +49,7 @@ import { PORTAL_RULES_CSS } from "../dist/ui/styles/index.js";
  *  - the proxy grows by exactly five literal doors.
  */
 
-// Maria Borg (panel/demo-member.json), live: €62.00 · 1,240 points, III Golden Hour.
-const MARIA = {
-  enabled: true,
-  programme: { name: "Carisma Circle", currencyName: "Carisma credit", unitName: "points" },
-  level: { key: "golden_hour", name: "Golden Hour", numeral: "III", multiplier: 1.5 },
-  nextLevel: { key: "moonlight", name: "Moonlight", numeral: "IV", thresholdCents: 125000 },
-  spendThisYearCents: 121000,
-  toNextLevelCents: 4000,
-  credit: { points: 1240, cents: 6200, display: "€62.00" },
-  passport: { spa: true, aesthetics: true, slimming: false },
-  actions: [],
-  rules: { pointsPerEuro: 20, minRedeemPoints: 100, maxSharePct: 50 },
-};
+// Maria Borg, live (v2, fixtures/circle-v2.mjs): Level 3 · Ruby, €72.40 · 1,448 points.
 // B3b's left answer: the programme names and the date, nothing else. 23:30 UTC on
 // 14 Nov is 00:30 on 15 Nov in Malta: the date shown must be Malta's.
 const LEFT = {
@@ -115,7 +104,8 @@ test("the left line carries Malta's date, and says nothing forfeited comes back"
   assert.equal(leftText({ leftAt: LEFT.leftAt }), "You left Carisma Circle on 15 November 2026");
   assert.equal(leftText({ leftAt: "" }), "You left Carisma Circle");
   assert.match(REJOIN_NOTE, /does not come back/);
-  assert.match(REJOIN_NOTE, /I First Light/);
+  assert.match(REJOIN_NOTE, /start again at the first level/);
+  assert.doesNotMatch(REJOIN_NOTE, /First Light/);
 });
 
 /* ── A member who left: date + Rejoin, never a figure ──────────────────── */
@@ -400,7 +390,7 @@ test("rejoin: one tap posts rejoin and the page reads the fresh start", async ()
   h.click(h.target("data-cw-circle-rejoin"));
   await settle();
   assert.deepEqual(h.calls.filter((c) => c.method === "POST").map((c) => [c.url, c.body]), [["/api/auth/proxy/client/loyalty/rejoin", {}]]);
-  assert.match(h.mount.innerHTML, /€62\.00/, "the live page again (from the server's read)");
+  assert.match(h.mount.innerHTML, /€72\.40/, "the live page again (from the server's read)");
   assert.doesNotMatch(h.mount.innerHTML, /You left Carisma Circle on/);
   assert.equal(readRejoined({ success: true, data: { enabled: true, left: false, rejoined: false } }), true, "not left = nothing to do, still fine");
   assert.equal(readRejoined({ enabled: false }), false);
@@ -454,14 +444,14 @@ test("offers: a member who LEFT can still opt out", async () => {
   assert.doesNotMatch(h.prefsSlot.innerHTML, /data-cw-circle-pref="email" checked/);
 });
 
-test("NEGATIVE CONTROL: Circle off = no leave, no offers box, no extra request beyond the page's four", async () => {
+test("NEGATIVE CONTROL: Circle off = no leave, no offers box, no extra request beyond the page's five", async () => {
   const h = harness({ me: { enabled: false } });
   mountIt(h);
   await settle();
   assert.deepEqual(h.navs, ["/account"]);
   assert.doesNotMatch(h.mount.innerHTML, /Offers and reminders|Leave Carisma Circle/);
-  // The page's own four reads (me, activity, rewards, preferences) and not one more.
-  assert.equal(h.calls.filter((c) => c.url.includes("/loyalty/")).length, 4);
+  // The page's own five reads (me, activity, rewards, preferences, v2 perks) and not one more.
+  assert.equal(h.calls.filter((c) => c.url.includes("/loyalty/")).length, 5);
   assert.equal(h.calls.filter((c) => c.method !== "GET").length, 0);
 });
 
@@ -500,7 +490,8 @@ test("offers: a box on for some brands only is set indeterminate, and ONE untick
 test("panel: a left member rejoins from the header row, then lands on Credit & rewards", async () => {
   const posts = [];
   const navs = [];
-  let docClick = null;
+  const clicks = [];
+  const docClick = (e) => clicks.forEach((h) => h(e));
   const panelMount = { innerHTML: "", setAttribute() {}, getAttribute() { return null; }, removeAttribute() {}, querySelector() { return null; } };
   const doc = {
     cookie: "cw-signed-in=1",
@@ -508,7 +499,8 @@ test("panel: a left member rejoins from the header row, then lands on Credit & r
     getElementById: (id) => (id === "carisma-account-panel" ? panelMount : null),
     querySelector: () => null, querySelectorAll: () => [], createElement: () => ({ setAttribute() {}, appendChild() {} }),
     head: { appendChild() {} }, body: { appendChild() {} },
-    addEventListener(t, h) { if (t === "click") docClick = h; },
+    // v2: a Circle site binds a second document click (the Instagram award); every handler sees the click.
+    addEventListener(t, h) { if (t === "click") clicks.push(h); },
   };
   const fetchImpl = (url, init = {}) => {
     posts.push([init.method || "GET", url]);
@@ -544,7 +536,8 @@ test("proxy: the five W3 doors are exact literals; siblings, the till and placem
     ["DELETE", "/client/loyalty/preferences"],
     ["PATCH", "/client/loyalty/preferences/abc"],
     ["GET", "/client/loyalty/preferences/abc"],
-    ["POST", "/client/loyalty/earn/preview"],
+    // POST /client/loyalty/earn/preview is a member door since the v2 WEB fix (the pay step's earn line at her
+    // own level, a read): the PUBLIC earn twin below still never goes through the member proxy.
     ["GET", "/public/loyalty/earn"],
     ["GET", "/hod/appointments/abc/checkout/loyalty-reward"],
     ["POST", "/hod/appointments/abc/checkout/loyalty-reward"],
@@ -553,9 +546,10 @@ test("proxy: the five W3 doors are exact literals; siblings, the till and placem
   ];
   for (const [m, p] of refused) assert.equal(isAllowed(m, p), false, `${m} ${p}`);
   for (const f of FORBIDDEN_PATHS) assert.equal(isAllowed(f.method, f.path), false, `${f.method} ${f.path}`);
-  // Loyalty doors in all: /me, W1's five, W3's five, W4's six (test/circle-w4.test.mjs). Never anything wider.
+  // Loyalty doors in all: /me, W1's five, W3's five, W4's six (test/circle-w4.test.mjs), v2's five
+  // (test/circle-ways.test.mjs) + the member earn preview (the WEB fix). Never anything wider.
   const loyaltyRules = PROXY_ALLOWLIST.filter((r) => /loyalty|Carisma Circle/i.test(r.label));
-  assert.equal(loyaltyRules.length, 17, loyaltyRules.map((r) => `${r.method} ${r.label}`).join(", "));
+  assert.equal(loyaltyRules.length, 23, loyaltyRules.map((r) => `${r.method} ${r.label}`).join(", "));
 });
 
 const RP = "carisma-spa";

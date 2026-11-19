@@ -14,13 +14,32 @@
 import { accountMarkSignedInHTML, accountMarkState, ACCOUNT_MARK_ATTR } from "./accountMark.js";
 import { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, avatarUrlFromSession, sanitizeAvatarUrl } from "./avatar.js";
 import { readInitialsHint, readSignedInHint } from "./hint.js";
-import { buildPanelModel, accountPanelHTML, PANEL_SESSION_URL, PANEL_SESSION_URL_CIRCLE } from "./panel.js";
+import { buildPanelModel, accountPanelHTML, panelRewardsSubText, PANEL_SESSION_URL, PANEL_SESSION_URL_CIRCLE } from "./panel.js";
 import {
   CIRCLE_HREF,
   circleAllowedOn,
+  circleMemberLineHTML,
+  circleWaysCardsHTML,
   circleActivityRowsHTML,
+  circleNowRowHTML,
   circleOverviewHTML,
   circleOverviewLeftHTML,
+  circleOverviewMinorHTML,
+  circleActivityHTML,
+  circleRewardsHTML,
+  circleCardBlockHTML,
+  circleWalletPlatform,
+  nextPerksOf,
+  ownPerksOf,
+  paidLineText,
+  readCircle,
+  readCircleRewards,
+  readCircleWalletAvailability,
+  rejoinNoteText,
+  unlockLineText,
+  unlocksList,
+  type CircleRewardPhoto,
+  type PanelCircleExtras,
   circlePrefsHTML,
   circleWalletLineHTML,
   leaveSheetBodyHTML,
@@ -31,10 +50,12 @@ import {
   readCircleLeft,
   readCirclePrefs,
   readCircleState,
+  readCircleStatus,
   readLeavePreview,
   readRejoined,
   type CirclePrefs,
   type CircleState,
+  type CircleStatus,
   type LeavePreview,
 } from "./circle.js";
 import {
@@ -75,6 +96,7 @@ import {
   bookingViewParts,
   buildBookingDetailModel,
   isActiveBooking,
+  policyLead,
   type BookingDetailModel,
 } from "./bookingDetail.js";
 import { buildSlotsModel, venueDateString, venueLocalToUtcIso, type SlotsModel } from "./reschedule.js";
@@ -119,9 +141,21 @@ import {
   staffCall,
   walletAvailabilityCall,
   walletPassCall,
+  circleInstagramCall,
+  circlePointsBookingsCall,
+  circleWalletCardCall,
+  type CancellationPreview,
   type CancelSummary,
   type ProxyCall,
 } from "./portalActions.js";
+import {
+  circleSaysOff,
+  POINTS_CANCEL_NOT_READ,
+  pointsCancelLine,
+  readPointsBookings,
+  type CirclePointsBooking,
+  type PointsCancelLine,
+} from "./circlePointsCancel.js";
 import {
   buildDayStrip,
   cancelBodyHTML,
@@ -154,6 +188,284 @@ import type { MinimalDocument, MinimalElement, MinimalMouseEvent } from "./dom.j
 let currentAvatarUrl: string | null = null;
 
 const panelBound = new WeakSet<object>();
+
+/** Circle v2: one booking's points read — the items, "failed" (live, no answer), or null (nothing to say). */
+type PointsRead = CirclePointsBooking[] | "failed" | null;
+/** The most the booking page waits for the points verdict before it draws without a "Free to cancel" claim. */
+const POINTS_READ_BUDGET_MS = 2500;
+
+function withinBudget<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    p.catch(() => fallback),
+    new Promise<T>((resolve) => {
+      timer = setTimeout(() => resolve(fallback), ms);
+    }),
+  ]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+/* ── Carisma Circle v2: live jewels, the menu's extras, the Instagram tap ── */
+
+type JewelModule = { hydrateJewels(root: unknown): () => void };
+const jewelLoads = new WeakMap<object, Promise<JewelModule | null>>();
+const jewelDisposers = new WeakMap<object, () => void>();
+
+type IOLike = new (
+  cb: (entries: Array<{ isIntersecting: boolean }>) => void,
+  o?: { rootMargin?: string },
+) => { observe(t: unknown): void; disconnect(): void };
+
+/** Stop every live jewel this kit mounted under `root` (before its HTML is replaced). */
+function disposeCircleJewels(root: unknown): void {
+  if (!root || typeof root !== "object") return;
+  const d = jewelDisposers.get(root);
+  if (!d) return;
+  jewelDisposers.delete(root);
+  try {
+    d();
+  } catch {
+    /* nothing left to free */
+  }
+}
+
+/**
+ * Mount live jewels in `root`'s slots: only when the site handed the kit a
+ * loader, and only once a slot comes within 120 px of the viewport. The loader
+ * runs once per page; a failure keeps every flat mark.
+ */
+function hydrateCircleJewels(root: unknown, opts: HydrateOptions, owner?: unknown): void {
+  const load = opts.circleJewel;
+  const host = !load && opts.jewelHost && typeof opts.jewelHost.hydrate === "function" ? opts.jewelHost : null;
+  const el = live(root);
+  if ((!load && !host) || !el || !qs(el, "[data-cw-jewel]")) return;
+  // The disposer is filed under the element whose innerHTML is replaced next (the portal mount, the panel
+  // mount), so a repaint or a tab change frees every jewel it drew, whatever slot they were mounted in.
+  const key = (owner && typeof owner === "object" ? owner : el) as object;
+  const run = () => {
+    if (host) {
+      // KIT-6 jewelHost: the site's own jewel; released through the same disposer map as the loader's.
+      try {
+        const prev = jewelDisposers.get(key);
+        host.hydrate(el);
+        jewelDisposers.set(key, () => {
+          prev?.();
+          try {
+            host.release(el);
+          } catch {
+            /* nothing left to free */
+          }
+        });
+      } catch {
+        /* the marks stay */
+      }
+      return;
+    }
+    if (!load) return;
+    let p = jewelLoads.get(load);
+    if (!p) {
+      p = Promise.resolve()
+        .then(load)
+        .then(
+          (m) => (m && typeof m.hydrateJewels === "function" ? m : null),
+          () => null,
+        );
+      jewelLoads.set(load, p);
+    }
+    void p.then((m) => {
+      if (!m) return;
+      try {
+        const prev = jewelDisposers.get(key);
+        const d = m.hydrateJewels(el);
+        jewelDisposers.set(key, () => {
+          prev?.();
+          d();
+        });
+      } catch {
+        /* the marks stay */
+      }
+    });
+  };
+  const IO = (globalThis as { IntersectionObserver?: IOLike }).IntersectionObserver;
+  if (!IO) {
+    run();
+    return;
+  }
+  const io = new IO(
+    (entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        io.disconnect();
+        run();
+      }
+    },
+    { rootMargin: "120px" },
+  );
+  qsa(el, "[data-cw-jewel]").forEach((slot) => io.observe(slot));
+}
+
+/**
+ * The rejoin sentence names the API's first level ("If you rejoin, you start again at Level 1 · Pearl …",
+ * R5.1) once the host hands the label over (`circleFirstLevel`, from the public status). Until then, or
+ * without it, the sentence says "the first level".
+ */
+function nameFirstLevel(root: unknown, opts: HydrateOptions): void {
+  const get = opts.circleFirstLevel;
+  const el = live(root);
+  if (!get || !el) return;
+  const notes = qsa(el, "[data-cw-circle-rejoin-note]");
+  if (!notes.length) return;
+  void Promise.resolve()
+    .then(get)
+    .then(
+      (label) => {
+        const l = typeof label === "string" ? label.trim() : "";
+        if (!l) return;
+        const html = escapeHtml(rejoinNoteText(l));
+        notes.forEach((n) => {
+          n.innerHTML = html;
+        });
+      },
+      () => undefined,
+    );
+}
+
+const panelExtrasOnce = new WeakMap<object, Promise<PanelCircleExtras & { paidLine?: string }>>();
+
+function readJsonOrNull(fetchImpl: FetchLike, url: string): Promise<unknown> {
+  return fetchImpl(url, { credentials: "same-origin" })
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+}
+
+/**
+ * What the menu's Circle block adds once it is open and live: the one-line
+ * unlock (from the member read's perks) and the "Yours now" row (the featured
+ * read). Read once per page; either read failing costs only its own line.
+ */
+function readPanelCircleExtras(
+  doc: object,
+  fetchImpl: FetchLike,
+  needMe = true,
+): Promise<PanelCircleExtras & { paidLine?: string }> {
+  let p = panelExtrasOnce.get(doc);
+  if (p) return p;
+  // `/me` only while the summary lacks the next level's perks and its threshold (BE-1's built summary sends
+  // neither yet: BRIEF §9 ask). With them on the summary the menu draws both lines at once and reads nothing.
+  p = Promise.all([
+    needMe ? readJsonOrNull(fetchImpl, "/api/auth/proxy/client/loyalty/me") : Promise.resolve(null),
+    readJsonOrNull(fetchImpl, "/api/auth/proxy/client/loyalty/rewards"),
+  ]).then(([me, rewards]) => {
+    const m = readCircle(me);
+    const unlockLine =
+      m && m.nextLevel
+        ? unlockLineText(m.nextLevel.label, unlocksList(ownPerksOf(m), nextPerksOf(m), m.pointsPerEuro, m.earnPerEuro))
+        : "";
+    return { unlockLine, paidLine: m ? paidLineText(m) : "", rewards: readCircleRewards(rewards) };
+  });
+  panelExtrasOnce.set(doc, p);
+  return p;
+}
+
+const hostStatusOnce = new WeakMap<object, Promise<CircleStatus | null>>();
+
+/**
+ * The host's public status (`circleStatus`), asked once per page and only after the member read says the Circle is
+ * live for her. Anything but a status with levels is null (the parts that need it then wait, never guess).
+ */
+function readHostStatus(opts: HydrateOptions): Promise<CircleStatus | null> {
+  const get = opts.circleStatus;
+  if (typeof get !== "function") return Promise.resolve(null);
+  let p = hostStatusOnce.get(get);
+  if (!p) {
+    p = Promise.resolve()
+      .then(get)
+      .then(
+        (st): CircleStatus | null => {
+          if (!st || typeof st !== "object") return null;
+          // The site's own parsed status (it carries `retailBoostPct`), else the raw public answer, read here.
+          const parsed = typeof (st as CircleStatus).retailBoostPct === "number" && Array.isArray((st as CircleStatus).levels) ? (st as CircleStatus) : readCircleStatus(st);
+          return parsed && parsed.levels.length ? parsed : null;
+        },
+        () => null,
+      );
+    hostStatusOnce.set(get, p);
+  }
+  return p;
+}
+
+const igBound = new WeakSet<object>();
+const igSent = new Set<string>();
+
+/**
+ * The Instagram follow rows (signed in, live): the tap opens the brand's
+ * profile by itself (a plain link, new tab); the award rides along ONCE per
+ * brand per page, fire-and-forget (`keepalive`), and never holds the link up.
+ * The server is idempotent anyway (ALREADY_DONE).
+ */
+function bindCircleInstagram(doc: MinimalDocument, fetchImpl: FetchLike | undefined): void {
+  if (!fetchImpl || igBound.has(doc)) return;
+  igBound.add(doc);
+  doc.addEventListener(
+    "click",
+    (e: MinimalMouseEvent) => {
+      const a = closestOf(e.target, "[data-cw-circle-ig]");
+      if (!a) return;
+      const brandId = a.getAttribute("data-cw-circle-ig") || "";
+      if (!brandId || igSent.has(brandId)) return;
+      igSent.add(brandId);
+      const call = circleInstagramCall(brandId);
+      void Promise.resolve()
+        .then(() =>
+          fetchImpl(call.path, {
+            method: call.method,
+            credentials: "same-origin",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(call.body),
+            keepalive: true,
+          }),
+        )
+        .catch(() => undefined);
+    },
+    false,
+  );
+}
+
+const copyBound = new WeakSet<object>();
+
+/**
+ * "Copy my link" on the Refer a friend card (KIT-2, X8: the website says "Copy my link"): her share link goes on the
+ * clipboard, and the card's status line says so. Without a clipboard the link is shown to copy by hand.
+ */
+function bindCircleCopy(doc: MinimalDocument): void {
+  if (copyBound.has(doc)) return;
+  copyBound.add(doc);
+  doc.addEventListener(
+    "click",
+    (e: MinimalMouseEvent) => {
+      const b = closestOf(e.target, "[data-cw-circle-copy]");
+      if (!b) return;
+      e.preventDefault();
+      const link = b.getAttribute("data-cw-circle-copy") || "";
+      const sec = closestOf(b, '[data-cw-circle="earn-cards"]');
+      const msg = sec ? qs(sec, "[data-cw-circle-copy-msg]") : null;
+      const say = (text: string) => {
+        if (msg) msg.innerHTML = escapeHtml(text);
+      };
+      const clip = (globalThis as { navigator?: { clipboard?: { writeText?: (t: string) => Promise<void> } } }).navigator?.clipboard;
+      if (!link) return;
+      if (!clip || typeof clip.writeText !== "function") {
+        say(`Your link: ${link}`);
+        return;
+      }
+      void clip.writeText(link).then(
+        () => say("Link copied. Send it to a friend."),
+        () => say(`Your link: ${link}`),
+      );
+    },
+    false,
+  );
+}
 
 /** The photo the marks are currently painted with (exported for tests/hosts). */
 export function accountMarkPhotoUrl(): string | null {
@@ -265,6 +577,7 @@ export interface FetchLike {
       headers?: Record<string, string> | { get?(name: string): string | null };
       body?: string;
       redirect?: string;
+      keepalive?: boolean;
     },
   ): Promise<{
     ok: boolean;
@@ -291,6 +604,91 @@ export interface HydrateOptions {
    * Never on Carisma Medical (the site brand decides).
    */
   circle?: boolean;
+  /**
+   * Circle v2 (carisma-circle-v2-20261117): the live jewel's loader, e.g.
+   * `() => import("@carisma/site-account/jewel")`. The kit never imports the
+   * jewel itself (three.js stays out of every page that does not show one);
+   * without a loader every jewel slot keeps its flat mark.
+   */
+  circleJewel?: () => Promise<{ hydrateJewels(root: unknown): () => void }>;
+  /** Circle v2: photos and booking links per featured service id (the menu's "Yours now", the reward cards). */
+  circleArt?: Record<string, { img?: string; href?: string } | undefined>;
+  /** Circle v2: poster stills for jewel slots, by gem and kind. */
+  circlePoster?: (gem: string, kind: "small" | "full" | "icon") => string;
+  /** Where the menu's "Book a visit" goes on this brand (ADDENDUM KIT-1). Default: Credit & rewards. */
+  bookHref?: string;
+  /** Circle v2: the site's own photo for a featured service (ADDENDUM X3/KIT-3), before the API's imageUrl. */
+  circleRewardPhoto?: CircleRewardPhoto;
+  /** Circle v2: the API's first-level label ("Level 1 · Pearl", the public status) for the rejoin sentence. */
+  circleFirstLevel?: () => Promise<string | null | undefined>;
+  /** Circle v2: where a free Spa day's "Book it" goes (the Spa-day service's page). */
+  circleSpaDayHref?: string;
+  /** Circle v2: the "Your card" Wallet row on Credit & rewards (ADDENDUM KIT-4). Off unless true. */
+  circleWallet?: boolean;
+  /**
+   * This site's brand name ("Carisma Spa"). Honoured BEFORE host inference (ADDENDUM KIT-6: inference answers ""
+   * on localhost and App Runner hosts, and the Circle allow-list then says no).
+   */
+  siteBrand?: string;
+  /**
+   * ADDENDUM KIT-6: the Circle switch, read again at every panel open and portal mount. Given, it decides (a
+   * clinic site passes its per-page rule, e.g. `() => circleOn("menu", location.pathname)`); absent, `circle`
+   * decides as before. Either way the site must be on the allow-list (`circleAllowedOn`).
+   */
+  circleV2?: boolean | (() => boolean);
+  /**
+   * ADDENDUM KIT-6: where the Circle may show (each default true). `menu` = the account menu's Circle Card;
+   * `overview` = the account Overview's Circle block and the Wallet line; `rewards` = Credit & rewards (its page,
+   * its rail and menu links). A clinic keeps Credit & rewards only: `{menu: false, overview: false, rewards: true}`.
+   */
+  circlePlaces?: { menu?: boolean; overview?: boolean; rewards?: boolean };
+  /**
+   * ADDENDUM KIT-6: the WhatsApp box of "Offers and reminders" on Credit & rewards (default true). Carisma
+   * Slimming passes false: its WhatsApp number is locked by Meta.
+   */
+  circleWhatsappPref?: boolean;
+  /**
+   * ADDENDUM KIT-6 (should): `"any"` (default, today's rule) or `"strict"`: the menu's Circle Card and the Overview's
+   * Circle block show only when EVERY visit listed there carries the server's `circleEligible === true` (BE-g; a
+   * missing flag is not eligible), so a clinic never shows the Circle beside a booking that never earns.
+   */
+  circleListing?: "any" | "strict";
+  /**
+   * ADDENDUM KIT-6 (should): the jewel's host interface (`@carisma/site-account/jewel`'s `jewelHost`): the kit calls
+   * `hydrate(root)` for the slots it drew and `release(root)` before it replaces them. Used when `circleJewel`
+   * is not given (a site that already loaded the jewel, or wraps its own lazy import).
+   */
+  jewelHost?: { hydrate(root: unknown): void; release(root: unknown): void };
+  /**
+   * The public status (`/public/loyalty/status`, as the site reads it), asked only once the member read says the
+   * Circle is live for her: the level count on the menu's "Credit and rewards" row ("all five levels"), the retail
+   * boost on the Overview's "Spa products" card, the ending-soon window. Never typed: without it those parts wait.
+   */
+  circleStatus?: () => Promise<CircleStatus | null | undefined>;
+}
+
+/**
+ * ADDENDUM KIT-6: is the Circle on for this site right now? `circleV2`, when the host gives it, decides (read at
+ * this moment: a function is called here); else `circle`. Never on a site off the allow-list.
+ */
+export function circleOnFor(opts: Pick<HydrateOptions, "circle" | "circleV2">, siteBrand: string): boolean {
+  let on = false;
+  if (opts.circleV2 !== undefined) {
+    try {
+      on = typeof opts.circleV2 === "function" ? opts.circleV2() === true : opts.circleV2 === true;
+    } catch {
+      on = false;
+    }
+  } else {
+    on = opts.circle === true;
+  }
+  return on && circleAllowedOn(siteBrand);
+}
+
+/** ADDENDUM KIT-6: the places, each true unless the host says false. */
+export function circlePlacesOf(opts: Pick<HydrateOptions, "circlePlaces">): { menu: boolean; overview: boolean; rewards: boolean } {
+  const p = opts.circlePlaces ?? {};
+  return { menu: p.menu !== false, overview: p.overview !== false, rewards: p.rewards !== false };
 }
 
 const BACKDROP_ID = "carisma-account-backdrop";
@@ -414,12 +812,61 @@ export function mountAccountPanel(doc: MinimalDocument, opts: HydrateOptions = {
   const fetchImpl = opts.fetchImpl;
 
   const close = () => setOpen(doc, mountId, false);
+  /** ADDENDUM KIT-6: the site's own brand first, the host's guess only when the site gave none. */
+  const siteBrand = () =>
+    opts.siteBrand ?? siteBrandFromHost((doc as unknown as { location?: { host?: string } }).location?.host ?? "");
 
-  const openPanel = (body: unknown) => {
+  const openPanel = (body: unknown, places: { menu: boolean; rewards: boolean }) => {
     const mount = ensureMounts(doc, mountId);
     if (!mount) return;
-    mount.innerHTML = accountPanelHTML(buildPanelModel(body));
+    const model = buildPanelModel(body);
+    disposeCircleJewels(mount);
+    mount.innerHTML = accountPanelHTML(
+      model,
+      {
+        art: opts.circleArt,
+        poster: opts.circlePoster ?? null,
+        bookHref: opts.bookHref,
+        photo: opts.circleRewardPhoto,
+      },
+      { ...places, listing: opts.circleListing },
+    );
     setOpen(doc, mountId, true);
+    // KIT-6 strict listing: no Card (and nothing read for it) beside a visit the server did not mark eligible.
+    if (!places.menu || (opts.circleListing === "strict" && !model.circleEligibleAll)) return;
+    if (model.circleLeft) nameFirstLevel(mount, opts);
+    if (!model.circle) return;
+    hydrateCircleJewels(mount, opts);
+    // KIT-1: the "Credit and rewards" row's subtitle names the API's level count ("all five levels").
+    void readHostStatus(opts).then((st) => {
+      const sub = qs(mount, "[data-cw-circle-levels-sub]");
+      const text = st ? panelRewardsSubText(st.levels.length) : "";
+      if (!sub || !text || sub.innerHTML) return;
+      sub.innerHTML = escapeHtml(text);
+      sub.removeAttribute?.("hidden");
+    });
+    if (!fetchImpl) return;
+    const s = model.circle;
+    const needMe = !(s.nextLevel ? s.nextLevelPerks && s.spendThisYearCents !== null : true);
+    void readPanelCircleExtras(doc, fetchImpl, needMe).then((x) => {
+      const card = qs(mount, '[data-cw-circle="panel"]');
+      if (!card) return;
+      const track = qs(card, ".cc-menu__sec .cc-track");
+      // The caption "€710 of €1,000 paid this year", from /me when the summary could not draw it.
+      const row = track ? qs(track, ".cc-track-row") : null;
+      if (x.paidLine && row && !qs(track, ".cc-track-cap") && s.nextLevel) {
+        row.insertAdjacentHTML?.(
+          "afterend",
+          `<p class="cc-track-cap" data-clarity-mask="True"><span>${escapeHtml(x.paidLine)}</span><span>${escapeHtml(s.nextLevel.label)}</span></p>`,
+        );
+      }
+      if (x.unlockLine && track && !qs(track, ".cc-track-line")) {
+        track.insertAdjacentHTML?.("beforeend", `<p class="cc-track-line">${escapeHtml(x.unlockLine)}</p>`);
+      }
+      const now = qs(card, '[data-cw-circle-slot="menu-now"]');
+      // W-5: no "Yours now" row while a review holds her spending (the hold sentence says why).
+      if (now && !now.innerHTML && !s.onHold) now.innerHTML = circleNowRowHTML(x.rewards ?? null, opts.circleArt, opts.circleRewardPhoto);
+    });
   };
 
   doc.addEventListener("click", (e: MinimalMouseEvent) => {
@@ -471,17 +918,22 @@ export function mountAccountPanel(doc: MinimalDocument, opts: HydrateOptions = {
       return;
     }
     const fallback = cookieFallbackSession(doc.cookie || "");
+    /* KIT-6: the switch and the places are read at THIS open (a clinic's per-page rule). The loyalty fold is asked
+       only when the menu may show the Card or the Credit & rewards link; off, the read is exactly as before. */
+    const on = circleOnFor(opts, siteBrand());
+    const where = circlePlacesOf(opts);
+    const places = { menu: on && where.menu, rewards: on && where.rewards };
     if (!fetchImpl) {
-      openPanel(fallback);
+      openPanel(fallback, places);
       return;
     }
-    fetchImpl(opts.circle === true ? PANEL_SESSION_URL_CIRCLE : PANEL_SESSION_URL, { credentials: "same-origin" })
+    fetchImpl(places.menu || places.rewards ? PANEL_SESSION_URL_CIRCLE : PANEL_SESSION_URL, { credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : null))
       .then((body) => {
-        openPanel(body && typeof body === "object" ? body : fallback);
+        openPanel(body && typeof body === "object" ? body : fallback, places);
       })
       .catch(() => {
-        openPanel(fallback);
+        openPanel(fallback, places);
       });
   }, false);
 
@@ -492,6 +944,8 @@ export function mountAccountPanel(doc: MinimalDocument, opts: HydrateOptions = {
     },
     false,
   );
+  // Circle v2: the Instagram rows' award (only on a site that opted in to Circle; inert where no row is drawn).
+  if (opts.circle === true || opts.circleV2 !== undefined) bindCircleInstagram(doc, fetchImpl);
 }
 
 /**
@@ -613,6 +1067,27 @@ function closestOf(el: unknown, sel: string): LiveEl | null {
 
 const portalListBound = new WeakSet<object>();
 const portalCircleBound = new WeakSet<object>();
+const portalCircleWalletBound = new WeakSet<object>();
+
+/** The Circle card's Wallet button: the pass door answers `{url}` (a download or a save link, https only). */
+function bindCircleWallet(mount: MinimalElement, readT: (url: string) => Promise<ReadResult>, navigate: (url: string) => void): void {
+  const host = live(mount);
+  if (!host || portalCircleWalletBound.has(mount)) return;
+  portalCircleWalletBound.add(mount);
+  host.addEventListener?.("click", (e: LiveEvent) => {
+    const btn = closestOf(e.target, "[data-cw-circle-wallet]");
+    if (!btn) return;
+    const which = btn.getAttribute("data-cw-circle-wallet") === "google" ? "google" : "apple";
+    const done = setBusy(btn, "Opening wallet…");
+    void readT(circleWalletCardCall(which).path).then((r) => {
+      const inner = unwrapEnvelope(r.body) as Record<string, unknown> | null;
+      const url = inner && typeof inner.url === "string" ? inner.url : "";
+      done();
+      if (r.state !== "failed" && /^https:\/\//.test(url)) navigate(url);
+      else announce(mount, GENERIC_FAILURE, "bad");
+    });
+  });
+}
 
 /**
  * "Show more" under the Carisma credit activity: the next page, appended.
@@ -814,7 +1289,27 @@ function phoneAlreadyOnPage(doc: MinimalDocument): string {
   return href.replace(/^tel:/i, "").trim();
 }
 
-export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOptions = {}): void {
+/** Each mount's generation: an unmount (or a re-mount for another tab) makes every older read's jewels a no-op. */
+const portalGen = new WeakMap<object, number>();
+
+/**
+ * Mount the account portal. Returns its unmount (React's effect cleanup): every live jewel the portal drew is
+ * disposed and a read that answers later mounts none (a dead tab never holds GPU buffers or the shared
+ * WebGL context).
+ */
+export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOptions = {}): () => void {
+  const mountId = opts.portalMountId || "carisma-account-portal";
+  const el = doc.getElementById(mountId) as unknown as object | null;
+  if (el) portalGen.set(el, (portalGen.get(el) ?? 0) + 1);
+  mountAccountPortalOnce(doc, opts);
+  return () => {
+    if (!el) return;
+    portalGen.set(el, (portalGen.get(el) ?? 0) + 1);
+    disposeCircleJewels(el);
+  };
+}
+
+function mountAccountPortalOnce(doc: MinimalDocument, opts: PortalMountOptions): void {
   try {
     injectChrome(doc);
   } catch {
@@ -832,20 +1327,34 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
   const initialSearch = loc?.search ?? "";
   const siteBrand = opts.siteBrand ?? siteBrandFromHost(loc?.host ?? "");
   const referRail = opts.referRail === true;
-  const circleRail = opts.circle === true && circleAllowedOn(siteBrand);
-  const extras = { siteBrand, bookHref: opts.bookHref, contactPhone: opts.contactPhone, referRail, circleRail };
+  /* KIT-6: the switch read at THIS mount (`circleV2` when given, else `circle`; allow-list sites only), and where
+     the Circle may show. `circleRail` keeps its meaning — the Circle is on for this site — and gates the member
+     read; Overview's block / the Wallet line and Credit & rewards each also need their place. */
+  const circleRail = circleOnFor(opts, siteBrand);
+  const places = circlePlacesOf(opts);
+  const circleOverview = circleRail && places.overview;
+  const circleRewards = circleRail && places.rewards;
+  const extras = {
+    siteBrand,
+    bookHref: opts.bookHref,
+    contactPhone: opts.contactPhone,
+    referRail,
+    circleRail,
+    circleOverview: places.overview,
+    circleRewardsRail: places.rewards,
+  };
   /** Every shell this mount paints knows the site, so the rail shows only this site's sections. */
   const shellHTML = (o: Parameters<typeof portalShellHTML>[0]): string =>
-    portalShellHTML({ siteBrand, referRail, circleRail, ...o });
+    portalShellHTML({ siteBrand, referRail, circleRail: circleRewards, ...o });
 
   if (!readSignedInHint(doc.cookie || "")) {
     navigate(`/member?next=${encodeURIComponent(next)}`);
     return;
   }
   if (!mount) return;
-  // Credit & rewards on a site that did not opt in (or Medical): the page
-  // does not exist for this site — back to the account, nothing drawn.
-  if (view === "rewards" && !circleRail) {
+  // Credit & rewards on a site that did not opt in (or Medical, or a site that keeps the Circle off this place):
+  // the page does not exist for this site — back to the account, nothing drawn.
+  if (view === "rewards" && !circleRewards) {
     navigate("/account");
     return;
   }
@@ -873,6 +1382,31 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
     );
   const signIn = () => navigate(`/member?next=${encodeURIComponent(next)}`);
 
+  /** This mount's generation (see mountAccountPortal): a late read never draws a jewel into a dead mount. */
+  const myGen = portalGen.get(mount as unknown as object) ?? 0;
+  const current = () => (portalGen.get(mount as unknown as object) ?? 0) === myGen;
+  const hydrateHere = (root: unknown) => {
+    if (current()) hydrateCircleJewels(root, opts, mount);
+  };
+  /** ADDENDUM KIT-4: "Your card" on Credit & rewards, only on a phone Wallet AND circle.<platform> AND the host. */
+  let circleWalletOnce: Promise<{ apple: boolean; google: boolean }> | null = null;
+  const fillCircleWallet = () => {
+    if (opts.circleWallet !== true || view !== "rewards" || !circleNow || circleNow.kind !== "live") return;
+    const nav = (globalThis as { navigator?: { userAgent?: string; maxTouchPoints?: number } }).navigator;
+    const which = circleWalletPlatform(nav?.userAgent ?? "", nav?.maxTouchPoints ?? 0);
+    if (!which || !qs(mount, '[data-cw-circle-slot="your-card"]')) return;
+    circleWalletOnce ??= readT(walletAvailabilityCall().path).then((r) =>
+      r.state === "failed" ? { apple: false, google: false } : readCircleWalletAvailability(r.body),
+    );
+    void circleWalletOnce.then((a) => {
+      const slot = qs(mount, '[data-cw-circle-slot="your-card"]');
+      if (!a[which] || !current() || !slot || slot.innerHTML) return;
+      slot.innerHTML = circleCardBlockHTML(which);
+      slot.removeAttribute?.("hidden");
+    });
+    bindCircleWallet(mount, readT, navigate);
+  };
+
   /** Cards on screen, so a toast can name the day without another read. */
   let onScreen: ApptCard[] = [];
   /** Packages on the wallet page, so Pay / Book read the model, never the DOM. */
@@ -894,15 +1428,75 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
   let circleNow: CircleState | null | undefined = circleRail ? undefined : null;
   /** "Offers and reminders" as the server last answered it (Credit & rewards only). */
   let prefsNow: CirclePrefs | null = null;
+  /** Overview's reward cards and three activity rows, read once per mount after the member read says live. */
+  let overviewExtrasOnce: Promise<{ rewards: unknown; activity: unknown }> | null = null;
+  const fillOverviewExtras = (model: Extract<CircleState, { kind: "live" }>["model"]) => {
+    if (!fetchImpl) return;
+    overviewExtrasOnce ??= Promise.all([
+      readJsonOrNull(fetchImpl, "/api/auth/proxy/client/loyalty/rewards"),
+      readJsonOrNull(fetchImpl, "/api/auth/proxy/client/loyalty/activity?limit=3"),
+    ]).then(([rewards, activity]) => ({ rewards, activity }));
+    void overviewExtrasOnce.then(({ rewards, activity }) => {
+      const r = qs(mount, '[data-cw-circle-slot="ov-rewards"]');
+      if (r && !r.innerHTML) {
+        r.innerHTML = circleRewardsHTML(readCircleRewards(rewards), model.points, {
+          art: opts.circleArt,
+          photo: opts.circleRewardPhoto,
+          pointsPerEuro: model.pointsPerEuro,
+        });
+      }
+      const a = qs(mount, '[data-cw-circle-slot="ov-activity"]');
+      if (a && !a.innerHTML) {
+        a.innerHTML = circleActivityHTML(model, readCircleActivity(activity, model.pointsPerEuro), { limit: 3, moreHref: CIRCLE_HREF });
+      }
+    });
+  };
   const fillCircle = () => {
     if (!circleNow) return;
-    // Live or left, the member has a Credit & rewards page to reach.
-    qsa(mount, "[data-cw-circle-rail]").forEach((a) => a.removeAttribute?.("hidden"));
-    const home = qs(mount, '[data-cw-circle-slot="home"]');
+    // Live or left, the member has a Credit & rewards page to reach (under the minimum age: the one line only).
+    if (circleNow.kind !== "minor") qsa(mount, "[data-cw-circle-rail]").forEach((a) => a.removeAttribute?.("hidden"));
+    // KIT-6 strict listing: Overview's Circle block only when every visit listed on the page is marked eligible.
+    const listingOk = opts.circleListing !== "strict" || onScreen.filter((c) => c.upcoming).every((c) => c.circleEligible);
+    const home = listingOk ? qs(mount, '[data-cw-circle-slot="home"]') : null;
+    // KIT-2: her Circle line under the greeting ("Level 3 · Ruby · Member since 2024 · CC 0042 1187").
+    const liveModel = circleNow.kind === "live" ? circleNow.model : null;
+    const greet = listingOk && liveModel ? qs(mount, '[data-cw-circle-slot="greet"]') : null;
+    if (greet && liveModel && !greet.innerHTML) {
+      const line = circleMemberLineHTML(liveModel);
+      if (line) {
+        greet.innerHTML = line;
+        greet.removeAttribute?.("hidden");
+      }
+    }
     if (home && !home.innerHTML) {
-      // A member who left sees the date and Rejoin, never a figure.
-      home.innerHTML = circleNow.kind === "live" ? circleOverviewHTML(circleNow.model) : circleOverviewLeftHTML(circleNow.left);
+      // A member who left sees the date and Rejoin, never a figure; a minor sees one line.
+      home.innerHTML =
+        circleNow.kind === "live"
+          ? circleOverviewHTML(circleNow.model, {
+              art: opts.circleArt,
+              poster: opts.circlePoster ?? null,
+              bookHref: opts.bookHref,
+              photo: opts.circleRewardPhoto,
+            })
+          : circleNow.kind === "left"
+            ? circleOverviewLeftHTML(circleNow.left)
+            : circleOverviewMinorHTML(circleNow);
       home.removeAttribute?.("hidden");
+      if (circleNow.kind === "left") nameFirstLevel(home, opts);
+      if (circleNow.kind === "live") {
+        // Filed under the portal mount: paint() and openPanel() free them before the next innerHTML.
+        hydrateHere(home);
+        fillOverviewExtras(circleNow.model);
+        bindCircleInstagram(doc, fetchImpl);
+        bindCircleCopy(doc);
+        // KIT-2: the "Spa products" card waits for the public status's retail boost (never a typed 50%).
+        const model = circleNow.model;
+        void readHostStatus(opts).then((st) => {
+          const earn = qs(mount, '[data-cw-circle-slot="ov-earn"]');
+          if (!st || !(st.retailBoostPct > 0) || !earn || !current()) return;
+          earn.innerHTML = circleWaysCardsHTML(model, { retailBoostPct: st.retailBoostPct });
+        });
+      }
     }
     if (circleNow.kind !== "live") return;
     const wallet = qs(mount, '[data-cw-circle-slot="wallet"]');
@@ -919,32 +1513,112 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
   };
   /** The one member read in flight (or answered), so Details can wait for it (W4). */
   let circleOnce: Promise<CircleState | null> | null = null;
+  /** The member read has answered (`circleNow` is then its answer, never "still in flight"). */
+  let circleAnswered = false;
+  /**
+   * The member read answered nothing to trust: a 5xx, 429 or 401, no answer at all, or a 2xx that is neither a
+   * member state nor a clean `enabled:false`. Nothing is drawn for it (as for off), but it is NOT off: a booking her
+   * points paid may be on screen, so the cancel words then ask points-bookings themselves and never say "Free to
+   * cancel" on a guess (review round 3). Off is only a clean `enabled:false` or a 404 (an API without the door).
+   */
+  let circleFailed = false;
   const readCircleOnce = (): Promise<CircleState | null> => {
     if (!circleRail || !fetchImpl) return Promise.resolve(null);
     if (circleOnce) return circleOnce;
     if (circleNow !== undefined) return Promise.resolve(circleNow);
     circleNow = null; // in flight: a second load() never starts a second read
+    let answered2xx = false;
     circleOnce = fetchImpl("/api/auth/proxy/client/loyalty/me", { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        answered2xx = r.ok;
+        if (!r.ok && r.status !== 404) circleFailed = true;
+        return r.ok ? r.json() : null;
+      })
       .then(
         (body) => {
           circleNow = readCircleState(body);
+          if (answered2xx && !circleNow && !circleSaysOff(body)) circleFailed = true;
+          circleAnswered = true;
           fillCircle();
           return circleNow;
         },
         () => {
           circleNow = null;
+          circleFailed = true;
+          circleAnswered = true;
           return null;
         },
       );
     return circleOnce;
   };
 
+  /**
+   * Circle v2: the points (or free Spa day) on one booking, as the server's verdict (BE-2 `points-bookings`).
+   * `null` = nothing to say (the site has no Circle, the programme is off for her, she left or is under age, an API
+   * without the door (404), or no spend on it); "failed" = no answer we can trust: the page then makes no "Free to
+   * cancel" claim. Asked while the member read says live AND when that read itself failed (we do not know she is
+   * off); a clean off answer asks nothing, so the page is byte for byte as before. A 2xx points answer that does not
+   * parse is "failed", never "no points on it".
+   */
+  let detailPoints: PointsRead = null;
+  /** The booking `detailPoints` was read for ("" = none yet). */
+  let detailPointsFor = "";
+  /** The whole chain for one booking, unbounded: the member read, then (live, or that read failed) points-bookings. */
+  const pointsChainFor = (id: string): Promise<PointsRead> => {
+    if (!circleRail || !fetchImpl) return Promise.resolve(null);
+    return readCircleOnce().then((state): PointsRead | Promise<PointsRead> => {
+      if (state ? state.kind !== "live" : !circleFailed) return null;
+      return readT(circlePointsBookingsCall([id]).path).then((r): PointsRead => {
+        if (r.state === "failed") return r.status === 404 ? null : "failed";
+        const items = readPointsBookings(r.body);
+        if (items === null) return circleSaysOff(r.body) ? null : "failed";
+        return items;
+      });
+    });
+  };
+  /** The chain within its budget: a slow or hanging member read never holds the booking page on its skeleton. */
+  const readPointsFor = (id: string): Promise<PointsRead> =>
+    withinBudget(pointsChainFor(id), POINTS_READ_BUDGET_MS, "failed" as PointsRead);
+  /** Booking-page loads so far: a late points verdict re-says the policy line only for the newest one. */
+  let bookingLoadNo = 0;
+  /** The booking page's policy line, re-said in place (the section and its policy text stay as painted). */
+  const sayPolicyLead = (lead: string) => {
+    const p = qs(mount, ".cw-bk-policy__lead");
+    if (p) {
+      if (lead) p.innerHTML = escapeHtml(lead);
+      else p.remove?.();
+      return;
+    }
+    if (lead) {
+      qs(mount, ".cw-bk-policy__text")?.insertAdjacentHTML?.("beforebegin", `<p class="cw-bk-policy__lead">${escapeHtml(lead)}</p>`);
+    }
+  };
+  /** The line for the booking on screen, as of NOW (a "come back" verdict never outlives its deadline). */
+  const pointsLineFor = (read: PointsRead, id: string): PointsCancelLine | null =>
+    read === "failed" ? { ...POINTS_CANCEL_NOT_READ, lines: [] } : pointsCancelLine(read, id, Date.now());
+
   const paint = (html: string) => {
+    disposeCircleJewels(mount);
     mount.innerHTML = html;
     revealCurrentTab(mount);
     fillCircle();
     markMixed();
+    // The Credit & rewards page draws its own jewels (Hero, track, ladder) and its Instagram rows.
+    if (view === "rewards" && circleNow && circleNow.kind === "live") {
+      hydrateHere(mount);
+      bindCircleInstagram(doc, fetchImpl);
+      bindCircleCopy(doc);
+      fillCircleWallet();
+      // W-16 (KIT-2): "More ways to earn" as cards; the "Spa products" card waits for the public status's retail
+      // boost, exactly as on the Overview (never a typed 50%).
+      const model = circleNow.model;
+      void readHostStatus(opts).then((st) => {
+        const earn = qs(mount, '[data-cw-circle-slot="rw-earn"]');
+        if (!st || !(st.retailBoostPct > 0) || !earn || !current()) return;
+        earn.innerHTML = circleWaysCardsHTML(model, { retailBoostPct: st.retailBoostPct, moneyLine: true });
+      });
+    }
+    if (view === "rewards" && circleNow && circleNow.kind === "left") nameFirstLevel(mount, opts);
   };
   const focusTitle = () => qs(mount, ".cw-title")?.focus?.({ preventScroll: false });
 
@@ -1003,8 +1677,14 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
           const previewRead = postJson(fetchImpl, cancellationPreviewCall(bookingId)).then((r) =>
             r.ok ? readCancellationPreview(r.body) : null,
           );
-          return Promise.all([readT(`/api/auth/proxy/client/booking/appointments/${id}`), readWallet(), previewRead]).then(
-            ([read, wallet, preview]) => {
+          // Circle v2: what cancelling does to the points that paid it — asked once the member read says live,
+          // or failed (off: no request at all, the page byte for byte as before). Within its budget; a verdict that
+          // lands after it re-says the policy line in place (below).
+          const pointsChain = pointsChainFor(bookingId);
+          const pointsRead = withinBudget(pointsChain, POINTS_READ_BUDGET_MS, "failed" as PointsRead);
+          const loadNo = ++bookingLoadNo;
+          return Promise.all([readT(`/api/auth/proxy/client/booking/appointments/${id}`), readWallet(), previewRead, pointsRead]).then(
+            ([read, wallet, preview, pointsItems]) => {
               if (read.status === 401) return signIn();
               if (read.state === "failed" && read.status !== 404) {
                 detail = null;
@@ -1021,14 +1701,27 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
               }
               const model = buildBookingDetailModel(read.state === "failed" ? null : read.body, bookingId);
               detail = model.found && !model.isMedical ? model : null;
+              detailPoints = pointsItems;
+              detailPointsFor = model.id;
               const needPreview = model.found && !model.actions.cancelIsFree && model.actions.canCancel;
               const parts = bookingViewParts(model, {
                 siteBrand,
                 wallet,
                 preview: needPreview ? preview : null,
                 bookHref: opts.bookHref,
+                points: pointsLineFor(pointsItems, model.id),
               });
               paint(shellHTML({ view, title: parts.title, lede: parts.lede, body: parts.body, emailMasked, memberName }));
+              if (pointsItems === "failed") {
+                // Drawn without a verdict (no "Free to cancel" claim). If one lands after the budget, the policy
+                // line says it: off — the money words exactly as before; live — the points sentence. A newer
+                // paint of this page, or another page, wins.
+                void pointsChain.then((late) => {
+                  if (late === "failed" || loadNo !== bookingLoadNo || !current() || detail !== model) return;
+                  detailPoints = late;
+                  sayPolicyLead(policyLead(model, needPreview ? preview : null, pointsLineFor(late, model.id)));
+                });
+              }
             },
           );
         }
@@ -1131,8 +1824,16 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
                       siteBrand,
                       siteOrigin: loc?.origin,
                       invoicePay: opts.invoicePay === true,
-                      circleSlot: circleRail,
+                      // The Wallet page's Circle line is an Overview place (KIT-6).
+                      circleSlot: circleOverview,
                       bookHref: opts.bookHref,
+                      // Circle v2: the reward photos, the jewel posters and the free Spa day's "Book it" link.
+                      circleArt: opts.circleArt,
+                      circlePoster: opts.circlePoster ?? null,
+                      circlePhoto: opts.circleRewardPhoto,
+                      spaDayHref: opts.circleSpaDayHref ?? null,
+                      // KIT-6: no WhatsApp box on Credit & rewards where the host says so (Slimming).
+                      circleWhatsappPref: opts.circleWhatsappPref !== false,
                     },
                   )}</div>`,
             }),
@@ -1748,7 +2449,22 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
     const m = detail;
     if (!m) return;
     const free = !needsPreview(m.actions);
-    let summary: CancelSummary | null = free ? cancelSummary(null, true, m.policyText) : null;
+    /* Circle v2: the points on this booking. The page's own read when it was for THIS booking (its deadline checked
+       against now); a sheet opened from a list card asks for them and WAITS (a "Free to cancel" must never show
+       first for a booking her points paid). Off — the site has no Circle, or her member read said not live — the
+       sheet is exactly what it was: no read, no wait. */
+    const pointsKnown = detailPointsFor === m.id;
+    // Off is only a clean answer (or no Circle on this site): a member read that FAILED is not off. Known off by
+    // now (a slow read that landed after the page's budget): the sheet is exactly what it was, whatever the page drew.
+    const circleOff = !circleRail || (circleAnswered && !circleFailed && (!circleNow || circleNow.kind !== "live"));
+    let points = !circleOff && pointsKnown ? pointsLineFor(detailPoints, m.id) : null;
+    const askPoints = !circleOff && (!pointsKnown || points !== null);
+    let pointsRead = !askPoints || pointsKnown;
+    let preview: CancellationPreview | null = null;
+    let previewRead = free;
+    const compute = (): CancelSummary | null =>
+      previewRead && pointsRead ? cancelSummary(free ? null : preview, free, m.policyText, points) : null;
+    let summary: CancelSummary | null = compute();
     const dlg = openDialog(
       cancelDialogHTML({ startIso: m.startIso, treatment: bookingTreatment(m), summary, canReschedule: canRescheduleNow(m) }),
       opener,
@@ -1770,7 +2486,23 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
       // sheet before the member can press anything that costs money.
       void postJson(fetchImpl, cancellationPreviewCall(m.id)).then((r) => {
         if (!alive) return;
-        summary = cancelSummary(r.ok ? readCancellationPreview(r.body) : null, false, m.policyText);
+        preview = r.ok ? readCancellationPreview(r.body) : null;
+        previewRead = true;
+        summary = compute();
+        render();
+        qs(dlg, ".cw-btn--primary")?.focus?.();
+      });
+    }
+    if (askPoints) {
+      // Ask the server: its verdict as of now (a late cancel's share), or the first read for a list card's booking.
+      void readPointsFor(m.id).then((fresh) => {
+        if (!alive) return;
+        detailPoints = fresh;
+        detailPointsFor = m.id;
+        points = pointsLineFor(fresh, m.id);
+        pointsRead = true;
+        if (!previewRead) return;
+        summary = compute();
         render();
         qs(dlg, ".cw-btn--primary")?.focus?.();
       });
@@ -1850,7 +2582,10 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
         signIn();
         return;
       }
-      preview = r.state === "failed" ? null : readLeavePreview(r.body);
+      preview =
+        r.state === "failed"
+          ? null
+          : readLeavePreview(r.body, circleNow && circleNow.kind === "live" ? circleNow.model.pointsPerEuro : 0);
       if (preview && preview.kind === "left") {
         // Already out (another tab, the app): show the page as it now is.
         dlg.close?.();
@@ -1933,7 +2668,7 @@ export function mountAccountPortal(doc: MinimalDocument, opts: PortalMountOption
     const draw = (msg: { text: string; tone: "ok" | "bad" } | null, busy = false) => {
       const s = slot();
       if (!s || !prefsNow) return;
-      s.innerHTML = circlePrefsHTML(prefsNow, msg, busy);
+      s.innerHTML = circlePrefsHTML(prefsNow, msg, busy, { whatsapp: opts.circleWhatsappPref !== false });
       markMixed();
       if (!busy) qs(s, `#cw-circle-pref-${channel}`)?.focus?.();
     };

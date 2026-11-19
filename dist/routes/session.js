@@ -16,12 +16,18 @@ import { extractAppointmentList } from "../ui/appointments.js";
  *  - Backend answers 200                  -> {signedIn:true, initials, profile[, upcoming][, loyalty]}.
  *
  * `include` is a comma list: `upcoming` (the panel's visits) and `loyalty`
- * (Carisma Circle). `loyalty` is folded in ONLY when the member read answers
+ * (Carisma Circle: the summary read). `loyalty` is folded in ONLY when that read answers
  * 200 with `enabled: true`; off, 404, 5xx or a timeout leave the field out and
  * never touch the rest of the answer (the panel then draws what it always did).
  */
 /** The most the panel waits for Carisma Circle before opening without it. */
 export const LOYALTY_READ_BUDGET_MS = 2500;
+/**
+ * Circle v2 (carisma-circle-v2-20261117): the panel folds the member's nav
+ * SUMMARY (BE-1 §9.2: the read-model row, no ledger replay), never the full
+ * `/client/loyalty/me` (the account pages read that themselves).
+ */
+export const LOYALTY_SUMMARY_PATH = "/client/loyalty/summary";
 function withinMs(p, ms) {
     let timer;
     return Promise.race([
@@ -98,7 +104,7 @@ export function makeSession(cfg, refresh) {
                 ? upstream(cfg, "/client/booking/appointments?filter=upcoming&limit=20", "GET", at, null)
                 : Promise.resolve(null),
             // Bounded: a slow loyalty read must never hold the panel up.
-            includeLoyalty ? withinMs(upstream(cfg, "/client/loyalty/me", "GET", at, null), LOYALTY_READ_BUDGET_MS) : Promise.resolve(null),
+            includeLoyalty ? withinMs(upstream(cfg, LOYALTY_SUMMARY_PATH, "GET", at, null), LOYALTY_READ_BUDGET_MS) : Promise.resolve(null),
         ]);
         if (includeUpcoming) {
             body.upcoming = appts && appts.status === 200 ? extractAppointmentList(appts.body) : [];

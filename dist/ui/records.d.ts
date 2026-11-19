@@ -33,6 +33,24 @@ export interface RecordsContext {
     circleSlot?: boolean;
     /** Where "book" goes on this brand (the Credit & rewards page's one button). */
     bookHref?: string;
+    /**
+     * Circle v2: photos and booking links per featured service id, the jewel
+     * posters, and where "Book it" goes for a free Spa day (all optional; the
+     * Circle page draws words only without them).
+     */
+    circleArt?: Record<string, {
+        img?: string;
+        href?: string;
+    } | undefined>;
+    circlePoster?: ((gem: string, kind: "small" | "full" | "icon") => string) | null;
+    spaDayHref?: string | null;
+    /** Circle v2 (ADDENDUM X3/KIT-3): the site's own photo for a featured service. */
+    circlePhoto?: (item: import("./circleFeatured.js").CircleReward) => {
+        src: string;
+        alt?: string;
+    } | null | undefined;
+    /** ADDENDUM KIT-6: the WhatsApp box of "Offers and reminders" on Credit & rewards (default true). */
+    circleWhatsappPref?: boolean;
 }
 /** "September 2026" + a sortable "2026-09" key, on the Malta clock. */
 export declare function monthOf(raw: string): {

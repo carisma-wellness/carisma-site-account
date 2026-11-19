@@ -15,7 +15,8 @@ export function createAccountRoutes(config) {
     const refresh = createRefresher(cfg);
     return {
         session: makeSession(cfg, refresh),
-        proxy: makeProxy(cfg),
+        // The proxy shares the session route's single-flight refresher (Circle doors renew an expiring token first).
+        proxy: makeProxy(cfg, refresh),
         logout: makeLogout(cfg),
         start: makeStart(cfg),
         callback: makeCallback(cfg),

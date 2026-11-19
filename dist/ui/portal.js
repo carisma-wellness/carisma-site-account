@@ -106,6 +106,7 @@ export function buildApptCard(row, bucket, siteBrand = "") {
         upcoming: bucket === "upcoming",
         actions,
         due,
+        circleEligible: row.circleEligible === true,
     };
 }
 /**
@@ -252,6 +253,8 @@ export function buildPortalModel(session, view, extra = {}) {
         now: extra.now ?? new Date(),
         referRail: extra.referRail === true,
         circleRail: extra.circleRail === true && circleAllowedOn(siteBrand),
+        circleOverview: extra.circleOverview !== false,
+        circleRewardsRail: extra.circleRewardsRail !== false,
     };
 }
 /* ── Navigation ────────────────────────────────────────────────────────── */
@@ -336,7 +339,9 @@ export function portalShellHTML(opts) {
         `<div class="cw-shell">` +
         `<aside class="cw-rail">${member}${nav(opts.view, opts.siteBrand, opts.referRail === true, opts.circleRail === true)}<div class="cw-rail__foot">${signOutLinks()}</div></aside>` +
         `<div class="cw-main">` +
-        `<header class="cw-head"><h1 class="cw-title" tabindex="-1" ${M}>${escapeHtml(opts.title)}</h1>${lede}</header>` +
+        `<header class="cw-head"><h1 class="cw-title" tabindex="-1" ${M}>${escapeHtml(opts.title)}</h1>${lede}` +
+        (opts.circleLine ? `<div class="cw-circle-slot" data-cw-circle-slot="greet" hidden></div>` : "") +
+        `</header>` +
         `<div class="cw-body"${opts.busy ? ' aria-busy="true"' : ""}>${opts.body}</div>` +
         `<footer class="cw-foot">${signOutLinks()}</footer>` +
         `</div></div>` +
@@ -539,7 +544,9 @@ function walletStripHTML(w) {
  * altogether unless the site opted in.
  */
 export function circleSlotHTML(m, where) {
-    return m.circleRail ? `<div class="cw-circle-slot" data-cw-circle-slot="${where}" hidden></div>` : "";
+    // KIT-6: Overview's block and the Wallet line are the Overview place; Details (her own settings) is always there.
+    const place = where === "details" ? true : m.circleOverview !== false;
+    return m.circleRail && place ? `<div class="cw-circle-slot" data-cw-circle-slot="${where}" hidden></div>` : "";
 }
 export function overviewBodyHTML(m) {
     if (m.upcomingState === "failed") {
@@ -641,7 +648,8 @@ export function accountPortalHTML(model) {
         memberName: model.firstName || model.name || "Your account",
         siteBrand: model.siteBrand,
         referRail: model.referRail,
-        circleRail: model.circleRail,
+        circleRail: model.circleRail && model.circleRewardsRail !== false,
+        circleLine: view === "home" && model.circleRail && model.circleOverview !== false,
     });
 }
 //# sourceMappingURL=portal.js.map

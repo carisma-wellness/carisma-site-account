@@ -4,8 +4,8 @@ import { PORTAL_SHELL_CSS } from "./shell.js";
 import { PORTAL_LISTS_CSS } from "./lists.js";
 import { PORTAL_BOOKING_CSS } from "./booking.js";
 import { PORTAL_RECORDS_CSS } from "./records.js";
-import { PORTAL_CIRCLE_CSS, PANEL_CIRCLE_CSS } from "./circle.js";
-export { PORTAL_TOKENS_CSS, PORTAL_BASE_CSS, PORTAL_SHELL_CSS, PORTAL_LISTS_CSS, PORTAL_BOOKING_CSS, PORTAL_RECORDS_CSS, PORTAL_CIRCLE_CSS, PANEL_CIRCLE_CSS };
+import { PORTAL_CIRCLE_CSS, PANEL_CIRCLE_CSS, circlePartsCSS } from "./circle.js";
+export { PORTAL_TOKENS_CSS, PORTAL_BASE_CSS, PORTAL_SHELL_CSS, PORTAL_LISTS_CSS, PORTAL_BOOKING_CSS, PORTAL_RECORDS_CSS, PORTAL_CIRCLE_CSS, PANEL_CIRCLE_CSS, circlePartsCSS };
 /** Every portal rule, WITHOUT the :root token fallbacks (what the no-hex test reads). */
 export declare const PORTAL_RULES_CSS: string;
 //# sourceMappingURL=index.d.ts.map
