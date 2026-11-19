@@ -255,6 +255,16 @@ function earnPerEuroFrom(o) {
     const v = r ? num(r.earnPerEuro, 0) : 0;
     return v > 0 ? v : 1;
 }
+/** BE-4 `pendingSpendCents` (top level, else inside `levelOnItsWay`): a whole number of cents ≥ 0, or null. */
+function pendingSpendFrom(o) {
+    const v = typeof o.pendingSpendCents === "number" ? o.pendingSpendCents : obj(o.levelOnItsWay)?.pendingSpendCents;
+    return typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.round(v) : null;
+}
+/** BE-4 `rules.endingSoonDays` (A-12), a positive whole number of days, or null. */
+function endingSoonDaysFrom(o) {
+    const v = obj(o.rules)?.endingSoonDays;
+    return typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.round(v) : null;
+}
 function centsOf(rawCents, points, pointsPerEuro) {
     return int(rawCents, Math.round((points * 100) / pointsPerEuro));
 }
@@ -390,6 +400,10 @@ export function readCircle(body) {
         savedThisYearCents: typeof o.savedThisYearCents === "number" && o.savedThisYearCents >= 0 ? Math.round(o.savedThisYearCents) : null,
         referral: referralFrom(o.referral),
         rebookNext: rebookNextFrom(o.rebookNext),
+        onHold: o.onHold === true || obj(o.member)?.onHold === true,
+        hasPaidWithPoints: typeof o.hasPaidWithPoints === "boolean" ? o.hasPaidWithPoints : null,
+        pendingSpendCents: pendingSpendFrom(o),
+        endingSoonDays: endingSoonDaysFrom(o),
     };
 }
 /** `/client/loyalty/me` → the left state, or null. Only a clean `enabled: true` + `left: true`. */
@@ -455,6 +469,11 @@ export function readCircleSummary(body) {
             const w = nextLevel ? levelOnItsWayFrom(o.levelOnItsWay) : null;
             return w && w.level.key === nextLevel?.key ? w : null;
         })(),
+        pointsExpireKind: str(o.pointsExpireKind) === "balance" || str(o.pointsExpireKind) === "birthday" ? str(o.pointsExpireKind) : "",
+        onHold: o.onHold === true,
+        pendingSpendCents: pendingSpendFrom(o),
+        rebookNext: rebookNextFrom(o.rebookNext),
+        endingSoonDays: endingSoonDaysFrom(o),
     };
 }
 export function readCircleSummaryState(body) {
@@ -491,6 +510,11 @@ export function summaryOf(m) {
         perks: m.perks,
         nextLevelPerks: m.nextLevelPerks,
         levelOnItsWay: m.levelOnItsWay,
+        pointsExpireKind: m.pointsExpireKind,
+        onHold: m.onHold,
+        pendingSpendCents: m.pendingSpendCents,
+        rebookNext: m.rebookNext,
+        endingSoonDays: m.endingSoonDays,
     };
 }
 /** `GET /public/loyalty/status` v2 → what a signed-out page may say, or null (off, v1, garbage). */
@@ -650,13 +674,16 @@ export function withTermsHTML(text, termsHref) {
     const t = termsLinkHTML(termsHref);
     return escapeHtml(text) + (t ? `${TERMS_JOIN}${t}` : "");
 }
-/** R5.4: the reading under the balance. Below zero / nothing yet / ready to use / just the points. */
+/**
+ * R5.4: the reading under the balance. Below zero / nothing yet / ready to use / just the points. A review hold
+ * (BE-4 `onHold`, W-5) never reads "ready to use": the hold sentence says why.
+ */
 export function readingText(m, rate = "") {
     if (m.belowZero)
         return `${pointsText(Math.abs(m.points))} come off your next points — never charged`;
     if (m.points === 0)
         return rate ? `${rate} back from your first visit` : "Every €1 you pay earns points";
-    return m.affordable ? `ready to use · ${pointsText(m.points)}` : pointsText(m.points);
+    return m.affordable && m.onHold !== true ? `ready to use · ${pointsText(m.points)}` : pointsText(m.points);
 }
 /** The rate a member's level gives (from her perks), e.g. "7.5%". "" when not known. */
 export function memberRate(m) {
@@ -769,9 +796,34 @@ export function earnsText(cents, points) {
         return "";
     return `Earns ${creditText(cents)} · ${pointsText(points)}`;
 }
+/**
+ * Her balance pays for a featured treatment AND she may spend it now: the server's `affordable`, not below zero, and
+ * no review hold (BE-4 `onHold`, W-5). While on hold nothing says "ready to use" or "Use my credit".
+ */
+export function spendable(m) {
+    return m.affordable && !m.belowZero && m.onHold !== true;
+}
 /** The ONE action under a Card or Hero. */
 export function actionText(m) {
-    return m.affordable && !m.belowZero ? "Use my credit" : "Book a visit";
+    return spendable(m) ? "Use my credit" : "Book a visit";
+}
+/**
+ * W-1 (board 02 "Short of her first reward"; `CK.S.first`): what she still needs for her FIRST reward, in cents —
+ * the cheapest featured treatment's price less her balance — or 0 when the state does not apply: the API has not
+ * said she never paid with points (`hasPaidWithPoints` must be literally false), her balance already pays for one
+ * (`affordable`), she is below zero, or there is no featured read.
+ */
+export function firstRewardGapCents(m, rewards) {
+    if (m.hasPaidWithPoints !== false || m.affordable || m.belowZero || !rewards || !rewards.length)
+        return 0;
+    const cheapest = Math.min(...rewards.map((r) => r.fromCents).filter((c) => c > 0));
+    if (!Number.isFinite(cheapest))
+        return 0;
+    return Math.max(0, cheapest - Math.max(0, m.creditCents));
+}
+/** "€6.75 more credit for your first reward" (`CK.S.first`); "" for a gap of 0. */
+export function firstRewardText(gapCents) {
+    return gapCents > 0 ? `${creditText(gapCents)} more credit for your first reward` : "";
 }
 /**
  * Beside every Rejoin: counsel's sentence (surface-consistency row 8, terms §13) with the retired level name
@@ -783,8 +835,8 @@ export function rejoinNoteText(firstLevelLabel = "") {
 }
 /**
  * The sign-in dialog's line (R5.2, R5.5), live only: "Your Carisma account
- * collects Carisma credit at Carisma Spa." + "+50 points when you sign in with
- * your email" (from the status's `verified_email` action). "" when off.
+ * collects Carisma credit at Carisma Spa." + "+€2.50 · 50 points when you sign
+ * in with your email, once" (from the status's `verified_email` action). "" when off.
  */
 export function signInLineText(status) {
     if (!status)
@@ -795,7 +847,11 @@ export function signInLineText(status) {
     const email = status.actions.find((a) => a.key === "verified_email" && a.points > 0);
     return {
         line: `Your Carisma account collects Carisma credit at ${line}.`,
-        bonus: email ? `+${email.points.toLocaleString("en-GB")} points when you sign in with your email` : "",
+        // R5.2 vocabulary: the euro first, then the points, "once" (W-13): "+€2.50 · 50 points when you sign in with
+        // your email, once"; the euro at the status's own rate (`rules.pointsPerEuro`).
+        bonus: email
+            ? `+${creditPointsText(Math.round((email.points * 100) / (status.pointsPerEuro > 0 ? status.pointsPerEuro : 100 / CENTS_PER_POINT)), email.points)} when you sign in with your email, once`
+            : "",
         age: ageLineText(status.minAge),
     };
 }

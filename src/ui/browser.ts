@@ -864,7 +864,8 @@ export function mountAccountPanel(doc: MinimalDocument, opts: HydrateOptions = {
         track.insertAdjacentHTML?.("beforeend", `<p class="cc-track-line">${escapeHtml(x.unlockLine)}</p>`);
       }
       const now = qs(card, '[data-cw-circle-slot="menu-now"]');
-      if (now && !now.innerHTML) now.innerHTML = circleNowRowHTML(x.rewards ?? null, opts.circleArt, opts.circleRewardPhoto);
+      // W-5: no "Yours now" row while a review holds her spending (the hold sentence says why).
+      if (now && !now.innerHTML && !s.onHold) now.innerHTML = circleNowRowHTML(x.rewards ?? null, opts.circleArt, opts.circleRewardPhoto);
     });
   };
 
@@ -1606,7 +1607,16 @@ function mountAccountPortalOnce(doc: MinimalDocument, opts: PortalMountOptions):
     if (view === "rewards" && circleNow && circleNow.kind === "live") {
       hydrateHere(mount);
       bindCircleInstagram(doc, fetchImpl);
+      bindCircleCopy(doc);
       fillCircleWallet();
+      // W-16 (KIT-2): "More ways to earn" as cards; the "Spa products" card waits for the public status's retail
+      // boost, exactly as on the Overview (never a typed 50%).
+      const model = circleNow.model;
+      void readHostStatus(opts).then((st) => {
+        const earn = qs(mount, '[data-cw-circle-slot="rw-earn"]');
+        if (!st || !(st.retailBoostPct > 0) || !earn || !current()) return;
+        earn.innerHTML = circleWaysCardsHTML(model, { retailBoostPct: st.retailBoostPct, moneyLine: true });
+      });
     }
     if (view === "rewards" && circleNow && circleNow.kind === "left") nameFirstLevel(mount, opts);
   };

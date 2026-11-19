@@ -22,5 +22,11 @@ export declare function circleWaysHTML(m: CircleModel | null, opts?: {
  */
 export declare function circleWaysCardsHTML(m: CircleModel | null, opts?: {
     retailBoostPct?: number | null;
+    /**
+     * W-16 (Credit and rewards): counsel's money line ("Every €1 you pay on eligible treatments at Carisma Spa earns
+     * credit too.", surface-consistency rows 18/21) before the reviews footnote, and the section drawn even when no
+     * card is left (the line still holds). The Overview keeps the footnote alone (as built and reviewed).
+     */
+    moneyLine?: boolean;
 }): string;
 //# sourceMappingURL=circleWays.d.ts.map

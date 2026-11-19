@@ -20,7 +20,9 @@ import {
   CIRCLE_TERMS_HREF,
   CIRCLE_V2_QC,
   CONDITIONS_EARNED,
+  ENDING_SOON_DAYS,
   M,
+  ON_HOLD_TEXT,
   NB,
   PROMISE_QUALIFIER,
   actionText,
@@ -31,6 +33,7 @@ import {
   datedText,
   endsText,
   expiringText,
+  firstRewardText,
   gainText,
   int,
   levelSentenceText,
@@ -46,6 +49,7 @@ import {
   readCircleLeft,
   readingText,
   rejoinNoteText,
+  spendable,
   str,
   summaryOf,
   termsLinkHTML,
@@ -59,7 +63,7 @@ import {
   type CircleSummaryState,
 } from "./circleCore.js";
 import { benefitsList, circleTrackHTML, nextPerksOf, ownPerksOf, unlockLineText, unlocksList } from "./circleTrack.js";
-import { circleWaysCardsHTML, circleWaysHTML } from "./circleWays.js";
+import { circleWaysCardsHTML } from "./circleWays.js";
 import { circlePerksHTML, type CirclePerks } from "./circlePerks.js";
 import { circleNowRowHTML, circleRewardsHTML, type CircleReward, type CircleRewardArt, type CircleRewardPhoto } from "./circleFeatured.js";
 import { unwrapEnvelope } from "./appointments.js";
@@ -69,6 +73,7 @@ export { asGemKey, circleMarkSVG, jewelSlotHTML, progressFraction, CIRCLE_GEM_KE
 export {
   benefitsList,
   circleTrackHTML,
+  liftPct,
   nextPerksOf,
   ownPerksOf,
   paidLineText,
@@ -134,6 +139,34 @@ export interface CircleExtras {
    * WhatsApp number is locked by Meta, so its Credit & rewards page carries no WhatsApp switch.
    */
   whatsappPref?: boolean;
+  /** The clock for the ending-soon window (W-2); `Date.now()` when absent (tests pin it). */
+  now?: number;
+}
+
+/**
+ * W-2 (ADDENDUM X4 + X5): the line directly under the balance. Inside the LAST expiry notice window (the API's
+ * `rules.endingSoonDays`, else 14 days) while her birthday credit is the part that ends first, the X5 sentence
+ * ("Your €20.00 birthday credit ends Mon 7 Dec. Use it on a treatment before then."); otherwise the dated part
+ * ("€20.00 of it until Mon 7 Dec"). Never both: one figure, said once. The Hero's next step and its button stay the
+ * design's (`CK.hero`: the gap / a level on its way; "Use my credit" when affordable).
+ */
+export function underBalanceText(
+  m: {
+    pointsExpireKind: string;
+    datedEnds: { at: string; points: number } | null;
+    pointsPerEuro: number;
+    endingSoonDays?: number | null;
+  },
+  now: number = Date.now(),
+): { text: string; ending: boolean } {
+  const ending = expiringText(m, now, m.endingSoonDays && m.endingSoonDays > 0 ? m.endingSoonDays : ENDING_SOON_DAYS);
+  if (ending) return { text: ending, ending: true };
+  return { text: datedText(m.datedEnds, m.pointsPerEuro), ending: false };
+}
+
+/** W-5: the review-hold sentence (R5.4 `ON_HOLD`), drawn under the balance while BE-4 says `onHold`. */
+function holdHTML(m: { onHold?: boolean }): string {
+  return m.onHold === true ? `<p class="cc-note cc-hold" ${M} data-cw-circle="on-hold">${escapeHtml(ON_HOLD_TEXT)}</p>` : "";
 }
 
 function terms(x: CircleExtras | undefined): string | null {
@@ -188,7 +221,8 @@ export function circlePanelRowHTML(s: CircleSummary | null, x: PanelCircleExtras
   // A new member's reading names her level's rate ("5% back from your first visit"), from the summary's own perks.
   const read = readingText(s, s.perks ? rateText(s.perks.multiplier, s.pointsPerEuro, s.earnPerEuro) : "");
   const paused = s.spendPausedUntil ? pausedText(s.spendPausedUntil) : "";
-  const dated = datedText(s.datedEnds, s.pointsPerEuro);
+  // W-2 / W-3: the dated part (BE-4 sends it on the summary now), or the ending-soon sentence in its last window.
+  const under = underBalanceText(s, x.now ?? Date.now());
   // The unlock line straight from the summary when it carries both perk rows (BRIEF §9 ask of BE-1); else the
   // host fills it after the menu opens (browser.ts reads /me once).
   const unlockLine =
@@ -205,14 +239,17 @@ export function circlePanelRowHTML(s: CircleSummary | null, x: PanelCircleExtras
       levelSentence: s.levelSentence,
       heldUntil: s.heldUntil,
       spendThisYearCents: s.spendThisYearCents,
-      // X2 / BE-c: only when the summary itself sends it (BE-2 sends it on /me only, so today the menu draws the gap).
+      // X2 / BE-c: only when the summary itself sends it (BE-4 adds it there; without it the menu draws the gap).
       onItsWay: s.levelOnItsWay,
+      // W-4: the hatched "booked, not yet paid" end, only from the API's own lift.
+      pendingSpendCents: s.pendingSpendCents,
     },
     { compact: true, unlockLine, poster: x.poster },
   );
   // ADDENDUM KIT-1: ONE ink pill — "Use my credit" when the server says her balance pays for a featured
   // treatment, else "Book a visit" (never "View my credit"); the rows below the Card reach Credit & rewards.
-  const use = s.affordable && !s.belowZero;
+  // W-5: a review hold never offers "Use my credit".
+  const use = spendable(s);
   const act = use
     ? `<a class="cc-btn" href="${CIRCLE_HREF}#rewards">Use my credit</a>`
     : `<a class="cc-btn" href="${escapeHtml(x.bookHref || CIRCLE_HREF)}">Book a visit</a>`;
@@ -223,9 +260,10 @@ export function circlePanelRowHTML(s: CircleSummary | null, x: PanelCircleExtras
     `<div class="cc-menu__fig">` +
     `<p class="cc-level" ${M}>${escapeHtml(s.level.label)}</p>` +
     `<p class="cc-bal" ${M}>${escapeHtml(creditText(s.creditCents))}</p>` +
-    (dated ? `<p class="cc-dated" ${M}>${escapeHtml(dated)}</p>` : "") +
+    (under.text ? `<p class="cc-dated${under.ending ? " cc-ending" : ""}" ${M}>${escapeHtml(under.text)}</p>` : "") +
     `<p class="cc-read" ${M}>${withTermsHTML(read, terms(x))}</p>` +
     (paused ? `<p class="cc-note" ${M}>${escapeHtml(paused)}</p>` : "") +
+    holdHTML(s) +
     `</div></div>` +
     `<div class="cc-menu__sec">${track}</div>` +
     `<div class="cw-circle-slot" data-cw-circle-slot="menu-now">${circleNowRowHTML(x.rewards ?? null, x.art, x.photo)}</div>` +
@@ -370,13 +408,14 @@ export function circleHeroHTML(
   // The ONE next step (`CK.hero`): a level on its way (the server's sentence, X2), else the level sentence (R5.3).
   // The ending-soon sentence is not the Hero's: the dated part under the balance says it (X4), as board 10 draws.
   const next = x.say ?? (circleOnItsWayText(m) || levelSentenceText(m));
-  const dated = datedText(m.datedEnds, m.pointsPerEuro);
+  // W-2 / X4 / X5: the dated part under the balance, or in its last notice window the ending-soon sentence.
+  const under = underBalanceText(m, x.now ?? Date.now());
   const action =
     x.action === false
       ? ""
       : x.action
         ? `<a class="cc-btn" href="${escapeHtml(x.action.href)}">${escapeHtml(x.action.label)}</a>`
-        : m.affordable && !m.belowZero
+        : spendable(m)
           ? `<a class="cc-btn" href="${CIRCLE_HREF}#rewards">${escapeHtml(actionText(m))}</a>`
           : x.bookHref
             ? `<a class="cc-btn" href="${escapeHtml(x.bookHref)}">${escapeHtml(actionText(m))}</a>`
@@ -389,10 +428,11 @@ export function circleHeroHTML(
     // rewards' "Your member number").
     `<p class="cc-level" ${M}>${escapeHtml(m.level.label)}</p>` +
     `<p class="cc-bal" ${M}>${escapeHtml(creditText(m.creditCents))}</p>` +
-    // ADDENDUM X4: the dated part directly under the balance it describes.
-    (dated ? `<p class="cc-dated" ${M}>${escapeHtml(dated)}</p>` : "") +
+    // ADDENDUM X4: the dated part directly under the balance it describes (X5's sentence in its last window).
+    (under.text ? `<p class="cc-dated${under.ending ? " cc-ending" : ""}" ${M}>${escapeHtml(under.text)}</p>` : "") +
     `<p class="cc-read" ${M}>${escapeHtml(readingText(m, memberRate(m)))}</p>` +
     heroLinesHTML(m) +
+    holdHTML(m) +
     (next ? `<p class="cc-next" ${M}>${escapeHtml(next)}</p>` : "") +
     action +
     `<p class="cc-cond">${withTermsHTML(cond, terms(x))}</p>` +
@@ -539,6 +579,33 @@ export function circleActivityHTML(
 /* ── The account Overview: the member dashboard (board 10) ─────────────── */
 
 /**
+ * Board 10's right column, shared by the Overview and Credit and rewards (W-16, KIT-2: "Hero, 'Your level', …"):
+ * the eyebrow "Your next level" ("Your level" at the top), the level track with what the next level unlocks (and its
+ * hatched "on its way" end from the API's lift, W-4), a box "Your Level 3 · Ruby benefits" (live perks only, X2) kept
+ * "until 31 Dec 2027" for Levels 2–4, then "See all five levels" (`levelsHref`; on Credit and rewards the ladder is
+ * on the same page, so `#levels`).
+ */
+export function circleLevelColumnHTML(m: CircleModel, x: CircleExtras & { levelsHref?: string } = {}): string {
+  const own = ownPerksOf(m);
+  const unlocks = unlocksList(own, nextPerksOf(m), m.pointsPerEuro, m.earnPerEuro);
+  const gives = benefitsList(own, m.pointsPerEuro, m.earnPerEuro);
+  const top = !m.nextLevel;
+  const until = !top && m.level.number > 1 && m.heldUntil ? maltaDayLong(m.heldUntil) : "";
+  return (
+    `<p class="cc-eyebrow">${top ? "Your level" : "Your next level"}</p>` +
+    circleTrackHTML({ ...m, spendThisYearCents: m.spendThisYearCents, onItsWay: m.levelOnItsWay }, { unlocks, poster: x.poster }) +
+    (gives.length
+      ? `<div class="cc-gives"><p class="cc-eyebrow"><span>${escapeHtml(`Your ${m.level.label} benefits`)}</span>` +
+        (until ? `<span class="cc-gives__until">${escapeHtml(`until${NB}${until.replace(/ /g, NB)}`)}</span>` : "") +
+        `</p><ul>${gives.map((g) => `<li>${escapeHtml(g)}</li>`).join("")}</ul></div>`
+      : "") +
+    (m.levels.length
+      ? `<a class="cw-link cc-link" href="${escapeHtml(x.levelsHref ?? `${CIRCLE_HREF}#levels`)}">${escapeHtml(`See all ${countWord(m.levels.length)} levels`)}</a>`
+      : "")
+  );
+}
+
+/**
  * Overview's Circle block: the Circle panel (her Hero on the left; the level
  * track with what the next level unlocks and what hers gives on the right),
  * then what her points buy (photo cards, filled after a second read), more
@@ -554,14 +621,6 @@ export function circleOverviewHTML(
   } = {},
 ): string {
   if (!m) return "";
-  const own = ownPerksOf(m);
-  const next = nextPerksOf(m);
-  const unlocks = unlocksList(own, next, m.pointsPerEuro, m.earnPerEuro);
-  const gives = benefitsList(own, m.pointsPerEuro, m.earnPerEuro);
-  const top = !m.nextLevel;
-  // Board 10, right column: "Your next level" ("Your level" at the top), the track with what it unlocks, then a box
-  // "Your Level 3 · Ruby benefits" (live perks only, X2) kept "until 31 Dec 2027" for Levels 2–4.
-  const until = !top && m.level.number > 1 && m.heldUntil ? maltaDayLong(m.heldUntil) : "";
   return (
     `<section class="cw-circle-ov cw-rise cc-dash" aria-labelledby="cw-circle-ov-title" data-cw-qc="${CIRCLE_V2_QC}" data-cw-circle="overview">` +
     `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-ov-title">Carisma Circle</h2>` +
@@ -569,19 +628,7 @@ export function circleOverviewHTML(
     `<div class="cc-dash__panel" data-cw-jewel-hover>` +
     // The track beside it says the next step (X2: one track per block, never the same sentence twice).
     circleHeroHTML(m, { ...x, say: "" }) +
-    `<div class="cc-dash__level">` +
-    `<p class="cc-eyebrow">${top ? "Your level" : "Your next level"}</p>` +
-    circleTrackHTML(
-      { ...m, spendThisYearCents: m.spendThisYearCents, onItsWay: m.levelOnItsWay },
-      { unlocks, poster: x.poster },
-    ) +
-    (gives.length
-      ? `<div class="cc-gives"><p class="cc-eyebrow"><span>${escapeHtml(`Your ${m.level.label} benefits`)}</span>` +
-        (until ? `<span class="cc-gives__until">${escapeHtml(`until${NB}${until.replace(/ /g, NB)}`)}</span>` : "") +
-        `</p><ul>${gives.map((g) => `<li>${escapeHtml(g)}</li>`).join("")}</ul></div>`
-      : "") +
-    (m.levels.length ? `<a class="cw-link cc-link" href="${CIRCLE_HREF}#levels">${escapeHtml(`See all ${countWord(m.levels.length)} levels`)}</a>` : "") +
-    `</div></div>` +
+    `<div class="cc-dash__level">${circleLevelColumnHTML(m, x)}</div></div>` +
     `<div class="cw-circle-slot" data-cw-circle-slot="ov-rewards">${circleRewardsHTML(x.rewards ?? null, m.points, { art: x.art, photo: x.photo, pointsPerEuro: m.pointsPerEuro })}</div>` +
     `<div class="cw-circle-slot" data-cw-circle-slot="ov-earn">${circleWaysCardsHTML(m, { retailBoostPct: x.retailBoostPct ?? null })}</div>` +
     `<div class="cw-circle-slot" data-cw-circle-slot="ov-activity">${x.activity ? circleActivityHTML(m, x.activity, { limit: 3, moreHref: CIRCLE_HREF }) : ""}</div>` +
@@ -656,6 +703,8 @@ export interface CircleViewInput extends CircleExtras {
   perks?: CirclePerks | null;
   /** The member's "Offers and reminders" answer (null = the box is not drawn). */
   prefs?: CirclePrefs | null;
+  /** The public status's retail boost (the "Spa products" card); unknown → no card until the host fills it. */
+  retailBoostPct?: number | null;
 }
 
 function memberNumberHTML(m: CircleModel): string {
@@ -673,7 +722,6 @@ export function circleViewHTML(input: CircleViewInput | null): string {
   if (!input) return "";
   const m = input.me;
   const own = ownPerksOf(m);
-  const unlocks = unlocksList(own, nextPerksOf(m), m.pointsPerEuro, m.earnPerEuro);
   const age = ageLineText(m.minAge);
   const t = terms(input);
   return (
@@ -681,7 +729,8 @@ export function circleViewHTML(input: CircleViewInput | null): string {
     `<section class="cw-rise cc-view__top" aria-label="Carisma Circle" data-cw-circle="balance" data-cw-jewel-hover>` +
     // The track under it says the next step (X2: never the same sentence twice in one block).
     circleHeroHTML(m, { ...input, say: "" }) +
-    `<div class="cc-view__track">${circleTrackHTML({ ...m, onItsWay: m.levelOnItsWay }, { unlocks, poster: input.poster })}</div>` +
+    // W-16 (KIT-2): the Overview's right column — "Your next level", the track, "Your Level 3 · Ruby benefits".
+    `<div class="cc-view__track" data-cw-circle="your-level">${circleLevelColumnHTML(m, { ...input, levelsHref: "#levels" })}</div>` +
     `</section>` +
     `<div id="rewards">${circleRewardsHTML(input.rewards, m.points, { art: input.art, photo: input.photo, pointsPerEuro: m.pointsPerEuro })}</div>` +
     // ADDENDUM KIT-4: "Your card", empty and hidden; browser.ts fills it only when the availability read answers
@@ -696,7 +745,9 @@ export function circleViewHTML(input: CircleViewInput | null): string {
       : "") +
     // BE-i: a perk row only while her own `perks.live` says that perk is switched on.
     circlePerksHTML(input.perks ?? null, { spaDayHref: input.spaDayHref, live: own?.live ?? null }) +
-    circleWaysHTML(m) +
+    // W-16 (KIT-2): "More ways to earn" as the Overview's cards (the "Spa products" card fills in once the host's
+    // public status answers with its retail boost, as on the Overview).
+    `<div class="cw-circle-slot" data-cw-circle-slot="rw-earn">${circleWaysCardsHTML(m, { retailBoostPct: input.retailBoostPct ?? null, moneyLine: true })}</div>` +
     circleActivityHTML(m, input.activity) +
     memberNumberHTML(m) +
     `<p class="cw-fine cw-prose">${escapeHtml(PROMISE_QUALIFIER)}${age ? ` ${escapeHtml(`${age}.`)}` : ""}${t ? ` ${termsLinkHTML(t, "Terms of Carisma Circle")}` : ""}</p>` +
@@ -956,6 +1007,11 @@ export interface CreditMomentInput {
   unpaid?: boolean;
   /** The programme's rate (the API's `rules.pointsPerEuro`), for a figure sent without its points. */
   pointsPerEuro?: number;
+  /**
+   * W-1: what she still needs for her FIRST reward (`firstRewardGapCents` of her own read and the featured read);
+   * above 0, a member's moment is board 02's one quiet line instead of the panel. 0 / absent: the panel as before.
+   */
+  firstRewardGapCents?: number;
 }
 
 export interface CreditMoment {
@@ -964,9 +1020,11 @@ export interface CreditMoment {
    * `received` — a guest: this bill's figure + the sentence (never a balance);
    * `paid`     — paid with points: one quiet line + "This treatment earns no points";
    * `onTheWay` — unpaid: "€11.90 · 238 points on the way when you pay";
+   * `first`    — a member short of her first reward (W-1, board 02): ONE quiet line, no panel, no track —
+   *              "€3.25 added to your Carisma credit · €6.75 more credit for your first reward" (+ " · Terms");
    * `none`     — nothing on this page (off, an excluded line, no figure).
    */
-  kind: "earned" | "received" | "paid" | "onTheWay" | "none";
+  kind: "earned" | "received" | "paid" | "onTheWay" | "first" | "none";
   hero: string;
   sentence: string;
   conditions: string;
@@ -1005,6 +1063,18 @@ export function creditMoment(input: CreditMomentInput | null | undefined): Credi
     };
   }
   const brands = input.member?.brands.length ? input.member.brands : input.brands ?? [];
+  const gap = Math.max(0, Math.round(Number(input.firstRewardGapCents) || 0));
+  if (input.member && gap > 0 && !paidLine) {
+    // Board 02: "<b>€3.25</b> added to your Carisma credit" + NB + "· " + CK.S.first (each dot held to the word before it).
+    return {
+      kind: "first",
+      hero: "",
+      sentence: "",
+      conditions: "",
+      quiet: `${creditText(earned)} added to your Carisma credit${NB}· ${firstRewardText(gap)}`,
+      paidLine,
+    };
+  }
   if (input.member) {
     return {
       kind: "earned",

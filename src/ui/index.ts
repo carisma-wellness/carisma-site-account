@@ -95,6 +95,12 @@ export {
   endsText,
   datedText,
   expiringText,
+  // WEB-3 (W-1, W-2, W-4, W-5): first reward, the line under the balance, the track's lift, a review hold.
+  firstRewardGapCents,
+  firstRewardText,
+  spendable,
+  underBalanceText,
+  liftPct,
   countWord,
   maltaDayWeek,
   pausedText,
@@ -143,6 +149,7 @@ export {
   circleHeroHTML,
   circleLadderHTML,
   circleOverviewHTML,
+  circleLevelColumnHTML,
   circleOverviewMinorHTML,
   circleWalletLineHTML,
   // Circle v2 (ADDENDUM KIT-4): the Circle card in Apple / Google Wallet.

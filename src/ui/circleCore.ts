@@ -237,8 +237,25 @@ export interface CircleModel {
   savedThisYearCents: number | null;
   /** ADDENDUM BE-j: the friends ladder, only while the server says it pays her in points; null otherwise. */
   referral: CircleReferral | null;
-  /** ADDENDUM BE-k: the rebook figure for her next visit, or null (BE-2 does not send it yet). */
+  /** ADDENDUM BE-k: the rebook figure for her next visit, or null (BE-4 sends it on `/me` and the summary). */
   rebookNext: CircleRebookNext | null;
+  /**
+   * BE-4 (W-5, R5.4 `ON_HOLD`): a review pauses her spending (`/me.onHold` or `/me.member.onHold`; only a literal
+   * `true`). Then nothing says "ready to use" or "Use my credit", and the hold sentence sits under the balance.
+   */
+  onHold: boolean;
+  /**
+   * BE-4 (A-11, W-1): she has paid for a treatment with points before. `null` when the API does not say: then the
+   * "first reward" words are never drawn (never a guess about her history).
+   */
+  hasPaidWithPoints: boolean | null;
+  /**
+   * BE-4 (W-4): this Malta year's booked, not yet paid eligible spend, cents (the track's hatched "on its way" end);
+   * null when the API does not send it (then no hatched end, never local maths).
+   */
+  pendingSpendCents: number | null;
+  /** BE-4 (A-12): the last expiry notice window in days (`rules.endingSoonDays`), or null (the 14-day fallback). */
+  endingSoonDays: number | null;
 }
 
 export interface CircleLeftModel {
@@ -281,8 +298,18 @@ export interface CircleSummary {
   spendThisYearCents: number | null;
   perks: CirclePerkSet | null;
   nextLevelPerks: CirclePerkSet | null;
-  /** ADDENDUM BE-c on the summary, only when the server sends it there (BE-2 sends it on `/me` only). */
+  /** ADDENDUM BE-c on the summary, only when the server sends it there (BE-4 adds it to the summary). */
   levelOnItsWay: CircleLevelOnItsWay | null;
+  /** BE-4 (W-3): which part of the balance ends first ("birthday" = the dated lot), "" when not sent. */
+  pointsExpireKind: "balance" | "birthday" | "";
+  /** BE-4 (W-5): a review pauses her spending (only a literal `true`). */
+  onHold: boolean;
+  /** BE-4 (W-4): booked, not yet paid eligible spend this year (cents), or null when not sent. */
+  pendingSpendCents: number | null;
+  /** BE-4 (W-6): the rebook figure (the summary carries it too), or null. */
+  rebookNext: CircleRebookNext | null;
+  /** BE-4 (A-12): `rules.endingSoonDays`, or null. */
+  endingSoonDays: number | null;
 }
 
 export type CircleSummaryState =
@@ -475,6 +502,18 @@ function earnPerEuroFrom(o: Record<string, unknown>): number {
   return v > 0 ? v : 1;
 }
 
+/** BE-4 `pendingSpendCents` (top level, else inside `levelOnItsWay`): a whole number of cents ≥ 0, or null. */
+function pendingSpendFrom(o: Record<string, unknown>): number | null {
+  const v = typeof o.pendingSpendCents === "number" ? o.pendingSpendCents : obj(o.levelOnItsWay)?.pendingSpendCents;
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.round(v) : null;
+}
+
+/** BE-4 `rules.endingSoonDays` (A-12), a positive whole number of days, or null. */
+function endingSoonDaysFrom(o: Record<string, unknown>): number | null {
+  const v = obj(o.rules)?.endingSoonDays;
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.round(v) : null;
+}
+
 function centsOf(rawCents: unknown, points: number, pointsPerEuro: number): number {
   return int(rawCents, Math.round((points * 100) / pointsPerEuro));
 }
@@ -606,6 +645,10 @@ export function readCircle(body: unknown): CircleModel | null {
     savedThisYearCents: typeof o.savedThisYearCents === "number" && o.savedThisYearCents >= 0 ? Math.round(o.savedThisYearCents) : null,
     referral: referralFrom(o.referral),
     rebookNext: rebookNextFrom(o.rebookNext),
+    onHold: o.onHold === true || obj(o.member)?.onHold === true,
+    hasPaidWithPoints: typeof o.hasPaidWithPoints === "boolean" ? o.hasPaidWithPoints : null,
+    pendingSpendCents: pendingSpendFrom(o),
+    endingSoonDays: endingSoonDaysFrom(o),
   };
 }
 
@@ -669,6 +712,11 @@ export function readCircleSummary(body: unknown): CircleSummary | null {
       const w = nextLevel ? levelOnItsWayFrom(o.levelOnItsWay) : null;
       return w && w.level.key === nextLevel?.key ? w : null;
     })(),
+    pointsExpireKind: str(o.pointsExpireKind) === "balance" || str(o.pointsExpireKind) === "birthday" ? (str(o.pointsExpireKind) as "balance" | "birthday") : "",
+    onHold: o.onHold === true,
+    pendingSpendCents: pendingSpendFrom(o),
+    rebookNext: rebookNextFrom(o.rebookNext),
+    endingSoonDays: endingSoonDaysFrom(o),
   };
 }
 
@@ -705,6 +753,11 @@ export function summaryOf(m: CircleModel): CircleSummary {
     perks: m.perks,
     nextLevelPerks: m.nextLevelPerks,
     levelOnItsWay: m.levelOnItsWay,
+    pointsExpireKind: m.pointsExpireKind,
+    onHold: m.onHold,
+    pendingSpendCents: m.pendingSpendCents,
+    rebookNext: m.rebookNext,
+    endingSoonDays: m.endingSoonDays,
   };
 }
 
@@ -880,11 +933,14 @@ export function withTermsHTML(text: string, termsHref: string | null | undefined
   return escapeHtml(text) + (t ? `${TERMS_JOIN}${t}` : "");
 }
 
-/** R5.4: the reading under the balance. Below zero / nothing yet / ready to use / just the points. */
-export function readingText(m: { points: number; affordable: boolean; belowZero: boolean }, rate = ""): string {
+/**
+ * R5.4: the reading under the balance. Below zero / nothing yet / ready to use / just the points. A review hold
+ * (BE-4 `onHold`, W-5) never reads "ready to use": the hold sentence says why.
+ */
+export function readingText(m: { points: number; affordable: boolean; belowZero: boolean; onHold?: boolean }, rate = ""): string {
   if (m.belowZero) return `${pointsText(Math.abs(m.points))} come off your next points — never charged`;
   if (m.points === 0) return rate ? `${rate} back from your first visit` : "Every €1 you pay earns points";
-  return m.affordable ? `ready to use · ${pointsText(m.points)}` : pointsText(m.points);
+  return m.affordable && m.onHold !== true ? `ready to use · ${pointsText(m.points)}` : pointsText(m.points);
 }
 
 /** The rate a member's level gives (from her perks), e.g. "7.5%". "" when not known. */
@@ -1010,9 +1066,38 @@ export function earnsText(cents: number, points: number): string {
   return `Earns ${creditText(cents)} · ${pointsText(points)}`;
 }
 
+/**
+ * Her balance pays for a featured treatment AND she may spend it now: the server's `affordable`, not below zero, and
+ * no review hold (BE-4 `onHold`, W-5). While on hold nothing says "ready to use" or "Use my credit".
+ */
+export function spendable(m: { affordable: boolean; belowZero: boolean; onHold?: boolean }): boolean {
+  return m.affordable && !m.belowZero && m.onHold !== true;
+}
+
 /** The ONE action under a Card or Hero. */
-export function actionText(m: { affordable: boolean; belowZero: boolean; points: number }): string {
-  return m.affordable && !m.belowZero ? "Use my credit" : "Book a visit";
+export function actionText(m: { affordable: boolean; belowZero: boolean; points: number; onHold?: boolean }): string {
+  return spendable(m) ? "Use my credit" : "Book a visit";
+}
+
+/**
+ * W-1 (board 02 "Short of her first reward"; `CK.S.first`): what she still needs for her FIRST reward, in cents —
+ * the cheapest featured treatment's price less her balance — or 0 when the state does not apply: the API has not
+ * said she never paid with points (`hasPaidWithPoints` must be literally false), her balance already pays for one
+ * (`affordable`), she is below zero, or there is no featured read.
+ */
+export function firstRewardGapCents(
+  m: { hasPaidWithPoints: boolean | null; affordable: boolean; belowZero: boolean; creditCents: number },
+  rewards: ReadonlyArray<{ fromCents: number }> | null | undefined,
+): number {
+  if (m.hasPaidWithPoints !== false || m.affordable || m.belowZero || !rewards || !rewards.length) return 0;
+  const cheapest = Math.min(...rewards.map((r) => r.fromCents).filter((c) => c > 0));
+  if (!Number.isFinite(cheapest)) return 0;
+  return Math.max(0, cheapest - Math.max(0, m.creditCents));
+}
+
+/** "€6.75 more credit for your first reward" (`CK.S.first`); "" for a gap of 0. */
+export function firstRewardText(gapCents: number): string {
+  return gapCents > 0 ? `${creditText(gapCents)} more credit for your first reward` : "";
 }
 
 /**
@@ -1028,8 +1113,8 @@ export function rejoinNoteText(firstLevelLabel = ""): string {
 
 /**
  * The sign-in dialog's line (R5.2, R5.5), live only: "Your Carisma account
- * collects Carisma credit at Carisma Spa." + "+50 points when you sign in with
- * your email" (from the status's `verified_email` action). "" when off.
+ * collects Carisma credit at Carisma Spa." + "+€2.50 · 50 points when you sign
+ * in with your email, once" (from the status's `verified_email` action). "" when off.
  */
 export function signInLineText(status: CircleStatus | null): { line: string; bonus: string; age: string } | null {
   if (!status) return null;
@@ -1038,7 +1123,11 @@ export function signInLineText(status: CircleStatus | null): { line: string; bon
   const email = status.actions.find((a) => a.key === "verified_email" && a.points > 0);
   return {
     line: `Your Carisma account collects Carisma credit at ${line}.`,
-    bonus: email ? `+${email.points.toLocaleString("en-GB")} points when you sign in with your email` : "",
+    // R5.2 vocabulary: the euro first, then the points, "once" (W-13): "+€2.50 · 50 points when you sign in with
+    // your email, once"; the euro at the status's own rate (`rules.pointsPerEuro`).
+    bonus: email
+      ? `+${creditPointsText(Math.round((email.points * 100) / (status.pointsPerEuro > 0 ? status.pointsPerEuro : 100 / CENTS_PER_POINT)), email.points)} when you sign in with your email, once`
+      : "",
     age: ageLineText(status.minAge),
   };
 }

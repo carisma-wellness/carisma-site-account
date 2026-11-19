@@ -42,6 +42,12 @@ export interface TrackInput {
    * The pay step passes the earn preview's `levelAfterVisit` here (this visit), never `/me`'s booked visit.
    */
   onItsWay?: { sentence: string } | null;
+  /**
+   * BE-4 (W-4): this year's booked, not yet paid eligible spend in cents — the bar's hatched "on its way" end, from
+   * her progress onward (ADDENDUM X2: "drawn only when the API sends the lift"). A visit on its way (`onItsWay`)
+   * crosses the threshold, so the hatch then runs to the next stone whatever this says. null/absent: no hatch.
+   */
+  pendingSpendCents?: number | null;
 }
 
 export interface TrackOptions {
@@ -161,6 +167,22 @@ export function ownPerksOf(m: { level: CircleLevelView; perks: CirclePerkSet | n
   return m.perks ?? m.levels.find((l) => l.key === m.level.key) ?? null;
 }
 
+/**
+ * The hatched end's width in percent of the bar (0 = none): to the next stone when a visit on its way crosses, else
+ * the booked spend over the span this level covers. The span comes from the API's own figures (the gap left and the
+ * share done: span = gap ÷ (1 − share)), never a typed threshold.
+ */
+export function liftPct(t: TrackInput, pct: number): number {
+  if (!t.nextLevel || pct >= 100) return 0;
+  if (t.onItsWay && t.onItsWay.sentence) return 100 - pct;
+  const lift = typeof t.pendingSpendCents === "number" && t.pendingSpendCents > 0 ? t.pendingSpendCents : 0;
+  const share = Math.max(0, Math.min(9999, t.progressBp)) / 10000;
+  if (!lift || !(t.toNextLevelCents > 0)) return 0;
+  const span = t.toNextLevelCents / (1 - share);
+  const w = Math.min(100 - pct, (lift / span) * 100);
+  return w >= 0.5 ? Math.round(w * 10) / 10 : 0;
+}
+
 /** The track as HTML. "" for a null input. */
 export function circleTrackHTML(t: TrackInput | null, opts: TrackOptions = {}): string {
   if (!t) return "";
@@ -177,9 +199,12 @@ export function circleTrackHTML(t: TrackInput | null, opts: TrackOptions = {}): 
   const slot = (gem: string, p: number) =>
     jewelSlotHTML({ gem: gem as CircleLevelView["key"], progress: p, height: h, kind: "small", poster: poster ? poster(gem, "small") : undefined });
   const aria = top ? t.level.label : paid || `${pct}% of the way to ${t.nextLevel?.label ?? ""}`;
+  const lift = top ? 0 : liftPct(t, pct);
   const bar =
     `<div class="cc-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${escapeHtml(aria)}">` +
-    `<i style="width:${pct}%"></i></div>`;
+    `<i style="width:${pct}%"></i>` +
+    (lift > 0 ? `<u class="cc-bar__lift" aria-hidden="true" style="left:${pct}%;width:${lift}%"></u>` : "") +
+    `</div>`;
   const head = opts.head === false || !sentence ? "" : `<p class="cc-track-h" ${M}>${escapeHtml(sentence)}</p>`;
   const cap =
     top || !paid

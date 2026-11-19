@@ -193,8 +193,25 @@ export interface CircleModel {
     savedThisYearCents: number | null;
     /** ADDENDUM BE-j: the friends ladder, only while the server says it pays her in points; null otherwise. */
     referral: CircleReferral | null;
-    /** ADDENDUM BE-k: the rebook figure for her next visit, or null (BE-2 does not send it yet). */
+    /** ADDENDUM BE-k: the rebook figure for her next visit, or null (BE-4 sends it on `/me` and the summary). */
     rebookNext: CircleRebookNext | null;
+    /**
+     * BE-4 (W-5, R5.4 `ON_HOLD`): a review pauses her spending (`/me.onHold` or `/me.member.onHold`; only a literal
+     * `true`). Then nothing says "ready to use" or "Use my credit", and the hold sentence sits under the balance.
+     */
+    onHold: boolean;
+    /**
+     * BE-4 (A-11, W-1): she has paid for a treatment with points before. `null` when the API does not say: then the
+     * "first reward" words are never drawn (never a guess about her history).
+     */
+    hasPaidWithPoints: boolean | null;
+    /**
+     * BE-4 (W-4): this Malta year's booked, not yet paid eligible spend, cents (the track's hatched "on its way" end);
+     * null when the API does not send it (then no hatched end, never local maths).
+     */
+    pendingSpendCents: number | null;
+    /** BE-4 (A-12): the last expiry notice window in days (`rules.endingSoonDays`), or null (the 14-day fallback). */
+    endingSoonDays: number | null;
 }
 export interface CircleLeftModel {
     /** ISO instant, or "" when the server did not say. */
@@ -245,8 +262,18 @@ export interface CircleSummary {
     spendThisYearCents: number | null;
     perks: CirclePerkSet | null;
     nextLevelPerks: CirclePerkSet | null;
-    /** ADDENDUM BE-c on the summary, only when the server sends it there (BE-2 sends it on `/me` only). */
+    /** ADDENDUM BE-c on the summary, only when the server sends it there (BE-4 adds it to the summary). */
     levelOnItsWay: CircleLevelOnItsWay | null;
+    /** BE-4 (W-3): which part of the balance ends first ("birthday" = the dated lot), "" when not sent. */
+    pointsExpireKind: "balance" | "birthday" | "";
+    /** BE-4 (W-5): a review pauses her spending (only a literal `true`). */
+    onHold: boolean;
+    /** BE-4 (W-4): booked, not yet paid eligible spend this year (cents), or null when not sent. */
+    pendingSpendCents: number | null;
+    /** BE-4 (W-6): the rebook figure (the summary carries it too), or null. */
+    rebookNext: CircleRebookNext | null;
+    /** BE-4 (A-12): `rules.endingSoonDays`, or null. */
+    endingSoonDays: number | null;
 }
 export type CircleSummaryState = {
     kind: "live";
@@ -380,11 +407,15 @@ export declare const TERMS_JOIN = "\u00A0\u00B7\u00A0";
 export declare function termsLinkHTML(href: string | null | undefined, label?: string): string;
 /** A sentence with " · Terms" at its end (escaped). */
 export declare function withTermsHTML(text: string, termsHref: string | null | undefined): string;
-/** R5.4: the reading under the balance. Below zero / nothing yet / ready to use / just the points. */
+/**
+ * R5.4: the reading under the balance. Below zero / nothing yet / ready to use / just the points. A review hold
+ * (BE-4 `onHold`, W-5) never reads "ready to use": the hold sentence says why.
+ */
 export declare function readingText(m: {
     points: number;
     affordable: boolean;
     belowZero: boolean;
+    onHold?: boolean;
 }, rate?: string): string;
 /** The rate a member's level gives (from her perks), e.g. "7.5%". "" when not known. */
 export declare function memberRate(m: CircleModel): string;
@@ -443,12 +474,38 @@ export declare function onTheWayText(cents: number, points: number): string;
 export declare function paidWithPointsText(points: number): string;
 /** "Earns €5.45 · 109 points" — the server's earn figure for a treatment (public earn, Level 1 for a guest). */
 export declare function earnsText(cents: number, points: number): string;
+/**
+ * Her balance pays for a featured treatment AND she may spend it now: the server's `affordable`, not below zero, and
+ * no review hold (BE-4 `onHold`, W-5). While on hold nothing says "ready to use" or "Use my credit".
+ */
+export declare function spendable(m: {
+    affordable: boolean;
+    belowZero: boolean;
+    onHold?: boolean;
+}): boolean;
 /** The ONE action under a Card or Hero. */
 export declare function actionText(m: {
     affordable: boolean;
     belowZero: boolean;
     points: number;
+    onHold?: boolean;
 }): string;
+/**
+ * W-1 (board 02 "Short of her first reward"; `CK.S.first`): what she still needs for her FIRST reward, in cents —
+ * the cheapest featured treatment's price less her balance — or 0 when the state does not apply: the API has not
+ * said she never paid with points (`hasPaidWithPoints` must be literally false), her balance already pays for one
+ * (`affordable`), she is below zero, or there is no featured read.
+ */
+export declare function firstRewardGapCents(m: {
+    hasPaidWithPoints: boolean | null;
+    affordable: boolean;
+    belowZero: boolean;
+    creditCents: number;
+}, rewards: ReadonlyArray<{
+    fromCents: number;
+}> | null | undefined): number;
+/** "€6.75 more credit for your first reward" (`CK.S.first`); "" for a gap of 0. */
+export declare function firstRewardText(gapCents: number): string;
 /**
  * Beside every Rejoin: counsel's sentence (surface-consistency row 8, terms §13) with the retired level name
  * replaced by the API's first-level label ("Level 1 · Pearl", R5.1); without one, "the first level".
@@ -456,8 +513,8 @@ export declare function actionText(m: {
 export declare function rejoinNoteText(firstLevelLabel?: string): string;
 /**
  * The sign-in dialog's line (R5.2, R5.5), live only: "Your Carisma account
- * collects Carisma credit at Carisma Spa." + "+50 points when you sign in with
- * your email" (from the status's `verified_email` action). "" when off.
+ * collects Carisma credit at Carisma Spa." + "+€2.50 · 50 points when you sign
+ * in with your email, once" (from the status's `verified_email` action). "" when off.
  */
 export declare function signInLineText(status: CircleStatus | null): {
     line: string;

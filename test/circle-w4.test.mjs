@@ -154,13 +154,16 @@ test("ways to earn (v2): rows are the API's actions; the retired profile hint ne
   // Three houses on, so every row the server sent is drawn (X10 drops the brand rows on a Spa-only config).
   const page = circleViewHTML({ me: readCircle({ ...MARIA, brands: THREE_BRANDS }), activity: null, rewards: null });
   assert.doesNotMatch(page, /data-cw-circle-missing|Complete your profile/);
-  for (const a of MARIA.actions) assert.ok(page.includes(a.label), a.label);
+  // WEB-3 W-16: Credit and rewards draws board 10's "More ways to earn" cards — every OPEN action the server sent
+  // (a done one has no card, as on the Overview); counsel's money line stays under them.
+  for (const a of MARIA.actions.filter((x) => !x.done)) assert.ok(page.includes(a.label), a.label);
+  for (const a of MARIA.actions.filter((x) => x.done)) assert.ok(!page.includes(`<p class="cc-earn-card__t">${a.label}</p>`), `no card for done: ${a.label}`);
   const unverified = circleViewHTML({
     me: readCircle({ ...MARIA, actions: MARIA.actions.map((a) => (a.key === "verified_email" ? { ...a, done: false } : a)) }),
     activity: null,
     rewards: null,
   });
-  assert.match(unverified, /Verified email on your account<\/b><span data-clarity-mask="True">\+€2\.50 · 50 points · Sign in with your email/);
+  assert.match(unverified, /<p class="cc-earn-card__t">Verified email on your account<\/p><p class="cc-earn-card__fig" data-clarity-mask="True"><b>\+€2\.50<\/b>.·.50.points<\/p><p class="cc-earn-card__s" data-clarity-mask="True">Sign in with your email<\/p>/);
   // A stray v1 "profile" row from an old server still renders only as the server's own label: no hint, no link.
   const stray = circleViewHTML({ me: readCircle({ ...MARIA, actions: [{ key: "profile", label: "Complete your profile", points: 100, done: false, missing: ["birthday"] }] }), activity: null, rewards: null });
   assert.doesNotMatch(stray, /data-cw-circle-missing|Finish in your details/);

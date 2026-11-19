@@ -169,12 +169,14 @@ export function circleWaysCardsHTML(m, opts = {}) {
     }
     for (const a of rest)
         cards.push({ id: a.id, icon: ICON.star, title: a.label, ...money("+", a.cents, a.points), sub: hintFor(a, m) });
-    if (!cards.length)
+    if (!cards.length && !opts.moneyLine)
         return "";
+    const line = brandsLine(m.brands);
+    const foot = opts.moneyLine ? `Every €1 you pay on eligible treatments${line ? ` at ${line}` : ""} earns credit too. ${REVIEWS_FOOTNOTE}` : REVIEWS_FOOTNOTE;
     return (`<section class="cw-section cw-rise cc-earn" aria-labelledby="cw-circle-more-title" data-cw-circle="earn-cards">` +
         `<div class="cw-section__head"><h2 class="cw-section__title" id="cw-circle-more-title">More ways to earn</h2></div>` +
-        `<ul class="cc-earn__grid" role="list">${cards.map(earnCardHTML).join("")}</ul>` +
-        `<p class="cw-fine">${escapeHtml(REVIEWS_FOOTNOTE)}</p>` +
+        (cards.length ? `<ul class="cc-earn__grid" role="list">${cards.map(earnCardHTML).join("")}</ul>` : "") +
+        `<p class="cw-fine">${escapeHtml(foot)}</p>` +
         `<p class="cw-circle-prefs__msg" role="status" aria-live="polite" data-cw-circle-copy-msg></p>` +
         `</section>`);
 }

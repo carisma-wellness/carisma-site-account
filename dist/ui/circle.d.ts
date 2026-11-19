@@ -3,7 +3,7 @@ import { type CirclePerks } from "./circlePerks.js";
 import { type CircleReward, type CircleRewardArt, type CircleRewardPhoto } from "./circleFeatured.js";
 export * from "./circleCore.js";
 export { asGemKey, circleMarkSVG, jewelSlotHTML, progressFraction, CIRCLE_GEM_KEYS, type CircleGemKey } from "./circleMark.js";
-export { benefitsList, circleTrackHTML, nextPerksOf, ownPerksOf, paidLineText, unlockLineText, unlocksList, type TrackInput, type TrackOptions, } from "./circleTrack.js";
+export { benefitsList, circleTrackHTML, liftPct, nextPerksOf, ownPerksOf, paidLineText, unlockLineText, unlocksList, type TrackInput, type TrackOptions, } from "./circleTrack.js";
 export { actionValueText, circleWaysCardsHTML, circleWaysHTML, instagramLinkHTML, waysSummaryText } from "./circleWays.js";
 export { circlePerksHTML, readCirclePerks, spaDaysText, type CirclePerks, type CirclePerkUpcoming } from "./circlePerks.js";
 export { circleNowRowHTML, circleRewardsHTML, REWARDS_FOOT, nextRewardText, readCircleRewards, rewardGroups, rewardPriceText, rewardTitle, type CircleReward, type CircleRewardArt, type CircleRewardPhoto, } from "./circleFeatured.js";
@@ -35,7 +35,28 @@ export interface CircleExtras {
      * WhatsApp number is locked by Meta, so its Credit & rewards page carries no WhatsApp switch.
      */
     whatsappPref?: boolean;
+    /** The clock for the ending-soon window (W-2); `Date.now()` when absent (tests pin it). */
+    now?: number;
 }
+/**
+ * W-2 (ADDENDUM X4 + X5): the line directly under the balance. Inside the LAST expiry notice window (the API's
+ * `rules.endingSoonDays`, else 14 days) while her birthday credit is the part that ends first, the X5 sentence
+ * ("Your €20.00 birthday credit ends Mon 7 Dec. Use it on a treatment before then."); otherwise the dated part
+ * ("€20.00 of it until Mon 7 Dec"). Never both: one figure, said once. The Hero's next step and its button stay the
+ * design's (`CK.hero`: the gap / a level on its way; "Use my credit" when affordable).
+ */
+export declare function underBalanceText(m: {
+    pointsExpireKind: string;
+    datedEnds: {
+        at: string;
+        points: number;
+    } | null;
+    pointsPerEuro: number;
+    endingSoonDays?: number | null;
+}, now?: number): {
+    text: string;
+    ending: boolean;
+};
 /**
  * The header chip for a signed-in member: the flat mark and the balance in
  * euros ("€72.40"). The live jewel opens in the account menu, so three.js never
@@ -127,6 +148,16 @@ export declare function circleActivityHTML(m: CircleModel, activity: {
     moreHref?: string;
 }): string;
 /**
+ * Board 10's right column, shared by the Overview and Credit and rewards (W-16, KIT-2: "Hero, 'Your level', …"):
+ * the eyebrow "Your next level" ("Your level" at the top), the level track with what the next level unlocks (and its
+ * hatched "on its way" end from the API's lift, W-4), a box "Your Level 3 · Ruby benefits" (live perks only, X2) kept
+ * "until 31 Dec 2027" for Levels 2–4, then "See all five levels" (`levelsHref`; on Credit and rewards the ladder is
+ * on the same page, so `#levels`).
+ */
+export declare function circleLevelColumnHTML(m: CircleModel, x?: CircleExtras & {
+    levelsHref?: string;
+}): string;
+/**
  * Overview's Circle block: the Circle panel (her Hero on the left; the level
  * track with what the next level unlocks and what hers gives on the right),
  * then what her points buy (photo cards, filled after a second read), more
@@ -174,6 +205,8 @@ export interface CircleViewInput extends CircleExtras {
     perks?: CirclePerks | null;
     /** The member's "Offers and reminders" answer (null = the box is not drawn). */
     prefs?: CirclePrefs | null;
+    /** The public status's retail boost (the "Spa products" card); unknown → no card until the host fills it. */
+    retailBoostPct?: number | null;
 }
 /** The whole Credit & rewards page body. "" when the member read is null. */
 export declare function circleViewHTML(input: CircleViewInput | null): string;
@@ -260,6 +293,11 @@ export interface CreditMomentInput {
     unpaid?: boolean;
     /** The programme's rate (the API's `rules.pointsPerEuro`), for a figure sent without its points. */
     pointsPerEuro?: number;
+    /**
+     * W-1: what she still needs for her FIRST reward (`firstRewardGapCents` of her own read and the featured read);
+     * above 0, a member's moment is board 02's one quiet line instead of the panel. 0 / absent: the panel as before.
+     */
+    firstRewardGapCents?: number;
 }
 export interface CreditMoment {
     /**
@@ -267,9 +305,11 @@ export interface CreditMoment {
      * `received` — a guest: this bill's figure + the sentence (never a balance);
      * `paid`     — paid with points: one quiet line + "This treatment earns no points";
      * `onTheWay` — unpaid: "€11.90 · 238 points on the way when you pay";
+     * `first`    — a member short of her first reward (W-1, board 02): ONE quiet line, no panel, no track —
+     *              "€3.25 added to your Carisma credit · €6.75 more credit for your first reward" (+ " · Terms");
      * `none`     — nothing on this page (off, an excluded line, no figure).
      */
-    kind: "earned" | "received" | "paid" | "onTheWay" | "none";
+    kind: "earned" | "received" | "paid" | "onTheWay" | "first" | "none";
     hero: string;
     sentence: string;
     conditions: string;

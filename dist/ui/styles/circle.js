@@ -190,6 +190,9 @@ ${S} .cc-track-row { display: grid; grid-template-columns: auto minmax(0, 1fr) a
 ${S} .cc-track-row.top { grid-template-columns: auto minmax(0, 1fr); }
 ${S} .cc-bar { position: relative; top: -5px; height: 8px; border-radius: 4px; background: var(--cw-account-circle-track); overflow: hidden; }
 ${S} .cc-bar > i { position: absolute; left: 0; top: 0; bottom: 0; min-width: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--cw-account-circle-gold-a), var(--cw-account-circle-gold-b)); }
+/* W-4 / X2: the hatched "booked, not yet paid" end, from her progress onward (only when the API sends the lift) */
+${S} .cc-bar > u { position: absolute; top: 0; bottom: 0; opacity: 0.55; text-decoration: none;
+  background: repeating-linear-gradient(135deg, var(--cw-account-circle-gold-a) 0 3px, transparent 3px 6px); }
 ${S} .cc-track-cap { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; line-height: 18px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
 ${S} .cc-track-cap > span:last-child { text-align: right; white-space: nowrap; }
 ${S} .cc-track-line { font-size: 14px; line-height: 20px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }

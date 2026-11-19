@@ -19,6 +19,12 @@ export interface TrackInput {
     onItsWay?: {
         sentence: string;
     } | null;
+    /**
+     * BE-4 (W-4): this year's booked, not yet paid eligible spend in cents — the bar's hatched "on its way" end, from
+     * her progress onward (ADDENDUM X2: "drawn only when the API sends the lift"). A visit on its way (`onItsWay`)
+     * crosses the threshold, so the hatch then runs to the next stone whatever this says. null/absent: no hatch.
+     */
+    pendingSpendCents?: number | null;
 }
 export interface TrackOptions {
     /** 44 px jewels and no list (the menu, the pay step). Default 56 px. */
@@ -67,6 +73,12 @@ export declare function ownPerksOf(m: {
     perks: CirclePerkSet | null;
     levels: CircleLevelRule[];
 }): CirclePerkSet | null;
+/**
+ * The hatched end's width in percent of the bar (0 = none): to the next stone when a visit on its way crosses, else
+ * the booked spend over the span this level covers. The span comes from the API's own figures (the gap left and the
+ * share done: span = gap ÷ (1 − share)), never a typed threshold.
+ */
+export declare function liftPct(t: TrackInput, pct: number): number;
 /** The track as HTML. "" for a null input. */
 export declare function circleTrackHTML(t: TrackInput | null, opts?: TrackOptions): string;
 //# sourceMappingURL=circleTrack.d.ts.map

@@ -249,7 +249,8 @@ test("the sign-in line (R5.2, R5.5): brands and the email bonus from the status,
   const line = signInLineText(readCircleStatus(STATUS));
   assert.deepEqual(line, {
     line: "Your Carisma account collects Carisma credit at Carisma Spa.",
-    bonus: "+50 points when you sign in with your email",
+    // WEB-3 W-13: euro first, then the points, "once" (R5.2 vocabulary: points never alone).
+    bonus: "+€2.50 · 50 points when you sign in with your email, once",
     age: "Carisma Circle is for people aged 18 and over",
   });
   assert.equal(signInLineText(null), null);
