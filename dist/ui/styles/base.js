@@ -52,6 +52,33 @@ export const PORTAL_TOKENS_CSS = `
   --cw-account-radius-control: 12px;
   --cw-account-button-radius: 999px;
   --cw-account-shadow: 0 1px 2px rgba(28, 25, 23, 0.06);
+  /* Carisma Circle v2 (carisma-circle-v2-20261117): the Spa ground behind a jewel, the bar's track and gold,
+     the ink pill and the Circle link. A site overrides them like every other token. */
+  --cw-account-circle-ground-a: #fdf8ef;
+  --cw-account-circle-ground-b: #f8e8e0;
+  --cw-account-circle-track: #e6ddcc;
+  --cw-account-circle-gold-a: #c9a456;
+  --cw-account-circle-gold-b: #9a7629;
+  --cw-account-circle-btn: #1f1c19;
+  --cw-account-circle-btn-ink: #ffffff;
+  --cw-account-circle-link: #7a5c14;
+}
+/* ADDENDUM KIT-6: the Circle's own tokens, declared on every .cc part at zero specificity (rule §28: a part
+   portaled out of the site's wrapper keeps them; a site restyles the Circle with \`.cc { --cw-circle-btn: … }\`).
+   Each reads the site's account token first, then the Spa's value. The parts read them with the account token as
+   their own fallback, so a part outside any .cc draws exactly as before. The jewel's gold is its only literal colour. */
+:where(.cc) {
+  --cw-circle-ground-a: var(--cw-account-circle-ground-a, #fdf8ef);
+  --cw-circle-ground-b: var(--cw-account-circle-ground-b, #f8e8e0);
+  --cw-circle-btn: var(--cw-account-circle-btn, #1f1c19);
+  --cw-circle-btn-ink: var(--cw-account-circle-btn-ink, #ffffff);
+  --cw-circle-link: var(--cw-account-circle-link, #7a5c14);
+  --cw-circle-ink: var(--cw-account-ink, #2a2420);
+  --cw-circle-ink-soft: var(--cw-account-muted, #6e6459);
+  --cw-circle-muted: var(--cw-account-muted, #6e6459);
+  --cw-circle-hair: var(--cw-account-line, #e6dbc6);
+  --cw-circle-display-font: var(--cw-account-display-font, "Trajan Pro", Georgia, serif);
+  --cw-circle-label-font: var(--cw-account-label-font, "Novecento Wide", sans-serif);
 }
 `;
 const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";

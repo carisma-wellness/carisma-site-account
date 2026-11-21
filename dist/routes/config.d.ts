@@ -29,9 +29,19 @@ export interface AccountRoutesConfig {
     proxyBasePath?: string;
     fetchImpl?: typeof fetch;
     now?: () => number;
+    /**
+     * The SHOPPER's address as this site's own edge proved it (never the leftmost
+     * X-Forwarded-For entry, which the browser writes), or null. Read only on the
+     * proxy's one booking door (the signed-in guest checkout), so the backend
+     * limits each shopper on their own and the booking keeps the visitor's
+     * identity for its ad events. Absent = the kit's own edge rule (CloudFront's
+     * viewer address, else the last X-Forwarded-For hop), as the token exchange.
+     */
+    visitorIp?: (req: Request) => string | null;
 }
-export interface ResolvedConfig extends Required<Omit<AccountRoutesConfig, "sessionSecretPrev">> {
+export interface ResolvedConfig extends Required<Omit<AccountRoutesConfig, "sessionSecretPrev" | "visitorIp">> {
     sessionSecretPrev?: string;
+    visitorIp?: (req: Request) => string | null;
     unsealKeys: UnsealKeys;
 }
 export declare function resolveConfig(cfg: AccountRoutesConfig): ResolvedConfig;

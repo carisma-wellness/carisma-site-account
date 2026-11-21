@@ -117,7 +117,7 @@ export function signService(opts: ServiceSignOptions): Record<string, string> {
  */
 export function visitorIp(req: Request): string {
   const viewer = req.headers.get("cloudfront-viewer-address");
-  const fromViewer = viewer ? stripPort(viewer.trim()) : "";
+  const fromViewer = viewer ? viewerAddressIp(viewer.trim()) : "";
   if (ipish(fromViewer)) return fromViewer;
 
   const xff = req.headers.get("x-forwarded-for");
@@ -129,13 +129,22 @@ export function visitorIp(req: Request): string {
   return "127.0.0.1";
 }
 
-/** "1.2.3.4:5678" / "[2001:db8::1]:443" / a bare address -> the address. */
-function stripPort(value: string): string {
-  const bracket = /^\[([^\]]+)\](?::\d+)?$/.exec(value);
+/**
+ * CloudFront's `cloudfront-viewer-address` → the address. CloudFront ALWAYS appends the source port as the last
+ * `:` segment, and sends IPv6 UNBRACKETED ("2001:db8::1:443"), so the port is cut at the last colon for every
+ * form; "[2001:db8::1]:443" (bracketed) is read too. Until 18 Nov an unbracketed IPv6 address kept its port
+ * ("2001:db8::1:443" has more than one colon), so a booking's forwarded shopper IP was wrong and new per
+ * connection. A value without a numeric port is not CloudFront's: nothing ("" fails `ipish`).
+ */
+export function viewerAddressIp(value: string): string {
+  const v = value.trim();
+  const bracket = /^\[([^\]]+)\](?::\d{1,5})?$/.exec(v);
   if (bracket) return bracket[1];
-  const parts = value.split(":");
-  if (parts.length === 2) return parts[0];
-  return value;
+  const cut = v.lastIndexOf(":");
+  if (cut <= 0) return "";
+  const port = v.slice(cut + 1);
+  if (!/^\d{1,5}$/.test(port)) return "";
+  return v.slice(0, cut);
 }
 
 function ipish(value: string): boolean {

@@ -24,6 +24,10 @@
       "types": "./dist/ui/index.d.ts",
       "import": "./dist/ui/index.js"
     },
+    "./jewel": {
+      "types": "./dist/jewel/index.d.ts",
+      "import": "./dist/jewel/index.js"
+    },
     "./booking": {
       "types": "./dist/booking/index.d.ts",
       "import": "./dist/booking/index.js"
@@ -41,7 +45,7 @@
     "node": ">=18.17"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.jewel.json",
     "clean": "rm -rf dist",
     "verify:boundary": "node scripts/verify-account-boundary.mjs",
     "prepack": "npm run clean && npm run build && npm run verify:boundary",
@@ -49,8 +53,18 @@
     "demo:page": "node scripts/demo-page-server.mjs",
     "pack:local": "bash scripts/pack-local.sh"
   },
+  "peerDependencies": {
+    "three": ">=0.184.0"
+  },
+  "peerDependenciesMeta": {
+    "three": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@types/node": "^22.7.5",
+    "@types/three": "^0.184.1",
+    "three": "^0.184.0",
     "typescript": "5.6.3"
   },
   "publishConfig": {

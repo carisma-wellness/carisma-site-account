@@ -19,6 +19,7 @@ export function resolveConfig(cfg) {
         proxyBasePath: cfg.proxyBasePath ?? "/api/auth/proxy",
         fetchImpl: cfg.fetchImpl ?? fetch,
         now: cfg.now ?? Date.now,
+        visitorIp: cfg.visitorIp,
         unsealKeys: { primary: cfg.sessionSecret, prev: cfg.sessionSecretPrev },
     };
 }

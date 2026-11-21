@@ -1,4 +1,5 @@
 import { type CancellationPreview } from "./portalActions.js";
+import type { PointsCancelLine } from "./circlePointsCancel.js";
 export declare const BOOKING_DETAIL_QC = "account-booking-detail-20260922";
 /** Mirrors the backend's AppointmentActions. Every field optional on the wire. */
 export interface BookingActions {
@@ -92,6 +93,12 @@ export interface BookingRenderOptions {
     preview?: CancellationPreview | null;
     /** This brand's booking door, for "Book again". */
     bookHref?: string;
+    /**
+     * Carisma Circle v2: what cancelling does to the points (or free Spa day) that paid this booking, from the
+     * server's `points-bookings` verdict (`pointsCancelLine`). Absent or null = no points on it, or Circle is not
+     * live: the money words stand exactly as before.
+     */
+    points?: PointsCancelLine | null;
 }
 export type BookingPrimary = "pay" | "reschedule" | "confirm" | "rebook" | null;
 /**
@@ -105,8 +112,15 @@ export declare function rebookHref(bookHref: string | undefined, serviceId: stri
 export declare function dueLabel(status: string): string;
 /** The treatment, for page titles and dialog titles. */
 export declare function bookingTreatment(m: BookingDetailModel): string;
-/** The policy line that leads "Changing this booking" — server figures only. */
-export declare function policyLead(m: BookingDetailModel, preview?: CancellationPreview | null): string;
+/**
+ * The policy line that leads "Changing this booking" — server figures only.
+ *
+ * Carisma Circle v2: a booking paid with points (or a free Spa day) is €0 to the money engine, so its money words
+ * alone would say "Free to cancel." while a late cancel loses every point on it. With `points` (the server's
+ * verdict) the points sentence leads and no "Free to cancel" claim stands beside points that are lost or not
+ * known; a fee or a kept deposit on the same booking is still said. In time, the server's own deadline follows.
+ */
+export declare function policyLead(m: BookingDetailModel, preview?: CancellationPreview | null, points?: PointsCancelLine | null): string;
 export interface BookingViewParts {
     title: string;
     lede: string;

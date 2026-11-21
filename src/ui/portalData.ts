@@ -27,8 +27,10 @@ import {
 } from "./records.js";
 import {
   circleLeftViewHTML,
+  circleMinorViewHTML,
   circleViewHTML,
   readCircleActivity,
+  readCirclePerks,
   readCirclePrefs,
   readCircleRewards,
   readCircleState,
@@ -58,6 +60,8 @@ export function requestsFor(view: PortalView): string[] {
         `${PROXY}/client/loyalty/activity?limit=20`,
         `${PROXY}/client/loyalty/rewards`,
         `${PROXY}/client/loyalty/preferences`,
+        // Circle v2: free Spa days, early access, no deposit (BE-2). Optional like the rest.
+        `${PROXY}/client/loyalty/perks`,
       ];
     case "bookings":
       return [
@@ -184,13 +188,22 @@ export function bodyFor(view: PortalView, answers: unknown[], ctx: RecordsContex
       const state = readCircleState(answers[0]);
       const prefs = readCirclePrefs(answers[3]);
       if (!state) return "";
-      if (state.kind === "left") return circleLeftViewHTML({ left: state.left, prefs });
+      const whatsappPref = ctx.circleWhatsappPref !== false;
+      if (state.kind === "left") return circleLeftViewHTML({ left: state.left, prefs, whatsappPref });
+      // R5.4: under the minimum age, one line and nothing else (no prefs, no leave).
+      if (state.kind === "minor") return circleMinorViewHTML(state);
       return circleViewHTML({
         me: state.model,
-        activity: readCircleActivity(answers[1]),
+        activity: readCircleActivity(answers[1], state.model.pointsPerEuro),
         rewards: readCircleRewards(answers[2]),
+        perks: readCirclePerks(answers[4]),
         bookHref: ctx.bookHref,
+        art: ctx.circleArt,
+        photo: ctx.circlePhoto,
+        poster: ctx.circlePoster ?? null,
+        spaDayHref: ctx.spaDayHref ?? null,
         prefs,
+        whatsappPref,
       });
     }
     default:

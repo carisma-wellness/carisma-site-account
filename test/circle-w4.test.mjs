@@ -1,5 +1,5 @@
 import { test } from "node:test";
-import assert from "node:assert/strict";
+import assert from "./fixtures/plain-assert.mjs";
 import {
   createAccountRoutes,
   seal,
@@ -30,6 +30,7 @@ import {
   CIRCLE_QC,
   ACCOUNT_DETAILS_HREF,
 } from "../dist/index.js";
+import { MARIA as MARIA_V2, THREE_BRANDS } from "./fixtures/circle-v2.mjs";
 import { PORTAL_RULES_CSS } from "../dist/ui/styles/index.js";
 
 /**
@@ -52,16 +53,8 @@ const BDAY_EMPTY = { enabled: true, left: false, birthday: null, setAt: null, lo
 const BDAY_LOCKED = { enabled: true, left: false, birthday: { day: 15, month: 3 }, setAt: "2026-11-15T10:00:00Z", lockedUntil: "2027-11-15", editable: false, prefill: null, profile: PROFILE };
 const WA = { enabled: true, left: false, optedIn: false, changedAt: null, hasPhone: true, phoneLast4: "4821", wording: WHATSAPP_UPDATES_SENTENCE, wordingVersion: "circle-wa-service-2026-11-15" };
 const LEFT_ONLY = { enabled: true, left: true };
-const MARIA = {
-  enabled: true,
-  level: { key: "golden_hour", name: "Golden Hour", numeral: "III" },
-  credit: { points: 1240, cents: 6200 },
-  actions: [
-    { key: "profile", label: "Complete your profile", points: 100, done: false, missing: ["email_verified", "birthday"] },
-    { key: "whatsapp", label: "Booking updates and credit receipts on WhatsApp", points: 40, done: false },
-  ],
-  rules: { minRedeemPoints: 100 },
-};
+// Maria Borg, live (v2, fixtures/circle-v2.mjs). v2 retired "Complete your profile" (BRIEF §2): its rows are the API's.
+const MARIA = MARIA_V2;
 
 /* ── Readers: nothing unless live ──────────────────────────────────────── */
 
@@ -154,19 +147,26 @@ test("the service box and the marketing boxes never sit together: Details has no
 
 /* ── Complete your profile: what is missing ────────────────────────────── */
 
-test("ways to earn: 'Complete your profile' says what is missing and where to finish; nothing once done", () => {
+test("ways to earn (v2): rows are the API's actions; the retired profile hint never draws; email says how to finish", () => {
   assert.equal(profileMissingText(["email_verified", "birthday", "comfort"]), "Still to do: Verify your email address · add your birthday · choose your room preferences");
   assert.equal(profileMissingText([]), "");
   assert.equal(profileMissingText(["something_new"]), "", "an unknown item is never shown as a raw code");
-  const page = circleViewHTML({ me: readCircle(MARIA), activity: null, rewards: null });
-  assert.match(page, /Complete your profile<span class="cw-circle-earn__missing" data-cw-circle-missing>Still to do: Verify your email address · add your birthday · <a class="cw-link" href="\/account\/details">Finish in your details<\/a><\/span>/);
-  // Only a verified email missing: Details cannot do that, so no link there.
-  const emailOnly = circleViewHTML({ me: readCircle({ ...MARIA, actions: [{ ...MARIA.actions[0], missing: ["email_verified"] }] }), activity: null, rewards: null });
-  assert.match(emailOnly, /Still to do: Verify your email address<\/span>/);
-  assert.doesNotMatch(emailOnly, /Finish in your details/);
-  const done = circleViewHTML({ me: readCircle({ ...MARIA, actions: [{ ...MARIA.actions[0], done: true, missing: [] }] }), activity: null, rewards: null });
-  assert.doesNotMatch(done, /data-cw-circle-missing/);
-  assert.doesNotMatch(circleViewHTML({ me: readCircle({ ...MARIA, actions: [{ key: "whatsapp", label: "x", points: 40, done: false, missing: ["birthday"] }] }), activity: null, rewards: null }), /data-cw-circle-missing/, "only the profile row");
+  // Three houses on, so every row the server sent is drawn (X10 drops the brand rows on a Spa-only config).
+  const page = circleViewHTML({ me: readCircle({ ...MARIA, brands: THREE_BRANDS }), activity: null, rewards: null });
+  assert.doesNotMatch(page, /data-cw-circle-missing|Complete your profile/);
+  // WEB-3 W-16: Credit and rewards draws board 10's "More ways to earn" cards — every OPEN action the server sent
+  // (a done one has no card, as on the Overview); counsel's money line stays under them.
+  for (const a of MARIA.actions.filter((x) => !x.done)) assert.ok(page.includes(a.label), a.label);
+  for (const a of MARIA.actions.filter((x) => x.done)) assert.ok(!page.includes(`<p class="cc-earn-card__t">${a.label}</p>`), `no card for done: ${a.label}`);
+  const unverified = circleViewHTML({
+    me: readCircle({ ...MARIA, actions: MARIA.actions.map((a) => (a.key === "verified_email" ? { ...a, done: false } : a)) }),
+    activity: null,
+    rewards: null,
+  });
+  assert.match(unverified, /<p class="cc-earn-card__t">Verified email on your account<\/p><p class="cc-earn-card__fig" data-clarity-mask="True"><b>\+€2\.50<\/b>.·.50.points<\/p><p class="cc-earn-card__s" data-clarity-mask="True">Sign in with your email<\/p>/);
+  // A stray v1 "profile" row from an old server still renders only as the server's own label: no hint, no link.
+  const stray = circleViewHTML({ me: readCircle({ ...MARIA, actions: [{ key: "profile", label: "Complete your profile", points: 100, done: false, missing: ["birthday"] }] }), activity: null, rewards: null });
+  assert.doesNotMatch(stray, /data-cw-circle-missing|Finish in your details/);
 });
 
 test("W4 CSS reads tokens only (no raw colour)", () => {
@@ -192,7 +192,7 @@ test("Details draws only an EMPTY, HIDDEN Circle slot (and none when the site di
  * per section (each redraw is recorded), each section's live region, the
  * birthday selects, and one stub per radio actually drawn.
  */
-const LIVE_ME = { enabled: true, level: { key: "first_light", name: "First Light", numeral: "I" }, credit: { points: 0, cents: 0 } };
+const LIVE_ME = { enabled: true, level: { key: "pearl", number: 1, name: "Pearl", label: "Level 1 · Pearl" }, credit: { points: 0, cents: 0 } };
 function harness({ comfort = COMFORT, birthday = BDAY_EMPTY, wa = WA, put = {}, me = LIVE_ME } = {}) {
   const state = { comfort, birthday, wa, me };
   const calls = [];
@@ -460,10 +460,11 @@ test("WhatsApp updates: opt in / out with one PUT; no phone = plain words; a lef
   assert.equal(offOut.sections.whatsapp.msg.innerHTML, "Saved. No more booking updates on WhatsApp.");
 });
 
-test("the copies of shared constants have not drifted (QC marker, the Details address)", () => {
+test("the copies of shared constants have not drifted (the QC marker)", () => {
+  assert.equal(CIRCLE_QC, "carisma-circle-v2-20261117");
   assert.match(circleDetailsHTML({ comfort: readCircleComfort(COMFORT), birthday: null, whatsapp: null }), new RegExp(`data-cw-qc="${CIRCLE_QC}"`));
-  const page = circleViewHTML({ me: readCircle({ ...MARIA, actions: [{ ...MARIA.actions[0], missing: ["birthday"] }] }), activity: null, rewards: null });
-  assert.ok(page.includes(`href="${ACCOUNT_DETAILS_HREF}">Finish in your details`));
+  assert.match(circleViewHTML({ me: readCircle(MARIA), activity: null, rewards: null }), new RegExp(`data-cw-qc="${CIRCLE_QC}"`));
+  assert.equal(ACCOUNT_DETAILS_HREF, "/account/details");
 });
 
 /* ── The proxy: exactly six new literal doors ──────────────────────────── */
@@ -480,7 +481,8 @@ test("proxy: the six W4 doors are exact literals; siblings and the staff twin st
     assert.equal(isAllowed(m, p), false, `${m} ${p}`);
   }
   for (const f of FORBIDDEN_PATHS) assert.equal(isAllowed(f.method, f.path), false, `${f.method} ${f.path}`);
-  assert.equal(PROXY_ALLOWLIST.filter((r) => /loyalty|Carisma Circle/i.test(r.label)).length, 17);
+  // v2 adds six more (summary, Instagram, perks, Spa day, points-bookings, the member earn preview): 23 in all.
+  assert.equal(PROXY_ALLOWLIST.filter((r) => /loyalty|Carisma Circle/i.test(r.label)).length, 23);
 });
 
 const RP = "carisma-spa";

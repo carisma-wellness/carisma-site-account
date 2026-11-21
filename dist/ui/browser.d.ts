@@ -1,3 +1,4 @@
+import { type CircleRewardPhoto, type CircleStatus } from "./circle.js";
 import { type LoadState, type PortalView } from "./portal.js";
 import type { MinimalDocument, MinimalElement } from "./dom.js";
 /** The photo the marks are currently painted with (exported for tests/hosts). */
@@ -32,6 +33,7 @@ export interface FetchLike {
         };
         body?: string;
         redirect?: string;
+        keepalive?: boolean;
     }): Promise<{
         ok: boolean;
         status: number;
@@ -58,7 +60,91 @@ export interface HydrateOptions {
      * Never on Carisma Medical (the site brand decides).
      */
     circle?: boolean;
+    /**
+     * Circle v2 (carisma-circle-v2-20261117): the live jewel's loader, e.g.
+     * `() => import("@carisma/site-account/jewel")`. The kit never imports the
+     * jewel itself (three.js stays out of every page that does not show one);
+     * without a loader every jewel slot keeps its flat mark.
+     */
+    circleJewel?: () => Promise<{
+        hydrateJewels(root: unknown): () => void;
+    }>;
+    /** Circle v2: photos and booking links per featured service id (the menu's "Yours now", the reward cards). */
+    circleArt?: Record<string, {
+        img?: string;
+        href?: string;
+    } | undefined>;
+    /** Circle v2: poster stills for jewel slots, by gem and kind. */
+    circlePoster?: (gem: string, kind: "small" | "full" | "icon") => string;
+    /** Where the menu's "Book a visit" goes on this brand (ADDENDUM KIT-1). Default: Credit & rewards. */
+    bookHref?: string;
+    /** Circle v2: the site's own photo for a featured service (ADDENDUM X3/KIT-3), before the API's imageUrl. */
+    circleRewardPhoto?: CircleRewardPhoto;
+    /** Circle v2: the API's first-level label ("Level 1 · Pearl", the public status) for the rejoin sentence. */
+    circleFirstLevel?: () => Promise<string | null | undefined>;
+    /** Circle v2: where a free Spa day's "Book it" goes (the Spa-day service's page). */
+    circleSpaDayHref?: string;
+    /** Circle v2: the "Your card" Wallet row on Credit & rewards (ADDENDUM KIT-4). Off unless true. */
+    circleWallet?: boolean;
+    /**
+     * This site's brand name ("Carisma Spa"). Honoured BEFORE host inference (ADDENDUM KIT-6: inference answers ""
+     * on localhost and App Runner hosts, and the Circle allow-list then says no).
+     */
+    siteBrand?: string;
+    /**
+     * ADDENDUM KIT-6: the Circle switch, read again at every panel open and portal mount. Given, it decides (a
+     * clinic site passes its per-page rule, e.g. `() => circleOn("menu", location.pathname)`); absent, `circle`
+     * decides as before. Either way the site must be on the allow-list (`circleAllowedOn`).
+     */
+    circleV2?: boolean | (() => boolean);
+    /**
+     * ADDENDUM KIT-6: where the Circle may show (each default true). `menu` = the account menu's Circle Card;
+     * `overview` = the account Overview's Circle block and the Wallet line; `rewards` = Credit & rewards (its page,
+     * its rail and menu links). A clinic keeps Credit & rewards only: `{menu: false, overview: false, rewards: true}`.
+     */
+    circlePlaces?: {
+        menu?: boolean;
+        overview?: boolean;
+        rewards?: boolean;
+    };
+    /**
+     * ADDENDUM KIT-6: the WhatsApp box of "Offers and reminders" on Credit & rewards (default true). Carisma
+     * Slimming passes false: its WhatsApp number is locked by Meta.
+     */
+    circleWhatsappPref?: boolean;
+    /**
+     * ADDENDUM KIT-6 (should): `"any"` (default, today's rule) or `"strict"`: the menu's Circle Card and the Overview's
+     * Circle block show only when EVERY visit listed there carries the server's `circleEligible === true` (BE-g; a
+     * missing flag is not eligible), so a clinic never shows the Circle beside a booking that never earns.
+     */
+    circleListing?: "any" | "strict";
+    /**
+     * ADDENDUM KIT-6 (should): the jewel's host interface (`@carisma/site-account/jewel`'s `jewelHost`): the kit calls
+     * `hydrate(root)` for the slots it drew and `release(root)` before it replaces them. Used when `circleJewel`
+     * is not given (a site that already loaded the jewel, or wraps its own lazy import).
+     */
+    jewelHost?: {
+        hydrate(root: unknown): void;
+        release(root: unknown): void;
+    };
+    /**
+     * The public status (`/public/loyalty/status`, as the site reads it), asked only once the member read says the
+     * Circle is live for her: the level count on the menu's "Credit and rewards" row ("all five levels"), the retail
+     * boost on the Overview's "Spa products" card, the ending-soon window. Never typed: without it those parts wait.
+     */
+    circleStatus?: () => Promise<CircleStatus | null | undefined>;
 }
+/**
+ * ADDENDUM KIT-6: is the Circle on for this site right now? `circleV2`, when the host gives it, decides (read at
+ * this moment: a function is called here); else `circle`. Never on a site off the allow-list.
+ */
+export declare function circleOnFor(opts: Pick<HydrateOptions, "circle" | "circleV2">, siteBrand: string): boolean;
+/** ADDENDUM KIT-6: the places, each true unless the host says false. */
+export declare function circlePlacesOf(opts: Pick<HydrateOptions, "circlePlaces">): {
+    menu: boolean;
+    overview: boolean;
+    rewards: boolean;
+};
 /**
  * Mount the panel: on a click of a signed-in mark, make the ONE authenticated read
  * and open the dialog. A failed read still opens the panel with Sign out (the CEO
@@ -116,7 +202,12 @@ export interface ReadResult {
 export declare function classifyRead(ok: boolean, status: number, body: unknown): ReadResult;
 /** The brand a host serves, for the cross-brand label on a card. "" when unknown. */
 export declare function siteBrandFromHost(host: string): string;
-export declare function mountAccountPortal(doc: MinimalDocument, opts?: PortalMountOptions): void;
+/**
+ * Mount the account portal. Returns its unmount (React's effect cleanup): every live jewel the portal drew is
+ * disposed and a read that answers later mounts none (a dead tab never holds GPU buffers or the shared
+ * WebGL context).
+ */
+export declare function mountAccountPortal(doc: MinimalDocument, opts?: PortalMountOptions): () => void;
 /**
  * What to say when the member comes back to the account.
  *

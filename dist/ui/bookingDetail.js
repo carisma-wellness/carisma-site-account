@@ -414,11 +414,9 @@ function actionsHTML(m, primary, o) {
         (quiet.length || cancel ? `<div class="cw-bk-quiet">${quiet.join("")}${cancel}</div>` : "") +
         `</div>`);
 }
-/** The policy line that leads "Changing this booking" — server figures only. */
-export function policyLead(m, preview) {
+/** The money part of the policy line: the server's `actions` and cancellation preview only. */
+function moneyLead(m, preview) {
     const a = m.actions;
-    if (!a.canCancel)
-        return "";
     if (a.cancelIsFree && a.freeCancelEndsAt)
         return `Free to cancel until ${instantWords(a.freeCancelEndsAt)}.`;
     if (a.cancelIsFree)
@@ -431,12 +429,35 @@ export function policyLead(m, preview) {
         return `Cancelling now keeps ${eur(preview.forfeitAmount)} of what you've paid.`;
     return "Free to cancel.";
 }
+/**
+ * The policy line that leads "Changing this booking" — server figures only.
+ *
+ * Carisma Circle v2: a booking paid with points (or a free Spa day) is €0 to the money engine, so its money words
+ * alone would say "Free to cancel." while a late cancel loses every point on it. With `points` (the server's
+ * verdict) the points sentence leads and no "Free to cancel" claim stands beside points that are lost or not
+ * known; a fee or a kept deposit on the same booking is still said. In time, the server's own deadline follows.
+ */
+export function policyLead(m, preview, points) {
+    const a = m.actions;
+    if (!a.canCancel)
+        return "";
+    const money = moneyLead(m, preview);
+    if (!points)
+        return money;
+    const freeClaim = /^Free to cancel/.test(money);
+    const moneyPart = freeClaim ? "" : money;
+    if (points.back === true) {
+        const until = !moneyPart && points.until ? `Free to cancel until ${instantWords(points.until)}.` : "";
+        return [...points.lines, moneyPart || until].filter(Boolean).join(" ");
+    }
+    return [...points.lines, moneyPart].filter(Boolean).join(" ");
+}
 function policyHTML(m, o) {
     // Only while the visit is ahead: a policy about changing a finished visit
     // is noise at best and reads like a threat at worst.
     if (!m.policyText || !isActiveBooking(m))
         return "";
-    const lead = policyLead(m, o.preview);
+    const lead = policyLead(m, o.preview, o.points);
     return (`<section class="cw-section cw-bk-policy" aria-labelledby="cw-bk-policy-title">` +
         `<h2 class="cw-section__title" id="cw-bk-policy-title">Changing this booking</h2>` +
         (lead ? `<p class="cw-bk-policy__lead">${escapeHtml(lead)}</p>` : "") +
