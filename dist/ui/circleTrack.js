@@ -11,7 +11,7 @@
  */
 import { escapeHtml } from "./html.js";
 import { jewelSlotHTML } from "./circleMark.js";
-import { M, PERKS_NOT_LIVE, countWord, creditText, levelSentenceText, nbWords, rateText, wholeEuroDown, wholeEuroUp, } from "./circleCore.js";
+import { M, NO_DEPOSIT_TEXT, PERKS_NOT_LIVE, countWord, creditText, levelSentenceText, nbWords, rateText, wholeEuroDown, wholeEuroUp, } from "./circleCore.js";
 const ORDINAL = ["", "", "second", "third", "fourth", "fifth"];
 function paidThisYear(t) {
     if (typeof t.spendThisYearCents === "number" && t.spendThisYearCents >= 0)
@@ -72,10 +72,11 @@ export function unlocksList(cur, next, pointsPerEuro, earnPerEuro = 1) {
         out.push(`${creditText(next.birthdayCreditCents)} birthday credit` +
             (a.birthdayCreditCents > 0 ? `, up from ${creditText(a.birthdayCreditCents)}` : ""));
     }
-    // D7: no deposit applies to desk, phone and Cara bookings only (online keeps its payment).
+    // D7: no deposit applies to desk, phone and Cara (message) bookings only (online keeps its payment), and only on
+    // treatments that earn points (terms v2 §8).
     const noDeposit = (p) => p.noDeposit && p.live?.noDeposit === true;
     if (noDeposit(next) && !noDeposit(a))
-        out.push("No deposit when you book by phone or at the desk");
+        out.push(NO_DEPOSIT_TEXT);
     return out;
 }
 /** Everything a level gives (the account's "What Level 3 · Ruby gives you"). Perks only while live (X2 / BE-i). */
@@ -94,10 +95,10 @@ export function benefitsList(p, pointsPerEuro, earnPerEuro = 1) {
         out.push(p.freeSpaDaysPerYear === 1 ? "A free Spa day every year" : `${n.charAt(0).toUpperCase()}${n.slice(1)} free Spa days every year`);
     }
     if (p.noDeposit && p.live?.noDeposit === true)
-        out.push("No deposit when you book by phone or at the desk");
+        out.push(NO_DEPOSIT_TEXT);
     return out;
 }
-/** One line for tight places: "Level 4 · Sapphire unlocks 8.75% back and a second free Spa day every year". */
+/** One line for tight places: "Level 4 · Diamond unlocks 8.75% back and a second free Spa day every year". */
 export function unlockLineText(nextLabel, unlocks) {
     if (!nextLabel || !unlocks.length)
         return "";

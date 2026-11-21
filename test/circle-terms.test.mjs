@@ -4,6 +4,10 @@ import { readFileSync, readdirSync } from "node:fs";
 import {
   PROMISE_QUALIFIER,
   PAY_STEP_DISCLOSURE,
+  payStepDisclosureText,
+  NO_DEPOSIT_TEXT,
+  earlyAccessText,
+  BLACKOUT_TEXT,
   REJOIN_NOTE,
   EARN_TERMS_LINE,
   WHATSAPP_UPDATES_SENTENCE,
@@ -32,12 +36,27 @@ test("row 1: the promise qualifier names every exclusion the terms name (§4) an
   );
 });
 
-test("row 6: the pay-step disclosure never takes spent credit from a refund (§12, §13)", () => {
+test("row 6 / W-19: the pay-step small print is ADDENDUM SPA-3's paragraph, true to the public terms v2 §7", () => {
   assert.equal(
     PAY_STEP_DISCLOSURE,
-    "If you cancel, the credit this booking gives you is removed. If you've already used it, your balance can go below zero. We never take it from your refund.",
+    "If you cancel or are refunded, the Carisma credit this booking gives you comes off your balance. If you have already used it, your balance can go below zero and is made up only from future credit. We never take it from your refund or your card.",
   );
   assert.doesNotMatch(PAY_STEP_DISCLOSURE, /comes off your refund/);
+  // With this booking's figure (the design's form), and the figure-free form for anything that is not a figure.
+  assert.equal(
+    payStepDisclosureText(1190),
+    "If you cancel or are refunded, the €11.90 in Carisma credit this booking gives you comes off your balance. If you have already used it, your balance can go below zero and is made up only from future credit. We never take it from your refund or your card.",
+  );
+  for (const bad of [null, undefined, 0, -5, Number.NaN]) assert.equal(payStepDisclosureText(bad), PAY_STEP_DISCLOSURE, String(bad));
+});
+
+test("21 Nov words: perks only on treatments that earn points; the blackout days as the terms name them (v2 §5, §8)", () => {
+  assert.equal(NO_DEPOSIT_TEXT, "No deposit on treatments that earn points, when you book by phone, by message or at the desk");
+  assert.equal(earlyAccessText(48), "You see sales and offers on treatments that earn points 48 hours before everyone");
+  assert.equal(
+    BLACKOUT_TEXT,
+    "Points, birthday credit and free Spa days can't be used for a visit on a Saturday, a Malta public holiday, Easter Sunday or New Year's Eve.",
+  );
 });
 
 test("row 8: beside Rejoin, a balance below zero comes back too unless written off (§13); the level is the API's (R5.1)", () => {

@@ -13,7 +13,7 @@
  * the slot comes near the viewport.
  */
 import { escapeHtml } from "./html.js";
-import { circleMarkSVG, jewelSlotHTML } from "./circleMark.js";
+import { jewelSlotHTML, jewelStillHTML } from "./circleMark.js";
 import { CENTS_PER_POINT, CIRCLE_HREF, CIRCLE_TERMS_HREF, CIRCLE_V2_QC, CONDITIONS_EARNED, ENDING_SOON_DAYS, M, ON_HOLD_TEXT, NB, PROMISE_QUALIFIER, actionText, ageLineText, conditionsText, countWord, creditText, datedText, endsText, expiringText, firstRewardText, gainText, int, levelSentenceText, maltaDayLong, memberRate, minorText, nbWords, obj, onTheWayText, pausedText, pointsText, rateText, readCircleLeft, readingText, rejoinNoteText, spendable, str, summaryOf, termsLinkHTML, withTermsHTML, } from "./circleCore.js";
 import { benefitsList, circleTrackHTML, nextPerksOf, ownPerksOf, unlockLineText, unlocksList } from "./circleTrack.js";
 import { circleWaysCardsHTML } from "./circleWays.js";
@@ -21,7 +21,7 @@ import { circlePerksHTML } from "./circlePerks.js";
 import { circleNowRowHTML, circleRewardsHTML } from "./circleFeatured.js";
 import { unwrapEnvelope } from "./appointments.js";
 export * from "./circleCore.js";
-export { asGemKey, circleMarkSVG, jewelSlotHTML, progressFraction, CIRCLE_GEM_KEYS } from "./circleMark.js";
+export { asGemKey, circleMarkSVG, jewelSlotHTML, jewelStillHTML, LIVE_JEWEL_FROM_PX, progressFraction, CIRCLE_GEM_KEYS } from "./circleMark.js";
 export { benefitsList, circleTrackHTML, liftPct, nextPerksOf, ownPerksOf, paidLineText, unlockLineText, unlocksList, } from "./circleTrack.js";
 export { actionValueText, circleWaysCardsHTML, circleWaysHTML, instagramLinkHTML, waysSummaryText } from "./circleWays.js";
 export { circlePerksHTML, readCirclePerks, spaDaysText } from "./circlePerks.js";
@@ -65,18 +65,20 @@ function terms(x) {
 function slot(gem, progress, height, kind, x) {
     return jewelSlotHTML({ gem, progress, height, kind, poster: x?.poster ? x.poster(gem, kind) : undefined });
 }
-/* ── The header chip (Chip size: under 40 px = the flat mark) ─────────── */
+/* ── The header chip (Chip size: under 44 px = the still jewel, C4a) ──── */
 /**
- * The header chip for a signed-in member: the flat mark and the balance in
- * euros ("€72.40"). The live jewel opens in the account menu, so three.js never
- * loads on a page just because the header is there (surfaces §9 Q2 default).
+ * The header chip for a signed-in member: her jewel as its STILL image (C4a, CEO 20 Nov: under 44 px a jewel is
+ * the still, never the live 3D; W-9) and the balance in euros ("€72.40"). Without a poster (`x.poster`) the flat
+ * mark, as before. The live jewel opens in the account menu, so three.js never loads on a page just because the
+ * header is there (surfaces §9 Q2 default).
  */
-export function circleChipHTML(s) {
+export function circleChipHTML(s, x) {
     if (!s)
         return "";
+    const poster = x?.poster ? x.poster(s.level.key, "icon") : undefined;
     // R5.4: below zero is never a figure in the header ("−€3.50" there reads as money owed): the mark alone.
     return (`<span class="cc cc-chip" data-cw-qc="${CIRCLE_V2_QC}" data-cw-circle="chip" ${M}>` +
-        `<span class="cc-chip__mark">${circleMarkSVG(s.level.key, s.progressBp / 10000, 24)}</span>` +
+        `<span class="cc-chip__mark">${jewelStillHTML({ gem: s.level.key, height: 24, poster, progress: s.progressBp / 10000 })}</span>` +
         (s.belowZero ? "" : `<span class="cc-chip__bal">${escapeHtml(creditText(s.creditCents))}</span>`) +
         `<span class="cw-vh">${escapeHtml(circleChipLabel(s))}</span>` +
         `</span>`);

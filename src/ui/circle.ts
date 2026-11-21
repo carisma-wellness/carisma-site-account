@@ -13,7 +13,7 @@
  * the slot comes near the viewport.
  */
 import { escapeHtml } from "./html.js";
-import { circleMarkSVG, jewelSlotHTML, type CircleGemKey } from "./circleMark.js";
+import { jewelSlotHTML, jewelStillHTML, type CircleGemKey } from "./circleMark.js";
 import {
   CENTS_PER_POINT,
   CIRCLE_HREF,
@@ -69,7 +69,7 @@ import { circleNowRowHTML, circleRewardsHTML, type CircleReward, type CircleRewa
 import { unwrapEnvelope } from "./appointments.js";
 
 export * from "./circleCore.js";
-export { asGemKey, circleMarkSVG, jewelSlotHTML, progressFraction, CIRCLE_GEM_KEYS, type CircleGemKey } from "./circleMark.js";
+export { asGemKey, circleMarkSVG, jewelSlotHTML, jewelStillHTML, LIVE_JEWEL_FROM_PX, progressFraction, CIRCLE_GEM_KEYS, type CircleGemKey } from "./circleMark.js";
 export {
   benefitsList,
   circleTrackHTML,
@@ -177,19 +177,21 @@ function slot(gem: CircleGemKey, progress: number, height: number, kind: "small"
   return jewelSlotHTML({ gem, progress, height, kind, poster: x?.poster ? x.poster(gem, kind) : undefined });
 }
 
-/* ── The header chip (Chip size: under 40 px = the flat mark) ─────────── */
+/* ── The header chip (Chip size: under 44 px = the still jewel, C4a) ──── */
 
 /**
- * The header chip for a signed-in member: the flat mark and the balance in
- * euros ("€72.40"). The live jewel opens in the account menu, so three.js never
- * loads on a page just because the header is there (surfaces §9 Q2 default).
+ * The header chip for a signed-in member: her jewel as its STILL image (C4a, CEO 20 Nov: under 44 px a jewel is
+ * the still, never the live 3D; W-9) and the balance in euros ("€72.40"). Without a poster (`x.poster`) the flat
+ * mark, as before. The live jewel opens in the account menu, so three.js never loads on a page just because the
+ * header is there (surfaces §9 Q2 default).
  */
-export function circleChipHTML(s: CircleSummary | null): string {
+export function circleChipHTML(s: CircleSummary | null, x?: CircleExtras): string {
   if (!s) return "";
+  const poster = x?.poster ? x.poster(s.level.key, "icon") : undefined;
   // R5.4: below zero is never a figure in the header ("−€3.50" there reads as money owed): the mark alone.
   return (
     `<span class="cc cc-chip" data-cw-qc="${CIRCLE_V2_QC}" data-cw-circle="chip" ${M}>` +
-    `<span class="cc-chip__mark">${circleMarkSVG(s.level.key, s.progressBp / 10000, 24)}</span>` +
+    `<span class="cc-chip__mark">${jewelStillHTML({ gem: s.level.key, height: 24, poster, progress: s.progressBp / 10000 })}</span>` +
     (s.belowZero ? "" : `<span class="cc-chip__bal">${escapeHtml(creditText(s.creditCents))}</span>`) +
     `<span class="cw-vh">${escapeHtml(circleChipLabel(s))}</span>` +
     `</span>`
@@ -204,7 +206,7 @@ export function circleChipLabel(s: Pick<CircleSummary, "belowZero" | "creditCent
 /* ── The account menu Card (board 11) ──────────────────────────────────── */
 
 export interface PanelCircleExtras extends CircleExtras {
-  /** "Level 4 · Sapphire unlocks …" (from the member read, filled after the menu opens). */
+  /** "Level 4 · Diamond unlocks …" (from the member read, filled after the menu opens). */
   unlockLine?: string;
   /** The featured read, for the "Yours now" row. */
   rewards?: CircleReward[] | null;

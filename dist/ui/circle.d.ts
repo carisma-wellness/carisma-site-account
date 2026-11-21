@@ -2,7 +2,7 @@ import { summaryOf, type CircleBrand, type CircleLeftModel, type CircleLevelRule
 import { type CirclePerks } from "./circlePerks.js";
 import { type CircleReward, type CircleRewardArt, type CircleRewardPhoto } from "./circleFeatured.js";
 export * from "./circleCore.js";
-export { asGemKey, circleMarkSVG, jewelSlotHTML, progressFraction, CIRCLE_GEM_KEYS, type CircleGemKey } from "./circleMark.js";
+export { asGemKey, circleMarkSVG, jewelSlotHTML, jewelStillHTML, LIVE_JEWEL_FROM_PX, progressFraction, CIRCLE_GEM_KEYS, type CircleGemKey } from "./circleMark.js";
 export { benefitsList, circleTrackHTML, liftPct, nextPerksOf, ownPerksOf, paidLineText, unlockLineText, unlocksList, type TrackInput, type TrackOptions, } from "./circleTrack.js";
 export { actionValueText, circleWaysCardsHTML, circleWaysHTML, instagramLinkHTML, waysSummaryText } from "./circleWays.js";
 export { circlePerksHTML, readCirclePerks, spaDaysText, type CirclePerks, type CirclePerkUpcoming } from "./circlePerks.js";
@@ -58,15 +58,16 @@ export declare function underBalanceText(m: {
     ending: boolean;
 };
 /**
- * The header chip for a signed-in member: the flat mark and the balance in
- * euros ("€72.40"). The live jewel opens in the account menu, so three.js never
- * loads on a page just because the header is there (surfaces §9 Q2 default).
+ * The header chip for a signed-in member: her jewel as its STILL image (C4a, CEO 20 Nov: under 44 px a jewel is
+ * the still, never the live 3D; W-9) and the balance in euros ("€72.40"). Without a poster (`x.poster`) the flat
+ * mark, as before. The live jewel opens in the account menu, so three.js never loads on a page just because the
+ * header is there (surfaces §9 Q2 default).
  */
-export declare function circleChipHTML(s: CircleSummary | null): string;
+export declare function circleChipHTML(s: CircleSummary | null, x?: CircleExtras): string;
 /** The chip's spoken label (`CK.chip`'s aria): "Carisma credit €84.30, Level 3 · Ruby" (no figure below zero). */
 export declare function circleChipLabel(s: Pick<CircleSummary, "belowZero" | "creditCents" | "level">): string;
 export interface PanelCircleExtras extends CircleExtras {
-    /** "Level 4 · Sapphire unlocks …" (from the member read, filled after the menu opens). */
+    /** "Level 4 · Diamond unlocks …" (from the member read, filled after the menu opens). */
     unlockLine?: string;
     /** The featured read, for the "Yours now" row. */
     rewards?: CircleReward[] | null;

@@ -2,7 +2,7 @@
  * The Circle jewel (DECIDED, CEO 17 Nov 2026) — a port of `CC.motifs.solitaire`
  * with `rose: "charm"` only (carisma-circle-v2-20261117; ported from the desk's copy):
  *
- *   a rose-cut stone in her level's gem, in a gold rim with an ivory
+ *   a rose-cut stone in her level's gem (every level, Pearl too, since 21 Nov), in a gold rim with an ivory
  *   mother-of-pearl band; a ring of gold beads counts the way to the next
  *   level (dark → gold, clockwise from 12); the Carisma rose hangs below as an
  *   OPEN, see-through gold charm.
@@ -16,7 +16,7 @@
  */
 import { Color, Group, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, RingGeometry, SphereGeometry, TorusGeometry, DoubleSide } from "three";
 import { GEM_IDENTITY } from "./stage.js";
-import { DEG, TAU, facetGeo, gemMats, gold, lathe, pearlMesh, roseFit, roseGold, shadowSprite, } from "./engine.js";
+import { DEG, TAU, facetGeo, gemMats, gold, lathe, roseFit, roseGold, shadowSprite, } from "./engine.js";
 /** The open charm: a gold ring holding the rose, nothing behind it (the ground shows through). */
 function roseCharm(pol, metal, r) {
     const grp = new Group();
@@ -45,32 +45,29 @@ export const buildSolitaire = ({ rig, fixed, palette, state }) => {
     sh.position.set(0.08, -0.14, -0.4);
     sh.scale.setScalar(0.56);
     fixed.add(sh);
-    // her stone: the rose cut (flat base, a dome of small facets); Pearl is the smooth dome
+    // her stone: the rose cut (flat base, a dome of small facets). 21 Nov (CEO, the Platinum ladder): Pearl is cut like
+    // every stone, a white stone with a soft opal fire (the design kit keeps its old round pearl only behind its
+    // design-page switch `CC.PEARL_ROUND`, off; the websites do not carry that switch).
     const identity = GEM_IDENTITY[state.gem];
     const stone = new Group();
-    if (state.gem === "pearl") {
-        stone.add(pearlMesh());
-    }
-    else {
-        const P16 = Math.PI / 16;
-        const cut = facetGeo([
-            { z: 0.5 },
-            { r: 0.3, z: 0.45, n: 8, rot: 0 },
-            { r: 0.6, z: 0.32, n: 16, rot: 0 },
-            { r: 0.85, z: 0.16, n: 16, rot: P16 },
-            { r: 1, z: 0.0, n: 32, rot: P16 },
-            { r: 0.95, z: -0.1, n: 32, rot: P16 },
-            { z: -0.12 },
-        ]);
-        const [inner, outer] = gemMats(identity, palette.gems[state.gem]);
-        inner.emissiveIntensity *= 1.8;
-        const back = new Mesh(cut, inner);
-        back.scale.z = -0.8;
-        back.position.z = 0.02;
-        const front = new Mesh(cut, outer);
-        front.renderOrder = 2;
-        stone.add(back, front);
-    }
+    const P16 = Math.PI / 16;
+    const cut = facetGeo([
+        { z: 0.5 },
+        { r: 0.3, z: 0.45, n: 8, rot: 0 },
+        { r: 0.6, z: 0.32, n: 16, rot: 0 },
+        { r: 0.85, z: 0.16, n: 16, rot: P16 },
+        { r: 1, z: 0.0, n: 32, rot: P16 },
+        { r: 0.95, z: -0.1, n: 32, rot: P16 },
+        { z: -0.12 },
+    ]);
+    const [inner, outer] = gemMats(identity, palette.gems[state.gem]);
+    inner.emissiveIntensity *= 1.8;
+    const back = new Mesh(cut, inner);
+    back.scale.z = -0.8;
+    back.position.z = 0.02;
+    const front = new Mesh(cut, outer);
+    front.renderOrder = 2;
+    stone.add(back, front);
     stone.position.z = 0.1;
     g.add(stone);
     g.add(new Mesh(lathe([

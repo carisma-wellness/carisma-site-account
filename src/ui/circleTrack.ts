@@ -13,6 +13,7 @@ import { escapeHtml } from "./html.js";
 import { jewelSlotHTML } from "./circleMark.js";
 import {
   M,
+  NO_DEPOSIT_TEXT,
   PERKS_NOT_LIVE,
   countWord,
   creditText,
@@ -37,7 +38,7 @@ export interface TrackInput {
   spendThisYearCents?: number | null;
   /**
    * ADDENDUM X2 / BE-c: a booked visit that takes her to the next level — the head is then the SERVER's sentence
-   * ("Your visit on Fri 20 Nov takes you to Level 4 · Sapphire") and the caption's right end says what is left
+   * ("Your visit on Fri 20 Nov takes you to Level 4 · Diamond") and the caption's right end says what is left
    * ("€40 to go"). Absent or null: the gap sentence and the next level's name. Never made up from local maths.
    * The pay step passes the earn preview's `levelAfterVisit` here (this visit), never `/me`'s booked visit.
    */
@@ -127,9 +128,10 @@ export function unlocksList(cur: CirclePerkSet | null, next: CirclePerkSet | nul
         (a.birthdayCreditCents > 0 ? `, up from ${creditText(a.birthdayCreditCents)}` : ""),
     );
   }
-  // D7: no deposit applies to desk, phone and Cara bookings only (online keeps its payment).
+  // D7: no deposit applies to desk, phone and Cara (message) bookings only (online keeps its payment), and only on
+  // treatments that earn points (terms v2 §8).
   const noDeposit = (p: CirclePerkSet) => p.noDeposit && p.live?.noDeposit === true;
-  if (noDeposit(next) && !noDeposit(a)) out.push("No deposit when you book by phone or at the desk");
+  if (noDeposit(next) && !noDeposit(a)) out.push(NO_DEPOSIT_TEXT);
   return out;
 }
 
@@ -145,11 +147,11 @@ export function benefitsList(p: CirclePerkSet | null, pointsPerEuro: number, ear
     const n = countWord(p.freeSpaDaysPerYear);
     out.push(p.freeSpaDaysPerYear === 1 ? "A free Spa day every year" : `${n.charAt(0).toUpperCase()}${n.slice(1)} free Spa days every year`);
   }
-  if (p.noDeposit && p.live?.noDeposit === true) out.push("No deposit when you book by phone or at the desk");
+  if (p.noDeposit && p.live?.noDeposit === true) out.push(NO_DEPOSIT_TEXT);
   return out;
 }
 
-/** One line for tight places: "Level 4 · Sapphire unlocks 8.75% back and a second free Spa day every year". */
+/** One line for tight places: "Level 4 · Diamond unlocks 8.75% back and a second free Spa day every year". */
 export function unlockLineText(nextLabel: string, unlocks: string[]): string {
   if (!nextLabel || !unlocks.length) return "";
   const short = unlocks.map((x) => x.replace(/,? up from .*/, "").replace(" in Carisma credit", ""));

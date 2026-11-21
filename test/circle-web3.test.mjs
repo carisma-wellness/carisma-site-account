@@ -173,7 +173,7 @@ test("W-2 Hero + menu Card: the sentence replaces the dated line in its window; 
   const inWin = circleHeroHTML(m, { now: NOV23, bookHref: "/book" });
   strict.match(inWin, /<p class="cc-dated cc-ending"[^>]*>Your €20\.00 birthday credit ends Mon.7.Dec\. Use it on a treatment before then\.<\/p>/);
   strict.doesNotMatch(inWin, /of it until/, "never the same figure twice");
-  strict.match(inWin, /<p class="cc-next"[^>]*>€290 more this year to reach Level.4.· Sapphire<\/p>/, "hero.next = the gap (CK.hero)");
+  strict.match(inWin, /<p class="cc-next"[^>]*>€290 more this year to reach Level.4.· Diamond<\/p>/, "hero.next = the gap (CK.hero)");
   strict.match(inWin, />Use my credit<\/a>/, "hero.btn = Use my credit (CK.hero, the words fixture)");
   const outWin = circleHeroHTML(m, { now: NOV1, bookHref: "/book" });
   strict.match(outWin, /<p class="cc-dated"[^>]*>€20\.00 of it until Mon.7.Dec<\/p>/);
@@ -203,31 +203,31 @@ test("W-3 readCircleSummary reads BE-4's datedEnds / heldUntil (Malta days) / po
 /* ── W-4: the level on its way + the hatched end ────────────────────────── */
 
 const SAT_WAY = {
-  level: { key: "sapphire", number: 4, name: "Sapphire", label: "Level 4 · Sapphire" },
+  level: { key: "sapphire", number: 4, name: "Diamond", label: "Level 4 · Diamond" },
   appointmentId: "appt-sat",
   startAt: "2026-11-21T09:00:00.000Z",
-  sentence: "Saturday’s visit takes you to Level 4 · Sapphire",
+  sentence: "Saturday’s visit takes you to Level 4 · Diamond",
   pendingSpendCents: 31500,
 };
 
 test("W-4 menu: the summary's levelOnItsWay is the track head (BE-4 sends it there) + '€290 to go' + a hatch to the next stone", () => {
   const s = readCircleSummary({ ...SUMMARY_BE4, levelOnItsWay: SAT_WAY, pendingSpendCents: 31500 });
-  strict.equal(s.levelOnItsWay.sentence, `Saturday’s visit takes you to Level${NB}4${NB}· Sapphire`);
+  strict.equal(s.levelOnItsWay.sentence, `Saturday’s visit takes you to Level${NB}4${NB}· Diamond`);
   const card = circlePanelRowHTML(s, { now: NOV1 });
-  strict.match(card, /<p class="cc-track-h"[^>]*>Saturday’s visit takes you to Level.4.· Sapphire<\/p>/);
+  strict.match(card, /<p class="cc-track-h"[^>]*>Saturday’s visit takes you to Level.4.· Diamond<\/p>/);
   strict.match(card, /<span>€290 to go<\/span>/);
   // 4200 bp done → the hatch runs from 42% to the end (the visit crosses).
   strict.match(card, /<u class="cc-bar__lift" aria-hidden="true" style="left:42%;width:58%"><\/u>/);
   // A level on its way that is not her NEXT level never draws (stale answer).
-  const stale = readCircleSummary({ ...SUMMARY_BE4, levelOnItsWay: { ...SAT_WAY, level: { key: "diamond", number: 5, name: "Diamond", label: "Level 5 · Diamond" } } });
+  const stale = readCircleSummary({ ...SUMMARY_BE4, levelOnItsWay: { ...SAT_WAY, level: { key: "diamond", number: 5, name: "Platinum", label: "Level 5 · Platinum" } } });
   strict.equal(stale.levelOnItsWay, null);
 });
 
 test("W-4 liftPct: booked-not-paid spend from the API only, placed with her level's threshold; none without it", () => {
-  // Ruby (from €500) → Sapphire (€1,000), €710 paid this year (42%), €90 booked → the bar would reach 80%: 18% hatched.
+  // Ruby (from €500) → Diamond (€1,000), €710 paid this year (42%), €90 booked → the bar would reach 80%: 18% hatched.
   const t = {
     level: { key: "ruby", label: "Level 3 · Ruby" },
-    nextLevel: { key: "sapphire", label: "Level 4 · Sapphire", thresholdCents: 100000 },
+    nextLevel: { key: "sapphire", label: "Level 4 · Diamond", thresholdCents: 100000 },
     progressBp: 4200,
     toNextLevelCents: 29000,
     levelSentence: "",
@@ -251,7 +251,7 @@ test("W-4 liftPct (review WEB-3 major #2): a level held over from last year, spe
   // Holds Ruby (from €500) from last year; €100 paid this year → the bar shows 0 (the backend clamps progressBp).
   const carried = {
     level: { key: "ruby", label: "Level 3 · Ruby" },
-    nextLevel: { key: "sapphire", label: "Level 4 · Sapphire", thresholdCents: 100000 },
+    nextLevel: { key: "sapphire", label: "Level 4 · Diamond", thresholdCents: 100000 },
     progressBp: 0,
     toNextLevelCents: 90000,
     levelSentence: "",
@@ -329,7 +329,7 @@ test("W-16 Credit and rewards: 'Your next level', the track, 'Your Level 3 · Ru
   // One track per block: the Hero says no next step of its own here.
   strict.equal((view.match(/class="cc cc-track/g) || []).length, 1);
   // Level 5: "Your level", no unlock list.
-  const top = readCircle({ ...MARIA, level: { key: "diamond", number: 5, name: "Diamond", label: "Level 5 · Diamond", heldUntil: "2027-12-31" }, nextLevel: null, nextLevelPerks: null, levelSentence: "" });
+  const top = readCircle({ ...MARIA, level: { key: "diamond", number: 5, name: "Platinum", label: "Level 5 · Platinum", heldUntil: "2027-12-31" }, nextLevel: null, nextLevelPerks: null, levelSentence: "" });
   strict.match(circleViewHTML({ me: top, activity: null, rewards: null, now: NOV1 }), /<p class="cc-eyebrow">Your level<\/p>/);
   // The Overview's own panel is unchanged by the extraction.
   strict.match(circleOverviewHTML(m, { now: NOV1 }), /<div class="cc-dash__level"><p class="cc-eyebrow">Your next level<\/p>[\s\S]*href="\/account\/rewards#levels">See all five levels/);

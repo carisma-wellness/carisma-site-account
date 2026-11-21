@@ -36,8 +36,8 @@ export const CIRCLE_HREF = "/account/rewards";
 /**
  * The Carisma Circle terms, served by each Circle site at this path (a 308 to
  * the brand's `/terms-conditions#carisma-circle`). Every "Terms" beside a points
- * sentence links here. The terms text itself is not this kit's: it stays the
- * public v1.2 until a Maltese advocate approves v2 (BRIEF §1.12).
+ * sentence links here. The terms text itself is not this kit's: each site
+ * publishes its own (v2, CEO C7 20 Nov; v2.2 the Platinum ladder, 21 Nov).
  */
 export const CIRCLE_TERMS_HREF = "/carisma-circle/terms";
 /** The fallback only: 20 points = €1, so a point is 5 cents. The API's `rules.pointsPerEuro` wins. */
@@ -48,13 +48,36 @@ export const PROMISE_QUALIFIER = "Medical treatments, consultations with a docto
 export const REVIEWS_FOOTNOTE = "We never give points for public reviews, ratings, posts, tags or shares.";
 /** v1 name kept for sites that import it; the words are v2's. */
 export const EARN_TERMS_LINE = REVIEWS_FOOTNOTE;
+/**
+ * The no-deposit perk in the public terms' words (v2 §8, 21 Nov: "no deposit when you book a treatment that earns
+ * points with us by phone, by message or at the desk"): a perk applies only on treatments that earn points.
+ */
+export const NO_DEPOSIT_TEXT = "No deposit on treatments that earn points, when you book by phone, by message or at the desk";
+/** The early-access perk in the terms' words (v2 §8: "early access to sales and offers on treatments that earn points"). */
+export function earlyAccessText(hours) {
+    return `You see sales and offers on treatments that earn points ${hours} hours before everyone`;
+}
+/**
+ * The days points are never used (terms v2.1+ §5, CEO 21 Nov; the backend's `loyalty.blackout.ts` is the judge): one
+ * sentence wherever a page states how points are spent.
+ */
+export const BLACKOUT_TEXT = "Points, birthday credit and free Spa days can't be used for a visit on a Saturday, a Malta public holiday, Easter Sunday or New Year's Eve.";
 /** R5.4: a review hold (BE-3 `ON_HOLD`). */
 export const ON_HOLD_TEXT = "Paying with points is on hold while we review your account";
 /**
- * The pay-step disclosure. Counsel's wording (surface-consistency row 6; terms §12–§13: spent credit is never
- * taken from a refund, the balance goes below zero instead), word for word; still true in v2.
+ * The pay-step small print (W-19, ADDENDUM SPA-3's credit paragraph, every part kept), unblocked by the public terms
+ * v2 §7: "A cancelled, refunded or charged-back booking removes the points it gave … We never reduce a refund. If you
+ * already spent those points, your balance goes below zero and is recovered only from points you earn later. A
+ * negative balance is never charged to your card". The figure-free form; `payStepDisclosureText` adds this
+ * booking's figure when the host has the server's.
  */
-export const PAY_STEP_DISCLOSURE = "If you cancel, the credit this booking gives you is removed. If you've already used it, your balance can go below zero. We never take it from your refund.";
+export const PAY_STEP_DISCLOSURE = "If you cancel or are refunded, the Carisma credit this booking gives you comes off your balance. If you have already used it, your balance can go below zero and is made up only from future credit. We never take it from your refund or your card.";
+/** W-19 with this booking's figure ("…, the €11.90 in Carisma credit this booking gives you comes off …"). */
+export function payStepDisclosureText(earnCents) {
+    if (typeof earnCents !== "number" || !Number.isFinite(earnCents) || earnCents <= 0)
+        return PAY_STEP_DISCLOSURE;
+    return PAY_STEP_DISCLOSURE.replace("the Carisma credit this booking", `the ${eur(Math.round(earnCents) / 100)} in Carisma credit this booking`);
+}
 const MALTA = "Europe/Malta";
 export const M = 'data-clarity-mask="True"';
 /* ── No-break spaces (ADDENDUM X8 / X11: the design's words, byte for byte) ── */
@@ -66,7 +89,7 @@ export const NB = " ";
 /**
  * The design's no-break rules applied to a sentence the API wrote (BE-1 sends plain spaces until BE-m): idempotent,
  * so a sentence that already carries them comes back unchanged.
- *  - "Level 4 · Sapphire" → "Level 4 · Sapphire" (it breaks only before the gem name);
+ *  - "Level 4 · Diamond" → "Level 4 · Diamond" (it breaks only before the gem name);
  *  - "Fri 20 Nov" → "Fri 20 Nov"; "kept until 31 Dec 2027" → "kept until 31 Dec 2027";
  *  - "1,448 points" → "1,448 points".
  */

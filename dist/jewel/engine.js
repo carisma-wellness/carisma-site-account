@@ -42,11 +42,13 @@ const FALLBACK = {
     metalDeep: 0xb98a3a,
     band: 0xede4da,
     gems: {
+        // the design kit's CC.PAL (21 Nov 2026, CEO, the Platinum ladder, the "lighter" stones): Level 1 Pearl · 2 Rose ·
+        // 3 Ruby · 4 Diamond (key sapphire) · 5 Platinum (key diamond). The keys never change; only what a member reads does.
         rose: { hi: 0xfcefec, mid: 0xebc5be, lo: 0xd39a91 },
-        pearl: { hi: 0xffffff, mid: 0xf4f0eb, lo: 0xd6cec6 },
-        ruby: { hi: 0xe28c9c, mid: 0xa8405a, lo: 0x6a1c33 },
-        sapphire: { hi: 0x7f9dda, mid: 0x2f5199, lo: 0x14265a },
-        diamond: { hi: 0xffffff, mid: 0xedf3f8, lo: 0xb3c4d5 },
+        pearl: { hi: 0xffffff, mid: 0xf4f3f1, lo: 0xd9e6f2, sheen: 0xbfefe4 },
+        ruby: { hi: 0xffffff, mid: 0xf0d2da, lo: 0xb0124a, sheen: 0xe8336f },
+        sapphire: { hi: 0xffffff, mid: 0xe2f1f3, lo: 0x36b8c8, sheen: 0x4fd0e0 },
+        diamond: { hi: 0xffffff, mid: 0xf1eef7, lo: 0xa88be8, sheen: 0xb58cff },
     },
 };
 const TOKEN_HEX = /^#?([0-9a-f]{6})$/i;
@@ -65,11 +67,17 @@ export function readJewelPalette() {
     catch {
         style = null;
     }
-    const gem = (key) => ({
-        hi: tokenNumber(style, `--cc-gem-${key}-hi`, FALLBACK.gems[key].hi),
-        mid: tokenNumber(style, `--cc-gem-${key}-mid`, FALLBACK.gems[key].mid),
-        lo: tokenNumber(style, `--cc-gem-${key}-lo`, FALLBACK.gems[key].lo),
-    });
+    const gem = (key) => {
+        const fb = FALLBACK.gems[key];
+        const tones = {
+            hi: tokenNumber(style, `--cc-gem-${key}-hi`, fb.hi),
+            mid: tokenNumber(style, `--cc-gem-${key}-mid`, fb.mid),
+            lo: tokenNumber(style, `--cc-gem-${key}-lo`, fb.lo),
+        };
+        if (fb.sheen !== undefined)
+            tones.sheen = tokenNumber(style, `--cc-gem-${key}-sheen`, fb.sheen);
+        return tones;
+    };
     return {
         metal: tokenNumber(style, "--cc-metal", FALLBACK.metal),
         metalDeep: tokenNumber(style, "--cc-metal-deep", FALLBACK.metalDeep),
@@ -83,12 +91,53 @@ export const DEG = Math.PI / 180;
 export function gold(hex, rough = 0.2) {
     return new MeshStandardMaterial({ color: new Color(hex), metalness: 1, roughness: rough, envMapIntensity: 1.15 });
 }
+export const GLARE = {
+    1: { gi: 0.05, film: [250, 820], ior: 2.0 }, // Pearl: soft opal fire
+    2: { gi: 0.1, film: [560, 680], ior: 2.0 }, // Ruby: crimson glare
+    3: { gi: 0.08, film: [440, 560], ior: 2.2 }, // Level 4 Diamond (key sapphire): turquoise glare
+    4: { gi: 0.05, film: [300, 420], ior: 2.2 }, // Level 5 Platinum (key diamond): violet glare
+};
+export function glareMats(recipe, tones) {
+    const inner = new MeshStandardMaterial({
+        color: new Color(tones.mid),
+        metalness: 1,
+        roughness: 0.05,
+        side: BackSide,
+        flatShading: true,
+        envMapIntensity: 2.4,
+        emissive: new Color(tones.lo),
+        emissiveIntensity: recipe.gi,
+    });
+    const outer = new MeshPhysicalMaterial({
+        color: 0x000000,
+        metalness: 0,
+        roughness: 0.03,
+        flatShading: true,
+        ior: recipe.ior,
+        transparent: true,
+        blending: AdditiveBlending,
+        depthWrite: false,
+        envMapIntensity: 1.7,
+        side: FrontSide,
+        iridescence: 1,
+        iridescenceIOR: 1.9,
+        iridescenceThicknessRange: [recipe.film[0], recipe.film[1]],
+        sheen: 1,
+        sheenColor: new Color(tones.sheen ?? tones.lo),
+        sheenRoughness: 0.35,
+    });
+    return [inner, outer];
+}
 /**
  * A stone = a coloured mirror on its BACK facets (light bouncing inside) + a
  * clear polish on its front facets, added on top. Cheap: no transmission pass.
- * `identity` is the engine palette index (Rose 0, Pearl 1, Ruby 2, Sapphire 3, Diamond 4).
+ * `identity` is the engine palette index by data key (rose 0, pearl 1, ruby 2, sapphire 3, diamond 4). Since the
+ * 21 Nov ladder stones 1-4 are the light stones (`GLARE`); the mirror recipe below is Rose's, kept whole.
  */
 export function gemMats(identity, tones) {
+    const glare = GLARE[identity];
+    if (glare)
+        return glareMats(glare, tones);
     const deep = identity === 2 || identity === 3;
     const inner = new MeshStandardMaterial({
         color: new Color(tones.mid).lerp(new Color(deep ? tones.lo : tones.hi), deep ? 0.32 : 0.2),
@@ -118,26 +167,6 @@ export function gemMats(identity, tones) {
         outer.iridescenceThicknessRange = [260, 700];
     }
     return [inner, outer];
-}
-/** The pearl: a smooth dome with a soft lustre and a pink / blue nacre sheen. */
-export function pearlMesh() {
-    const m = new MeshPhysicalMaterial({
-        color: new Color(0xefe6dc),
-        metalness: 0.16,
-        roughness: 0.32,
-        clearcoat: 1,
-        clearcoatRoughness: 0.35,
-        sheen: 0.5,
-        sheenColor: new Color(0xf2c9d2),
-        sheenRoughness: 0.4,
-        iridescence: 1,
-        iridescenceIOR: 1.5,
-        iridescenceThicknessRange: [180, 520],
-        envMapIntensity: 0.95,
-    });
-    const mesh = new Mesh(new SphereGeometry(0.94, 48, 32), m);
-    mesh.scale.z = 0.86;
-    return mesh;
 }
 function ringPts(r, z, n, rot, sx, sy, sq) {
     const a = [];

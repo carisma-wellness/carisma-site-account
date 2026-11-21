@@ -94,7 +94,7 @@ test("copy: euro first, the API's level label and sentence, 'ready to use' only 
   const m = readCircle(MARIA);
   assert.equal(m.display, "€72.40 · 1,448 points");
   assert.equal(m.level.label, "Level 3 · Ruby");
-  assert.equal(m.levelSentence, "€290 more this year to reach Level 4 · Sapphire");
+  assert.equal(m.levelSentence, "€290 more this year to reach Level 4 · Diamond");
   assert.equal(readingText(m), "ready to use · 1,448 points");
   assert.equal(readingText(readCircle({ ...MARIA, affordable: false })), "1,448 points", "no affordable → no 'ready to use'");
   assert.equal(readingText(readCircle({ ...MARIA, affordable: undefined })), "1,448 points", "a missing flag is never 'ready'");
@@ -170,7 +170,7 @@ test("the credit moment: earned (member) / received (guest) / paid with points /
   assert.equal(creditMoment(null).kind, "none");
   assert.equal(
     PAY_STEP_DISCLOSURE,
-    "If you cancel, the credit this booking gives you is removed. If you've already used it, your balance can go below zero. We never take it from your refund.",
+    "If you cancel or are refunded, the Carisma credit this booking gives you comes off your balance. If you have already used it, your balance can go below zero and is made up only from future credit. We never take it from your refund or your card.",
   );
 });
 
@@ -191,14 +191,14 @@ test("the header panel: no loyalty (or loyalty off) is the panel it always was; 
   assert.match(live, /Level 3 · Ruby/);
   assert.match(live, /€72\.40/);
   assert.match(live, /ready to use · 1,448 points/);
-  assert.match(live, /€290 more this year to reach Level 4 · Sapphire/);
+  assert.match(live, /€290 more this year to reach Level 4 · Diamond/);
   // BE-1's built summary has no threshold: the summary-only Card never invents "€0 of €0" (browser.ts adds the
   // caption from /me once the menu opens); a summary that carries it draws it at once.
   assert.doesNotMatch(live, /paid this year/);
-  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED })), /<span>€710 of €1,000 paid this year<\/span><span>Level 4 · Sapphire<\/span>/);
+  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED })), /<span>€710 of €1,000 paid this year<\/span><span>Level 4 · Diamond<\/span>/);
   // BE-i: the summary's perk rows list the Spa day only while live; BE-1's real rows carry no live block.
-  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED })), /Level 4 · Sapphire unlocks 8\.75% back and €35\.00 birthday credit/);
-  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED_LIVE })), /Level 4 · Sapphire unlocks 8\.75% back and a second free Spa day every year/);
+  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED })), /Level 4 · Diamond unlocks 8\.75% back and €35\.00 birthday credit/);
+  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED_LIVE })), /Level 4 · Diamond unlocks 8\.75% back and a second free Spa day every year/);
   assert.match(live, /data-cw-jewel data-gem="ruby"/);
   assert.match(live, /data-cw-jewel data-gem="sapphire" data-p="0\.000"/, "the next stone, beads dark");
   assert.match(live, /href="\/account\/rewards#rewards">Use my credit</, "ADDENDUM KIT-1: affordable → Use my credit");

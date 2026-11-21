@@ -35,10 +35,10 @@ const settle = (ms = 30) => new Promise((r) => setTimeout(r, ms));
 const json = (status, data) => Promise.resolve({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(data) });
 const FRIDAY = "2026-11-20T14:00:00.000Z"; // Fri 20 Nov, 15:00 in Malta
 const ON_ITS_WAY = {
-  level: { key: "sapphire", number: 4, name: "Sapphire", label: "Level 4 · Sapphire" },
+  level: { key: "sapphire", number: 4, name: "Diamond", label: "Level 4 · Diamond" },
   appointmentId: "appt-fri",
   startAt: FRIDAY,
-  sentence: "Your visit on Fri 20 Nov takes you to Level 4 · Sapphire",
+  sentence: "Your visit on Fri 20 Nov takes you to Level 4 · Diamond",
 };
 const REFERRAL = {
   payInPoints: true,
@@ -261,7 +261,7 @@ test("KIT-2: the Overview's Spa products card arrives with the public status's b
   const html = circleOverviewHTML(readCircle(MARIA));
   assert.match(html, /<div class="cc-dash__level"><p class="cc-eyebrow">Your next level<\/p>/);
   assert.match(html, /<span>Your Level 3 · Ruby benefits<\/span><span class="cc-gives__until">until 31 Dec 2027<\/span>/);
-  assert.match(circleOverviewHTML(readCircle({ ...MARIA, level: { ...MARIA.level, key: "diamond", number: 5, name: "Diamond", label: "Level 5 · Diamond" }, nextLevel: null })), /<p class="cc-eyebrow">Your level<\/p>/);
+  assert.match(circleOverviewHTML(readCircle({ ...MARIA, level: { ...MARIA.level, key: "diamond", number: 5, name: "Platinum", label: "Level 5 · Platinum" }, nextLevel: null })), /<p class="cc-eyebrow">Your level<\/p>/);
   const noBoost = portalHarness();
   mountAccountPortal(noBoost.doc, { view: "home", fetchImpl: noBoost.fetchImpl, navigate: () => {}, circle: true });
   await settle(80);
@@ -272,12 +272,12 @@ test("KIT-2: the Overview's Spa products card arrives with the public status's b
 
 test("X2: the account's track says the server's 'takes you to' sentence and '€290 to go'; a wrong level is ignored", () => {
   const m = readCircle({ ...MARIA, levelOnItsWay: ON_ITS_WAY });
-  assert.equal(m.levelOnItsWay.sentence, "Your visit on Fri 20 Nov takes you to Level 4 · Sapphire");
+  assert.equal(m.levelOnItsWay.sentence, "Your visit on Fri 20 Nov takes you to Level 4 · Diamond");
   for (const html of [circleOverviewHTML(m), circleViewHTML({ me: m, activity: null, rewards: null })]) {
-    assert.match(html, /<p class="cc-track-h"[^>]*>Your visit on Fri 20 Nov takes you to Level 4 · Sapphire<\/p>/);
+    assert.match(html, /<p class="cc-track-h"[^>]*>Your visit on Fri 20 Nov takes you to Level 4 · Diamond<\/p>/);
     assert.match(html, /<span>€710 of €1,000 paid this year<\/span><span>€290 to go<\/span>/, "the right end says what is left");
   }
-  assert.match(circleHeroHTML(m), /<p class="cc-next"[^>]*>Your visit on Fri 20 Nov takes you to Level 4 · Sapphire<\/p>/);
+  assert.match(circleHeroHTML(m), /<p class="cc-next"[^>]*>Your visit on Fri 20 Nov takes you to Level 4 · Diamond<\/p>/);
   // One block, one next step: the Overview panel and Credit and rewards' top say it in the track head only.
   for (const html of [circleOverviewHTML(m), circleViewHTML({ me: m, activity: null, rewards: null })]) {
     assert.doesNotMatch(html, /class="cc-next"/, "no Hero next step beside a track");
@@ -286,25 +286,25 @@ test("X2: the account's track says the server's 'takes you to' sentence and '€
   assert.doesNotMatch(circleOverviewHTML(readCircle(MARIA)), /class="cc-next"/, "the gap only in the track head");
   // Absent (BE-2 sends nothing on the summary): the gap and the next level's name.
   const gap = circleOverviewHTML(readCircle(MARIA));
-  assert.match(gap, /<p class="cc-track-h"[^>]*>€290 more this year to reach Level 4 · Sapphire<\/p>/);
-  assert.match(gap, /<span>€710 of €1,000 paid this year<\/span><span>Level 4 · Sapphire<\/span>/);
+  assert.match(gap, /<p class="cc-track-h"[^>]*>€290 more this year to reach Level 4 · Diamond<\/p>/);
+  assert.match(gap, /<span>€710 of €1,000 paid this year<\/span><span>Level 4 · Diamond<\/span>/);
   // A level on its way that is not her NEXT level, or without the server's sentence, never draws.
-  assert.equal(readCircle({ ...MARIA, levelOnItsWay: { ...ON_ITS_WAY, level: { key: "diamond", number: 5, name: "Diamond", label: "Level 5 · Diamond" } } }).levelOnItsWay, null);
+  assert.equal(readCircle({ ...MARIA, levelOnItsWay: { ...ON_ITS_WAY, level: { key: "diamond", number: 5, name: "Platinum", label: "Level 5 · Platinum" } } }).levelOnItsWay, null);
   assert.equal(levelOnItsWayFrom({ ...ON_ITS_WAY, sentence: "" }), null);
   assert.equal(readCircle({ ...MARIA, nextLevel: null, levelOnItsWay: ON_ITS_WAY }).levelOnItsWay, null, "at the top: nothing on its way");
   // The menu reads the summary: on its way only when the summary itself sends it.
   const menuGap = circlePanelRowHTML(readCircleSummary(SUMMARY));
   assert.doesNotMatch(menuGap, /takes you to/);
   const menuOn = circlePanelRowHTML(readCircleSummary({ ...SUMMARY, levelOnItsWay: ON_ITS_WAY }));
-  assert.match(menuOn, /takes you to Level 4 · Sapphire/);
+  assert.match(menuOn, /takes you to Level 4 · Diamond/);
   // The pay step passes its own (this visit's) answer: the track draws what it is given, nothing else.
-  assert.match(circleTrackHTML({ ...readCircle(MARIA), onItsWay: { sentence: "This visit takes you to Level 4 · Sapphire" } }, { compact: true }), /This visit takes you to/);
+  assert.match(circleTrackHTML({ ...readCircle(MARIA), onItsWay: { sentence: "This visit takes you to Level 4 · Diamond" } }, { compact: true }), /This visit takes you to/);
   assert.doesNotMatch(circleTrackHTML({ ...readCircle(MARIA), onItsWay: null }, { compact: true }), /takes you to/);
 });
 
 test("words: the API's plain spaces become the design's no-break spaces (idempotent)", () => {
-  const once = nbWords("€290 more this year to reach Level 4 · Sapphire");
-  assert.equal(once, "€290 more this year to reach Level 4 · Sapphire".replace(/ /g, " "));
+  const once = nbWords("€290 more this year to reach Level 4 · Diamond");
+  assert.equal(once, "€290 more this year to reach Level 4 · Diamond".replace(/ /g, " "));
   assert.equal(nbWords(once), once);
   assert.equal(nbWords("Our highest level, kept until 31 Dec 2027"), "Our highest level, kept until 31 Dec 2027");
   assert.equal(nbWords("1,448 points"), "1,448 points");

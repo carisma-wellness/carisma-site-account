@@ -12,7 +12,7 @@ export interface TrackInput {
     spendThisYearCents?: number | null;
     /**
      * ADDENDUM X2 / BE-c: a booked visit that takes her to the next level — the head is then the SERVER's sentence
-     * ("Your visit on Fri 20 Nov takes you to Level 4 · Sapphire") and the caption's right end says what is left
+     * ("Your visit on Fri 20 Nov takes you to Level 4 · Diamond") and the caption's right end says what is left
      * ("€40 to go"). Absent or null: the gap sentence and the next level's name. Never made up from local maths.
      * The pay step passes the earn preview's `levelAfterVisit` here (this visit), never `/me`'s booked visit.
      */
@@ -67,7 +67,7 @@ export declare function paidLineText(t: TrackInput): string;
 export declare function unlocksList(cur: CirclePerkSet | null, next: CirclePerkSet | null, pointsPerEuro: number, earnPerEuro?: number): string[];
 /** Everything a level gives (the account's "What Level 3 · Ruby gives you"). Perks only while live (X2 / BE-i). */
 export declare function benefitsList(p: CirclePerkSet | null, pointsPerEuro: number, earnPerEuro?: number): string[];
-/** One line for tight places: "Level 4 · Sapphire unlocks 8.75% back and a second free Spa day every year". */
+/** One line for tight places: "Level 4 · Diamond unlocks 8.75% back and a second free Spa day every year". */
 export declare function unlockLineText(nextLabel: string, unlocks: string[]): string;
 /** The perks the API gives for the level after hers: `nextLevelPerks`, else that level's row in `levels[]`. */
 export declare function nextPerksOf(m: {

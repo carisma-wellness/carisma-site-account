@@ -9,8 +9,8 @@ export const LEVELS = [
   { key: "pearl", number: 1, name: "Pearl", label: "Level 1 · Pearl", numeral: "I", multiplier: 1, thresholdCents: 0, birthdayCreditCents: 500, freeSpaDaysPerYear: 0, earlyAccessHours: 0, noDeposit: false },
   { key: "rose", number: 2, name: "Rose", label: "Level 2 · Rose", numeral: "II", multiplier: 1.25, thresholdCents: 15000, birthdayCreditCents: 1000, freeSpaDaysPerYear: 0, earlyAccessHours: 24, noDeposit: false },
   { key: "ruby", number: 3, name: "Ruby", label: "Level 3 · Ruby", numeral: "III", multiplier: 1.5, thresholdCents: 50000, birthdayCreditCents: 2000, freeSpaDaysPerYear: 1, earlyAccessHours: 48, noDeposit: true },
-  { key: "sapphire", number: 4, name: "Sapphire", label: "Level 4 · Sapphire", numeral: "IV", multiplier: 1.75, thresholdCents: 100000, birthdayCreditCents: 3500, freeSpaDaysPerYear: 2, earlyAccessHours: 48, noDeposit: true },
-  { key: "diamond", number: 5, name: "Diamond", label: "Level 5 · Diamond", numeral: "V", multiplier: 2, thresholdCents: 250000, birthdayCreditCents: 5000, freeSpaDaysPerYear: 3, earlyAccessHours: 72, noDeposit: true },
+  { key: "sapphire", number: 4, name: "Diamond", label: "Level 4 · Diamond", numeral: "IV", multiplier: 1.75, thresholdCents: 100000, birthdayCreditCents: 3500, freeSpaDaysPerYear: 2, earlyAccessHours: 48, noDeposit: true },
+  { key: "diamond", number: 5, name: "Platinum", label: "Level 5 · Platinum", numeral: "V", multiplier: 2, thresholdCents: 250000, birthdayCreditCents: 5000, freeSpaDaysPerYear: 3, earlyAccessHours: 72, noDeposit: true },
 ];
 
 export const SPA_ONLY = [{ house: "spa", brandId: "11111111-1111-4111-8111-111111111111", name: "Carisma Spa" }];
@@ -24,12 +24,12 @@ export const MARIA = {
   enabled: true,
   programme: { name: "Carisma Circle", currencyName: "Carisma credit", unitName: "points", tagline: "Come back to more." },
   level: { key: "ruby", number: 3, name: "Ruby", label: "Level 3 · Ruby", numeral: "III", multiplier: 1.5, heldUntil: "2027-12-31" },
-  nextLevel: { key: "sapphire", number: 4, name: "Sapphire", label: "Level 4 · Sapphire", numeral: "IV", thresholdCents: 100000 },
+  nextLevel: { key: "sapphire", number: 4, name: "Diamond", label: "Level 4 · Diamond", numeral: "IV", thresholdCents: 100000 },
   spendThisYearCents: 71000,
   headStartCents: 0,
   toNextLevelCents: 29000,
   progressBp: 4200,
-  levelSentence: "€290 more this year to reach Level 4 · Sapphire",
+  levelSentence: "€290 more this year to reach Level 4 · Diamond",
   credit: { points: 1448, cents: 7240, display: "€72.40 · 1,448 points" },
   pending: { points: 120, cents: 600 },
   awaitingEmail: null,
@@ -71,10 +71,10 @@ export const MARIA = {
 export const SUMMARY = {
   enabled: true,
   level: { key: "ruby", number: 3, name: "Ruby", label: "Level 3 · Ruby" },
-  nextLevel: { key: "sapphire", number: 4, name: "Sapphire", label: "Level 4 · Sapphire" },
+  nextLevel: { key: "sapphire", number: 4, name: "Diamond", label: "Level 4 · Diamond" },
   toNextLevelCents: 29000,
   progressBp: 4200,
-  levelSentence: "€290 more this year to reach Level 4 · Sapphire",
+  levelSentence: "€290 more this year to reach Level 4 · Diamond",
   heldUntil: "2027-12-31",
   balance: { points: 1448, cents: 7240, display: "€72.40 · 1,448 points" },
   pointsExpireAt: "2027-11-17",

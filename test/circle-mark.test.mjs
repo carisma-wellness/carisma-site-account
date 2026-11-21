@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "./fixtures/plain-assert.mjs";
-import { asGemKey, circleMarkSVG, jewelSlotHTML, progressFraction, CIRCLE_GEM_KEYS, circleChipHTML, readCircleSummary } from "../dist/index.js";
+import { asGemKey, circleMarkSVG, jewelSlotHTML, jewelStillHTML, LIVE_JEWEL_FROM_PX, progressFraction, CIRCLE_GEM_KEYS, circleChipHTML, readCircleSummary } from "../dist/index.js";
 import { SUMMARY } from "./fixtures/circle-v2.mjs";
 
 /** The flat mark (under 40 px) and the jewel slot: gem by KEY, colours of the material, a fixed box. */
@@ -12,7 +12,9 @@ test("asGemKey: the five stones by key; a v1 key, a number or anything else is n
 });
 
 test("the mark draws the gem's flat colour by key, a gold rim, and the ring to the next level", () => {
-  const flat = { pearl: "#E2DCD5", rose: "#E0B4AC", ruby: "#A8405A", sapphire: "#2F5199", diamond: "#C9D6E3" };
+  // 21 Nov (CEO, the Platinum ladder, the "lighter" stones; the desk's flat marks): keys unchanged, sapphire = Level 4
+  // Diamond (turquoise), diamond = Level 5 Platinum (violet).
+  const flat = { pearl: "#ECEFEA", rose: "#E0B4AC", ruby: "#E0798E", sapphire: "#BFE6EA", diamond: "#E2D8F4" };
   for (const [gem, hex] of Object.entries(flat)) {
     const svg = circleMarkSVG(gem, 0.5, 24);
     assert.match(svg, new RegExp(`r="5\\.5" fill="${hex}"`), gem);
@@ -40,10 +42,29 @@ test("a jewel slot is plain HTML with a fixed box (0.84 × height) and its flat 
   assert.match(jewelSlotHTML({ gem: "ruby", progress: 1, height: 56, kind: "icon" }), /data-k="icon"/);
   const poster = jewelSlotHTML({ gem: "pearl", progress: 0, height: 128, poster: "/circle/jewel/v1/pearl-small.webp" });
   assert.match(poster, /<img class="cc-jw__poster" src="\/circle\/jewel\/v1\/pearl-small\.webp" alt="" width="108" height="128"/);
-  assert.match(jewelSlotHTML({ gem: "rose", progress: 0, height: 10 }), /height:40px/, "never under 40 px: below that a page draws the mark itself");
+  // C4a (CEO 20 Nov): under 44 px a jewel is the still image, never a live slot.
+  assert.equal(LIVE_JEWEL_FROM_PX, 44);
+  assert.doesNotMatch(jewelSlotHTML({ gem: "rose", progress: 0, height: 43, poster: "/circle/jewel/v1/rose-small.webp" }), /data-cw-jewel(?!-still)/);
+  assert.match(jewelSlotHTML({ gem: "rose", progress: 0, height: 43, poster: "/circle/jewel/v1/rose-small.webp" }), /data-cw-jewel-still[^>]*width:36px;height:43px[^>]*><img class="cc-jw__poster" src="\/circle\/jewel\/v1\/rose-icon\.webp"/);
+  assert.match(jewelSlotHTML({ gem: "rose", progress: 0, height: 44 }), /data-cw-jewel data-gem="rose"[^>]*height:44px/, "44 px and up: the live slot");
 });
 
-test("the header chip is the flat mark and the balance — never a jewel slot (three.js stays off every page)", () => {
+test("C4a: the still jewel under 44 px is the level icon poster in a fixed box, never hydrated; no poster = the flat mark", () => {
+  const still = jewelStillHTML({ gem: "sapphire", height: 30, poster: "/circle/jewel/v1/sapphire-small.webp" });
+  assert.match(still, /^<span class="cc-jw cc-jw--still" data-cw-jewel-still data-gem="sapphire" aria-hidden="true" style="[^"]*width:25px;height:30px">/);
+  assert.match(still, /<img class="cc-jw__poster" src="\/circle\/jewel\/v1\/sapphire-icon\.webp" alt="" width="25" height="30"/);
+  assert.doesNotMatch(still, /data-cw-jewel(?!-still)|<canvas|data-p=/, "no live slot: nothing to hydrate");
+  assert.match(jewelStillHTML({ gem: "diamond", height: 34, poster: "/circle/jewel/v1/diamond-full.webp" }), /diamond-icon\.webp/);
+  assert.match(jewelStillHTML({ gem: "ruby", height: 24, poster: "/x/ruby-icon.webp", label: 'Level 3 · "Ruby"' }), /role="img" aria-label="Level 3 · &quot;Ruby&quot;"/);
+  assert.match(jewelStillHTML({ gem: "ruby", height: 24, progress: 0.5 }), /^<svg class="cc-mark" data-cc-gem="ruby" width="24"/, "no poster: the flat mark");
+});
+
+test("the header chip is the still jewel (C4a, W-9) and the balance — never a jewel slot (three.js stays off every page)", () => {
+  const poster = (gem, kind) => `/circle/jewel/v1/${gem}-${kind}.webp`;
+  const still = circleChipHTML(readCircleSummary(SUMMARY), { poster });
+  assert.match(still, /<span class="cc-chip__mark"><span class="cc-jw cc-jw--still" data-cw-jewel-still data-gem="ruby"[^>]*width:20px;height:24px"><img class="cc-jw__poster" src="\/circle\/jewel\/v1\/ruby-icon\.webp"/);
+  assert.doesNotMatch(still, /data-cw-jewel(?!-still)/);
+  // A host without posters keeps the flat mark.
   const chip = circleChipHTML(readCircleSummary(SUMMARY));
   assert.match(chip, /<svg class="cc-mark" data-cc-gem="ruby" width="24" height="24"/);
   assert.match(chip, /<span class="cc-chip__bal">€72\.40<\/span>/);

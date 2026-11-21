@@ -7,10 +7,13 @@
  * five words) so the `./jewel` chunk stays self-contained.
  */
 /**
- * The gem's IDENTITY in the engine's palette (`CC.PAL` order: Rose, Pearl,
- * Ruby, Sapphire, Diamond): its cut and material. Pearl is the smooth dome;
- * every other stone is the rose cut. Chosen by the API's level KEY, never by
- * the level number (BRIEF ERRATA: Level 1 = Pearl, Level 2 = Rose).
+ * The gem's IDENTITY in the engine's palette (`CC.PAL` order by data key: rose,
+ * pearl, ruby, sapphire, diamond): its material. Every stone is the rose cut
+ * (Pearl too, since 21 Nov); stones 1-4 are the light stones (`GLARE`). Chosen
+ * by the API's level KEY, never by the level number. The keys are DATA and never
+ * change (21 Nov 2026, CEO, the Platinum ladder): key `sapphire` reads "Diamond"
+ * (Level 4) and key `diamond` reads "Platinum" (Level 5); the words always come
+ * from the API's `level.label`, never from a key.
  */
 export const GEM_IDENTITY = {
     rose: 0,

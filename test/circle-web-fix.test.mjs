@@ -336,14 +336,14 @@ test("menu Card on BE-1's real summary: the caption and the unlock line come fro
   const panel = h.doc.getElementById("carisma-account-panel");
   assert.ok(panel, "precondition: the panel opened");
   const html = panel.innerHTML;
-  assert.match(html, /<div class="cc-track-row"[\s\S]*?<\/div><p class="cc-track-cap" data-clarity-mask="True"><span>€710 of €1,000 paid this year<\/span><span>Level 4 · Sapphire<\/span><\/p>/, "the caption, from /me");
-  assert.match(html, /<p class="cc-track-line">Level 4 · Sapphire unlocks 8\.75% back and a second free Spa day every year<\/p>/, "Spa days live");
+  assert.match(html, /<div class="cc-track-row"[\s\S]*?<\/div><p class="cc-track-cap" data-clarity-mask="True"><span>€710 of €1,000 paid this year<\/span><span>Level 4 · Diamond<\/span><\/p>/, "the caption, from /me");
+  assert.match(html, /<p class="cc-track-line">Level 4 · Diamond unlocks 8\.75% back and a second free Spa day every year<\/p>/, "Spa days live");
   // BE-1's real /me (no live block): the line names the rate and the birthday credit only (X2 / BE-i).
   const real = panelHarness(SUMMARY);
   mountAccountPanel(real.doc, { fetchImpl: real.fetchImpl, circle: true, bookHref: "/book" });
   real.doc.click(real.mark);
   await settle(40);
-  assert.match(real.doc.getElementById("carisma-account-panel").innerHTML, /<p class="cc-track-line">Level 4 · Sapphire unlocks 8\.75% back and €35\.00 birthday credit<\/p>/);
+  assert.match(real.doc.getElementById("carisma-account-panel").innerHTML, /<p class="cc-track-line">Level 4 · Diamond unlocks 8\.75% back and €35\.00 birthday credit<\/p>/);
   assert.match(html, /cc-now/, "the Yours now row");
   assert.equal(h.reads.filter((u) => u === "/api/auth/proxy/client/loyalty/me").length, 1);
   // Once the summary carries the threshold and both perk rows, the menu draws them at once and never reads /me.
@@ -353,7 +353,7 @@ test("menu Card on BE-1's real summary: the caption and the unlock line come fro
   await settle(40);
   const a = asked.doc.getElementById("carisma-account-panel").innerHTML;
   assert.match(a, /€710 of €1,000 paid this year/);
-  assert.match(a, /Level 4 · Sapphire unlocks 8\.75% back/);
+  assert.match(a, /Level 4 · Diamond unlocks 8\.75% back/);
   assert.equal(asked.reads.includes("/api/auth/proxy/client/loyalty/me"), false, "no full ledger read behind the menu");
   assert.equal((a.match(/cc-track-cap/g) || []).length, 1, "one caption");
 });

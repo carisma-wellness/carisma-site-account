@@ -29,6 +29,11 @@ export interface GemTones {
     hi: number;
     mid: number;
     lo: number;
+    /**
+     * The coloured sheen at the facet edges of a light stone (`--cc-gem-<key>-sheen`; the kit's `GLARE[i].sh`). Every
+     * stone but Rose has one since the 21 Nov ladder; Rose keeps the original mirror recipe and none.
+     */
+    sheen?: number;
 }
 export interface JewelPalette {
     metal: number;
@@ -42,13 +47,28 @@ export declare const TAU: number;
 export declare const DEG: number;
 export declare function gold(hex: number, rough?: number): MeshStandardMaterial;
 /**
+ * The light stones (design kit 21 Nov, `GLARE`): a pale body, a coloured inner glow, thin-film fire and a coloured
+ * sheen at the facet edges. Keyed by the engine palette index; Rose (0) has none and keeps the mirror recipe below.
+ * The kit's `body` is its `CC.PAL[i].mid` and its `glow` is `CC.PAL[i].lo` (equal for all four), so they are read
+ * from the same `--cc-gem-<key>-mid` / `-lo` tokens; the sheen is `--cc-gem-<key>-sheen`. Numbers ported, not
+ * re-tuned (the desk's port, frontend `jewel3d/engine.ts`, is the same).
+ */
+export interface GlareRecipe {
+    /** emissive intensity of the inner glow (before the solitaire's x1.8) */
+    gi: number;
+    /** iridescence thickness range, nm */
+    film: [number, number];
+    ior: number;
+}
+export declare const GLARE: Readonly<Record<number, GlareRecipe>>;
+export declare function glareMats(recipe: GlareRecipe, tones: GemTones): [MeshStandardMaterial, MeshPhysicalMaterial];
+/**
  * A stone = a coloured mirror on its BACK facets (light bouncing inside) + a
  * clear polish on its front facets, added on top. Cheap: no transmission pass.
- * `identity` is the engine palette index (Rose 0, Pearl 1, Ruby 2, Sapphire 3, Diamond 4).
+ * `identity` is the engine palette index by data key (rose 0, pearl 1, ruby 2, sapphire 3, diamond 4). Since the
+ * 21 Nov ladder stones 1-4 are the light stones (`GLARE`); the mirror recipe below is Rose's, kept whole.
  */
 export declare function gemMats(identity: number, tones: GemTones): [MeshStandardMaterial, MeshPhysicalMaterial];
-/** The pearl: a smooth dome with a soft lustre and a pink / blue nacre sheen. */
-export declare function pearlMesh(): Mesh;
 export interface FacetRing {
     r?: number;
     z: number;

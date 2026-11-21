@@ -21,7 +21,7 @@
  *    the rule there (affordable → "Use my credit", else "Book a visit"), as the fixture asks a product to.
  *  - With every perk live (the unsuffixed keys): the kit leaves early access out of the unlock and benefit lists
  *    (it reaches only offers opened in the account, never the website's offer pages or Klaviyo: RECONCILED Q5, the WEB
- *    review's M15) and says "No deposit when you book by phone or at the desk" for "No deposit to book" (BRIEF D7:
+ *    review's M15) and says "No deposit on treatments that earn points, when you book by phone, by message or at the desk" for "No deposit to book" (BRIEF D7:
  *    online keeps its payment). With BE-i's default (no perk live) the words are identical.
  * Not drawn by the kit (another product's words: the Spa site's earn lines and pay-step rows, the thank-you page's
  * rows, letters and the app): S.gain, S.now, S.nextUp, S.first, S.earn*, S.next(*), S.act(level|earned|pending),
@@ -109,7 +109,7 @@ function caseNow(c) {
 function kitLiveWords(list) {
   return (list ?? [])
     .filter((s) => !/^Sales and offers /.test(s))
-    .map((s) => (s === "No deposit to book" ? "No deposit when you book by phone or at the desk" : s));
+    .map((s) => (s === "No deposit to book" ? "No deposit on treatments that earn points, when you book by phone, by message or at the desk" : s));
 }
 
 const CHECKED = new Map(FIX.designChecks.flatMap((d) => d.keys.map((k) => [`${d.case}|${k}`, d.rule])));
@@ -291,8 +291,10 @@ test("X11 words · per level: label, benefits, unlocks, the unlock line and the 
 
 test("X11 words · the fixture is ADD-V1's, unchanged, for the design of record the kit follows", () => {
   assert.equal(FIX.fixture, "circle-v2-words");
-  assert.equal(FIX.designOfRecord.kit.sha256, "333eea8daee1e395ef1f81a234d9adcdfc7f887be2a03370ef7fccb7e5f05035");
-  assert.equal(FIX.designOfRecord.scenario.sha256, "c1cf877800fee0a7e67b7ff978bd13f62fdea7aaccf5e7da288fe02ccb5202d1");
+  // 21 Nov: the vault's regeneration for the Platinum ladder (kit.js + scenario.js renamed Level 4 Diamond / Level 5
+  // Platinum; the desk's fixture carries the same file). Only level names moved.
+  assert.equal(FIX.designOfRecord.kit.sha256, "d351a5688ee854f7209c0e4ba77cb04b6934327b9e5ca8144543885e9fd6548a");
+  assert.equal(FIX.designOfRecord.scenario.sha256, "a6a907aaeb5721c3d4e40644d6f2ed6c110e97685816845deb5afecba7db8275");
   assert.ok(FIX.counts.total >= 800);
   // Every case with a member body was compared above (the guest has none).
   assert.equal(Object.values(FIX.cases).filter((c) => c.inputs.me).length, 11);

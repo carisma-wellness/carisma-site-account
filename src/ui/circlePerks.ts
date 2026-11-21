@@ -4,13 +4,14 @@
  *
  * Drawn only from the read: free Spa days ("1 free Spa day this year · 1 left"
  * + Book it), early access ONLY when there is something upcoming (R5.7), and
- * "No deposit when you book by phone or at the desk" only when active (D7: an
- * online booking still takes its payment). The perks are not in the public
+ * no deposit on treatments that earn points only when active (D7: an online
+ * booking still takes its payment; terms v2 §8 limits both perks to treatments
+ * that earn points). The perks are not in the public
  * terms yet; they render only from the API (launch gate, surfaces §10).
  */
 import { escapeHtml } from "./html.js";
 import { unwrapEnvelope } from "./appointments.js";
-import { M, int, maltaWhen, obj, str, type CirclePerksLive } from "./circleCore.js";
+import { M, NO_DEPOSIT_TEXT, earlyAccessText, int, maltaWhen, obj, str, type CirclePerksLive } from "./circleCore.js";
 
 export interface CirclePerkUpcoming {
   kind: string;
@@ -106,11 +107,11 @@ export function circlePerksHTML(
       })
       .join("");
     rows.push(
-      `<li class="cc-perk cc-perk--early"><span>${escapeHtml(`You see sales ${p.earlyAccess.hours} hours before everyone`)}</span>` +
+      `<li class="cc-perk cc-perk--early"><span>${escapeHtml(earlyAccessText(p.earlyAccess.hours))}</span>` +
         `<ul class="cc-perk__soon">${items}</ul></li>`,
     );
   }
-  if (live?.noDeposit === true && p.noDeposit.active) rows.push(`<li class="cc-perk"><span>No deposit when you book by phone or at the desk</span></li>`);
+  if (live?.noDeposit === true && p.noDeposit.active) rows.push(`<li class="cc-perk"><span>${escapeHtml(NO_DEPOSIT_TEXT)}</span></li>`);
   if (!rows.length) return "";
   return (
     `<section class="cw-section cw-rise cc-perks" aria-labelledby="cw-circle-perks-title" data-cw-circle="perks">` +

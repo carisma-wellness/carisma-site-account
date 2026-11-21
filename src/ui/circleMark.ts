@@ -11,7 +11,17 @@
  * progress ring to the next level, a gold rim. It is a picture of a material,
  * the same on every brand and in both appearances, so its colours live here
  * as SVG attributes and never in the account CSS (that sheet is token-only).
- * Flat colours: CEO-RULES 17 Nov (surfaces §3.3).
+ * Flat colours: the 21 Nov Platinum ladder's "lighter" stones (CEO), the same
+ * values as the desk's flat marks; every stone wears the gold rim as its edge.
+ *
+ * The keys are DATA and never change (21 Nov 2026): key `sapphire` is Level 4,
+ * shown "Diamond" (a white stone with a turquoise glare), key `diamond` is
+ * Level 5, shown "Platinum" (a white stone with a violet glare). What a member
+ * reads always comes from the API's `level.label`, never from a key.
+ *
+ * C4a (CEO decisions 20 Nov): a jewel under 44 px is the STILL image (the
+ * generator's poster), never the live 3D. `jewelStillHTML` draws it; a slot
+ * asked for under 44 px is drawn as that still and is never hydrated.
  */
 
 export type CircleGemKey = "pearl" | "rose" | "ruby" | "sapphire" | "diamond";
@@ -25,11 +35,11 @@ export function asGemKey(v: unknown): CircleGemKey | null {
 }
 
 const FLAT: Record<CircleGemKey, string> = {
-  pearl: "#E2DCD5",
+  pearl: "#ECEFEA",
   rose: "#E0B4AC",
-  ruby: "#A8405A",
-  sapphire: "#2F5199",
-  diamond: "#C9D6E3",
+  ruby: "#E0798E",
+  sapphire: "#BFE6EA",
+  diamond: "#E2D8F4",
 };
 const RIM = "#8A6A1C";
 const RING_TRACK = "#E6DDCC";
@@ -66,6 +76,34 @@ export function circleMarkSVG(gem: CircleGemKey, progress: number, size = 24, la
   );
 }
 
+/** C4a: below this height a jewel is the still image, never the live 3D. */
+export const LIVE_JEWEL_FROM_PX = 44;
+
+/**
+ * C4a: a jewel under 44 px as its STILL image (the generator's poster at rest: `/circle/jewel/v1/<gem>-icon.webp`,
+ * her level's small jewel with every bead gold, the design system's level icon; at this size beads cannot be read,
+ * so a still never pretends to count them). Fixed box (width = 0.84 x height, the posters' own aspect), so nothing
+ * shifts when it loads. No `data-cw-jewel`: nothing ever hydrates it, so no page loads three.js for it. Without a
+ * poster (a host that ships none) it is the flat mark, as before. Decorative by default; pass `label` when the
+ * still is the only carrier of the level.
+ */
+export function jewelStillHTML(opts: { gem: CircleGemKey; height: number; poster?: string; progress?: number; label?: string; cls?: string }): string {
+  const h = Math.max(12, Math.round(Number.isFinite(opts.height) ? opts.height : 24));
+  const w = Math.round(h * 0.84);
+  const label = opts.label ?? "";
+  const a11y = label
+    ? ` role="img" aria-label="${label.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;")}"`
+    : ' aria-hidden="true"';
+  if (!opts.poster) return circleMarkSVG(opts.gem, opts.progress ?? 0, h, label);
+  const src = opts.poster.replace(/-(?:small|full)\.webp(?=$|[?#])/, "-icon.webp").replace(/"/g, "%22");
+  return (
+    `<span class="cc-jw cc-jw--still${opts.cls ? ` ${opts.cls}` : ""}" data-cw-jewel-still data-gem="${opts.gem}"${a11y}` +
+    ` style="display:inline-grid;place-items:center;flex:none;vertical-align:middle;width:${w}px;height:${h}px">` +
+    `<img class="cc-jw__poster" src="${src}" alt="" width="${w}" height="${h}" decoding="async" style="grid-area:1/1;width:100%;height:100%;object-fit:contain">` +
+    `</span>`
+  );
+}
+
 /**
  * A jewel SLOT: plain HTML the page can ship in its first paint. The canvas is
  * mounted lazily by the `./jewel` export (only when Circle is live and the slot
@@ -85,7 +123,11 @@ export function jewelSlotHTML(opts: {
   poster?: string;
   cls?: string;
 }): string {
-  const h = Math.max(40, Math.round(opts.height));
+  // C4a: under 44 px the still image, never a live slot.
+  if (Math.round(opts.height) < LIVE_JEWEL_FROM_PX) {
+    return jewelStillHTML({ gem: opts.gem, height: opts.height, poster: opts.poster, progress: opts.progress, cls: opts.cls });
+  }
+  const h = Math.round(opts.height);
   const w = Math.round(h * 0.84);
   const kind = opts.kind ?? (h >= 200 ? "full" : "small");
   const p = Math.max(0, Math.min(1, opts.progress));

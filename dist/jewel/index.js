@@ -28,6 +28,8 @@ export const CIRCLE_JEWEL_QC = "carisma-circle-v2-20261117";
 /** Mount one jewel. Throws only when WebGL cannot start (the caller keeps its flat mark). */
 export const mountJewel = createJewelMount(buildSolitaire);
 const LIVE = "data-cw-jewel-live";
+/** C4a: the smallest jewel that may be live (the same number as the kit's `./ui` LIVE_JEWEL_FROM_PX; repeated so this chunk imports nothing from `./ui`). */
+const LIVE_JEWEL_FROM_PX = 44;
 const mounted = new WeakMap();
 function variantOf(v) {
     return v === "full" || v === "icon" ? v : "small";
@@ -74,6 +76,10 @@ export function hydrateJewels(root) {
             continue;
         const gem = slot.getAttribute("data-gem");
         if (!isGemKey(gem))
+            continue;
+        // C4a (CEO 20 Nov): a jewel under 44 px is the still image, never the live 3D (a host's own slot included).
+        const boxH = parseFloat(slot.style?.height ?? "");
+        if (Number.isFinite(boxH) && boxH > 0 && boxH < LIVE_JEWEL_FROM_PX)
             continue;
         const canvas = document.createElement("canvas");
         canvas.className = "cc-jw__canvas";

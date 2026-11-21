@@ -526,7 +526,7 @@ test("Credit & rewards draws a perk row only while her own perks.live says that 
   assert.doesNotMatch(real, /free Spa day|No deposit/, "BE-1's real /me (no live block): no perk row, no unlock, no benefit");
   const live = await run(MARIA_LIVE);
   assert.match(live, /1 free Spa day this year · 1 left/);
-  assert.match(live, /No deposit when you book by phone or at the desk/);
+  assert.match(live, /No deposit on treatments that earn points, when you book by phone, by message or at the desk/);
   // The public ladder has no fallback: absent = not live.
   const status = readCircleStatus(STATUS);
   assert.equal(status.levels[2].live.spaDays, false);
@@ -561,10 +561,10 @@ test("the menu's unlock line follows rules.earnPerEuro; the header chip draws no
   const { accountPanelHTML, buildPanelModel, circleChipHTML, readCircleSummary } = await import("../dist/index.js");
   const { SUMMARY_ASKED } = await import("./fixtures/circle-v2.mjs");
   const base = { signedIn: true, initials: "MB", profile: { firstName: "Maria" }, upcoming: [] };
-  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED })), /Level 4 · Sapphire unlocks 8\.75% back/, "precondition: 1 point per €1");
+  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: SUMMARY_ASKED })), /Level 4 · Diamond unlocks 8\.75% back/, "precondition: 1 point per €1");
   const doubled = { ...SUMMARY_ASKED, rules: { pointsPerEuro: 20, earnPerEuro: 2 } };
   assert.equal(readCircleSummary(doubled).earnPerEuro, 2);
-  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: doubled })), /Level 4 · Sapphire unlocks 17\.5% back/, "2 points per €1 doubles the share");
+  assert.match(accountPanelHTML(buildPanelModel({ ...base, loyalty: doubled })), /Level 4 · Diamond unlocks 17\.5% back/, "2 points per €1 doubles the share");
   const chip = circleChipHTML(readCircleSummary(SUMMARY));
   assert.match(chip, /cc-chip__bal">€72\.40</);
   const below = circleChipHTML(readCircleSummary({ ...SUMMARY, balance: { points: -70, cents: -350, display: "−€3.50 · −70 points" } }));
