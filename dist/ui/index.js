@@ -15,7 +15,7 @@ export { buildPanelModel, accountPanelHTML, ACCOUNT_HOME_HREF, ACCOUNT_BOOKINGS_
 // ADDENDUM KIT-1: board 11's account rows under her Circle Card.
 panelCircleRowsHTML, panelRewardsSubText, } from "./panel.js";
 // Carisma Circle v2 (carisma-circle-v2-20261117): the model, the words and the HTML; the jewel lives in `./jewel`.
-export { CIRCLE_V2_QC, CIRCLE_QC, CIRCLE_HREF, CIRCLE_TERMS_HREF, CENTS_PER_POINT, PROMISE_QUALIFIER, REVIEWS_FOOTNOTE, EARN_TERMS_LINE, ON_HOLD_TEXT, PAY_STEP_DISCLOSURE, payStepDisclosureText, NO_DEPOSIT_TEXT, earlyAccessText, BLACKOUT_TEXT, CONDITIONS_EARNED, 
+export { CIRCLE_V2_QC, CIRCLE_QC, CIRCLE_HREF, CIRCLE_TERMS_HREF, CENTS_PER_POINT, PROMISE_QUALIFIER, REVIEWS_FOOTNOTE, EARN_TERMS_LINE, ON_HOLD_TEXT, PAY_STEP_DISCLOSURE, payStepDisclosureText, NO_DEPOSIT_TEXT, earlyAccessText, BLACKOUT_TEXT, CONDITIONS_EARNED, CONDITIONS_LEAD, 
 // ADDENDUM X8 / X11: the design's no-break spaces, the Terms joiner, the figure pair, the short credit moment.
 NB, TERMS_JOIN, nbWords, creditPointsText, ENDING_SOON_DAYS, maltaDaysUntil, 
 // ADDENDUM BE-c / BE-j / BE-k readers and the member line (KIT-2), the chip's spoken label.

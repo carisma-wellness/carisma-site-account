@@ -113,13 +113,13 @@ test("customer copy names the brands from the API and never says 'house', 'vouch
     circleViewHTML({ me: m, activity: { items: [], nextCursor: null }, rewards, bookHref: "/" }),
   ].join("\n");
   assert.doesNotMatch(all, /\bhouse\b|voucher|store credit|Carisma points|up to half|from €5|First Light|Sunrise|Golden Hour|Moonlight|Starlight/i);
-  assert.match(all, /For one whole treatment at Carisma Spa/);
+  assert.match(all, /For one whole treatment that earns points at Carisma Spa/);
   assert.doesNotMatch(all, /Aesthetics|Slimming/, "a Spa-only config names no other brand (R5.2)");
   assert.match(all, /data-clarity-mask="True"/);
   assert.match(all, /We never give points for public reviews, ratings, posts, tags or shares\./);
   assert.match(all, /Prices include VAT/);
   const three = circleWalletLineHTML(readCircle({ ...MARIA, brands: THREE_BRANDS }));
-  assert.match(three, /For one whole treatment at Carisma Spa, Aesthetics and Slimming/);
+  assert.match(three, /For one whole treatment that earns points at Carisma Spa, Aesthetics and Slimming/);
 });
 
 test("every 'Terms' beside a points sentence links the Carisma Circle terms page", () => {
@@ -127,7 +127,7 @@ test("every 'Terms' beside a points sentence links the Carisma Circle terms page
   assert.equal(CIRCLE_TERMS_HREF, "/carisma-circle/terms");
   const view = circleViewHTML({ me: m, activity: null, rewards: null });
   assert.match(view, /<a class="cw-link cc-link" href="\/carisma-circle\/terms" data-cw-circle-terms>Terms of Carisma Circle<\/a><\/p>/);
-  assert.match(circleOverviewHTML(m), /For one whole treatment at Carisma Spa · <a class="cw-link cc-link" href="\/carisma-circle\/terms" data-cw-circle-terms>Terms<\/a>/);
+  assert.match(circleOverviewHTML(m), /For one whole treatment that earns points at Carisma Spa · <a class="cw-link cc-link" href="\/carisma-circle\/terms" data-cw-circle-terms>Terms<\/a>/);
   assert.match(circleViewHTML({ me: m, activity: null, rewards: null, termsHref: "https://www.carismaspa.com/carisma-circle/terms" }), /href="https:\/\/www\.carismaspa\.com\/carisma-circle\/terms"/);
   assert.doesNotMatch(circleViewHTML({ me: m, activity: null, rewards: null, termsHref: null }), /data-cw-circle-terms/);
   assert.doesNotMatch(circleOverviewHTML(m, { termsHref: null }), /data-cw-circle-terms/);

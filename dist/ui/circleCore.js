@@ -677,12 +677,17 @@ export function brandsLine(brands) {
     return `${names[0]}, ${names.slice(1, -1).map(short).join(", ")} and ${short(names[names.length - 1])}`;
 }
 /**
- * "For one whole treatment at Carisma Spa" (the conditions line, without its Terms link). In this line each brand's
+ * "For one whole treatment that earns points at Carisma Spa" (the conditions line, without its Terms link). In this line each brand's
  * full name keeps "Carisma" and its word together ("Carisma Spa, Aesthetics and Slimming"), as `CK.S.cond`.
  */
+/**
+ * Counsel (EV-COUNSEL, 22 Nov 2026, binding on every brand): the conditions line says "that earns points" (credit never
+ * pays a treatment that earns no points), one sentence for the three brands; without brands it is this lead alone.
+ */
+export const CONDITIONS_LEAD = "For one whole treatment that earns points";
 export function conditionsText(brands) {
     const line = brandsLine(brands).replace(/\bCarisma /g, `Carisma${NB}`);
-    return line ? `For one whole treatment at ${line}` : "For one whole treatment";
+    return line ? `${CONDITIONS_LEAD} at ${line}` : CONDITIONS_LEAD;
 }
 /** On an earned moment: "For one whole treatment · Comes off if this booking is cancelled" (`CK.S.condEarned`). */
 export const CONDITIONS_EARNED = `For one whole treatment${NB}·${NB}Comes off if this booking is cancelled`;
