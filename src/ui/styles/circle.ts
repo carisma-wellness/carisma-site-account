@@ -118,7 +118,8 @@ export const PORTAL_CIRCLE_CSS = `
 .carisma-portal .cw-head .cc-since b { font-weight: 600; color: var(--cw-account-ink); }
 
 /* ── Circle v2: the account dashboard and the Credit & rewards top ───── */
-.carisma-portal .cc-dash { display: grid; gap: 24px; }
+/* One track held to the column, or a phone draws the dashboard wider than the screen (WEB-7). */
+.carisma-portal .cc-dash { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
 .carisma-portal .cc-dash__panel, .carisma-portal .cc-view__top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 .carisma-portal .cc-dash__level, .carisma-portal .cc-view__track { display: grid; align-content: start; row-gap: 16px; padding: 24px;
   border: 1px solid var(--cw-account-line); border-radius: var(--cw-account-radius); background: var(--cw-account-surface); }
