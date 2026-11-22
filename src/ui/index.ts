@@ -55,6 +55,7 @@ export {
   earlyAccessText,
   BLACKOUT_TEXT,
   CONDITIONS_EARNED,
+  CONDITIONS_LEAD,
   // ADDENDUM X8 / X11: the design's no-break spaces, the Terms joiner, the figure pair, the short credit moment.
   NB,
   TERMS_JOIN,

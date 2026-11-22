@@ -149,7 +149,7 @@ test("R5.2 brands from the API: one, two, three; a Spa-only config names no othe
   assert.equal(brandsLine(THREE_BRANDS.slice(0, 2)), "Carisma Spa and Carisma Aesthetics");
   assert.equal(brandsLine(THREE_BRANDS), "Carisma Spa, Aesthetics and Slimming");
   assert.equal(brandsLine([]), "");
-  assert.equal(conditionsText(SPA_ONLY), "For one whole treatment at Carisma Spa");
+  assert.equal(conditionsText(SPA_ONLY), "For one whole treatment that earns points at Carisma Spa");
   const spaOnly = [circleOverviewHTML(readCircle(MARIA)), circleViewHTML({ me: readCircle(MARIA), activity: null, rewards: readCircleRewards(REWARDS), perks: readCirclePerks(PERKS) })].join("");
   assert.doesNotMatch(spaOnly, /Aesthetics|Slimming/);
   // Carisma Medical never joins, even if a stray row arrived.
