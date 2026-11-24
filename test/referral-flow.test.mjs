@@ -223,3 +223,12 @@ test("the stylesheet carries the hub rules in tokens only", () => {
   const block = css.slice(css.indexOf("referral-flow-20261124"), css.indexOf(".cw-refer__remind"));
   assert.doesNotMatch(block, /#[0-9a-f]{3,8}\b|rgba?\(/i);
 });
+
+test("an API still on /?ref= links (before REFERRAL_SHORT_LINKS): the hub shares the same code as /r/", () => {
+  const body = structuredClone(ME);
+  body.data.links = { spa: "https://www.carismaspa.com/?ref=NPAAD04J" };
+  body.data.programmes = [prog("spa", "Carisma Spa", { shareUrl: "https://www.carismaspa.com/?ref=NPAAD04J" }), prog("aesthetics", "Carisma Aesthetics", { shareUrl: "https://www.carismaaesthetics.com/?ref=NPAAD04J" })];
+  const m = buildReferModel(body, SPA);
+  assert.deepEqual(m.brands.map((b) => b.link), ["https://www.carismaspa.com/r/NPAAD04J", "https://www.carismaaesthetics.com/r/NPAAD04J"]);
+  assert.doesNotMatch(referHTML(m), /\?ref=/);
+});

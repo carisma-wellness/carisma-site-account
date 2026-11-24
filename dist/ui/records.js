@@ -770,6 +770,13 @@ function maltaDay(raw) {
     const ms = Date.parse(s);
     return s && Number.isFinite(ms) ? venueDateString(new Date(ms), MALTA) : "";
 }
+/** `https://www.carismaspa.com/?ref=NPAAD04J` → `https://www.carismaspa.com/r/NPAAD04J`; anything else unchanged. */
+function asShortLink(url) {
+    if (!url)
+        return null;
+    const m = /^(https:\/\/[a-z0-9.-]+)\/?\?ref=([0-9A-Za-z]{8})$/i.exec(url);
+    return m ? `${m[1]}/r/${m[2].toUpperCase()}` : url;
+}
 export function buildReferModel(body, ctx = {}) {
     const inner = unwrap(body);
     const o = (inner && typeof inner === "object" && !Array.isArray(inner) ? inner : {});
@@ -793,7 +800,9 @@ export function buildReferModel(body, ctx = {}) {
         const key = p.brandKey;
         if (!key || brands.some((b) => b.key === key))
             continue;
-        const serverLink = httpsUrl(links[key]);
+        // The API may still send the older `<origin>/?ref=CODE` shape (until its REFERRAL_SHORT_LINKS switch): the
+        // sites serve /r/<CODE> now, whose chat preview is the personal gift, so the same link is shared as /r/.
+        const serverLink = asShortLink(httpsUrl(links[key]) ?? (p.shareUrl && referralBrandKey(p.shareUrl) === key ? p.shareUrl : null));
         const link = !p.canRefer || !code ? null : serverLink ?? referralLink(key, code, key === siteKey ? origin : null);
         brands.push({
             key,
@@ -948,8 +957,7 @@ function referHeadHTML(m, lead) {
     else if (lead?.programme?.rewardText) {
         youLine = ` Once they've been, you get ${lead.programme.rewardText.replace(/\.$/, "")}.`;
     }
-    return (`<p class="cw-label cw-refer__eyebrow">Refer a friend</p>` +
-        `<h2 class="cw-refer__title">${escapeHtml(title)}</h2>` +
+    return (`<h2 class="cw-refer__title">${escapeHtml(title)}</h2>` +
         (friendLine || youLine ? `<p class="cw-refer__lede">${escapeHtml(`${friendLine}${youLine}`.trim())}</p>` : ""));
 }
 function ladderHTML(m) {

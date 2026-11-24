@@ -490,11 +490,13 @@ export const PORTAL_RECORDS_CSS = `
 .carisma-portal .cw-refer__eyebrow { color: var(--cw-account-accent-text); }
 .carisma-portal .cw-refer__title {
   margin: 0;
-  font-family: var(--cw-account-display-font);
-  font-weight: var(--cw-account-display-weight);
-  font-size: 30px;
-  line-height: 1.15;
-  color: var(--cw-account-display-ink);
+  --cw-h-font: var(--cw-account-display-font);
+  --cw-h-size: 28px;
+  --cw-h-lh: 1.2;
+  --cw-h-weight: var(--cw-account-display-weight);
+  --cw-h-case: var(--cw-account-display-case);
+  --cw-h-track: var(--cw-account-display-tracking);
+  --cw-h-color: var(--cw-account-display-ink);
   text-wrap: balance;
 }
 .carisma-portal .cw-refer__lede { margin: 0; font-size: 15px; line-height: 23px; color: var(--cw-account-muted); max-width: 62ch; text-wrap: pretty; }
@@ -529,6 +531,7 @@ export const PORTAL_RECORDS_CSS = `
   font: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; text-align: center;
 }
 .carisma-portal .cw-refer__way:hover { border-color: var(--cw-account-accent); }
+.carisma-portal .cw-refer__way[data-cw-refer-way="whatsapp"] { grid-column: 1 / -1; }
 .carisma-portal .cw-refer__way:focus-visible { outline: 2px solid var(--cw-account-focus); outline-offset: 2px; }
 .carisma-portal .cw-refer__preview { margin: 0; display: grid; gap: 4px; font-size: 14px; line-height: 21px; color: var(--cw-account-muted); overflow-wrap: anywhere; }
 .carisma-portal .cw-refer__typed { margin: 0; font-size: 14px; line-height: 21px; color: var(--cw-account-muted); }
@@ -587,7 +590,7 @@ export const PORTAL_RECORDS_CSS = `
   .carisma-portal .cw-refer__big { font-size: 22px; }
   .carisma-portal .cw-refer__code { font-size: 32px; }
   .carisma-portal .cw-refer__share > .cw-btn--primary { flex: 1 1 100%; }
-  .carisma-portal .cw-refer__title { font-size: 26px; }
+  .carisma-portal .cw-refer__title { --cw-h-size: 24px; }
   .carisma-portal .cw-refer__card { padding: 16px; }
   .carisma-portal .cw-refer__copy { flex: 1 1 100%; }
   .carisma-portal .cw-refer__switch { width: 100%; }
