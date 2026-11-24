@@ -20,7 +20,22 @@ export interface AuthorizeParams {
     challenge: string;
     /** `none` is the silent cross-brand check: a code or `error=login_required`, never a card. */
     prompt: "login" | "create" | "none";
+    /**
+     * A friend's gift waiting on this browser (Refer a friend, QC 24 Nov 2026): the card says "Your €20 gift will be
+     * saved to your account." Display only; never sent with `prompt=none` (no card is drawn).
+     */
+    gift?: GiftHint | null;
 }
+/** The query parameter, on the site's /api/auth/start door and on the identity origin's /authorize. */
+export declare const GIFT_HINT_PARAM = "gift";
+/** `{ cents: 2000 }` = "Your €20 gift…"; `{ cents: null }` = "Your gift…" (the amount is not known). */
+export interface GiftHint {
+    cents: number | null;
+}
+/** A hint as the parameter carries it: whole cents ("2000"), or "yes" without an amount. */
+export declare function giftHintValue(hint: GiftHint): string;
+/** Read the parameter: "2000" → { cents: 2000 }, "yes" → { cents: null }, anything else → null (dropped, never an error). */
+export declare function readGiftHint(raw: string | null | undefined): GiftHint | null;
 /** The site's own first-party callback. redirect_uri is never the identity origin. */
 export declare function callbackRedirectUri(origin: string): string;
 /**
@@ -64,8 +79,11 @@ export declare function buildSignoutHopUrl(cfg: Pick<ResolvedConfig, "identityOr
  * resolve with new URL(next, siteOrigin) and origin-compare".)
  */
 export declare function validateNext(next: string | null | undefined, fallback?: string): string;
-/** The site's own /api/auth/start door. `next` is validated; `prompt=create` optional. */
-export declare function startUrl(next: string | null | undefined, prompt?: "login" | "create"): string;
+/**
+ * The site's own /api/auth/start door. `next` is validated; `prompt=create` optional; `gift` (a friend's gift saved
+ * on this browser) is carried to the card as display-only words.
+ */
+export declare function startUrl(next: string | null | undefined, prompt?: "login" | "create", gift?: GiftHint | null): string;
 /**
  * Carry the person to ANOTHER brand site on a click (the cross-brand link
  * interceptor, ADR invariant 31): the target brand's OWN /api/auth/start?next=…,

@@ -476,6 +476,8 @@ export {
   euroShort,
   offerHeadline,
   offerAmount,
+  referralLadderTotals,
+  referralGiftSavedLine,
   referralShareMessage,
   referralEmailSubject,
   referralEmailBody,

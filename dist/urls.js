@@ -1,4 +1,23 @@
 const stripTrailingSlash = (s) => s.replace(/\/+$/, "");
+/* ── the friend's gift hint (Refer a friend, QC 24 Nov 2026) ───────────── */
+/** The query parameter, on the site's /api/auth/start door and on the identity origin's /authorize. */
+export const GIFT_HINT_PARAM = "gift";
+/** The largest amount a hint may carry (€1,000): anything bigger is not a friend's gift and is dropped. */
+const GIFT_HINT_MAX_CENTS = 100_000;
+/** A hint as the parameter carries it: whole cents ("2000"), or "yes" without an amount. */
+export function giftHintValue(hint) {
+    const c = hint.cents;
+    return typeof c === "number" && Number.isInteger(c) && c > 0 && c <= GIFT_HINT_MAX_CENTS ? String(c) : "yes";
+}
+/** Read the parameter: "2000" → { cents: 2000 }, "yes" → { cents: null }, anything else → null (dropped, never an error). */
+export function readGiftHint(raw) {
+    if (raw === "yes")
+        return { cents: null };
+    if (typeof raw !== "string" || !/^[1-9][0-9]{0,5}$/.test(raw))
+        return null;
+    const cents = Number(raw);
+    return cents <= GIFT_HINT_MAX_CENTS ? { cents } : null;
+}
 /** The site's own first-party callback. redirect_uri is never the identity origin. */
 export function callbackRedirectUri(origin) {
     return `${origin}/api/auth/callback`;
@@ -16,6 +35,8 @@ export function buildAuthorizeUrl(cfg, p) {
     u.searchParams.set("code_challenge", p.challenge);
     u.searchParams.set("code_challenge_method", "S256");
     u.searchParams.set("prompt", p.prompt);
+    if (p.gift && p.prompt !== "none")
+        u.searchParams.set(GIFT_HINT_PARAM, giftHintValue(p.gift));
     return u.toString();
 }
 /**
@@ -91,12 +112,17 @@ export function validateNext(next, fallback = "/") {
     }
     return next;
 }
-/** The site's own /api/auth/start door. `next` is validated; `prompt=create` optional. */
-export function startUrl(next, prompt = "login") {
+/**
+ * The site's own /api/auth/start door. `next` is validated; `prompt=create` optional; `gift` (a friend's gift saved
+ * on this browser) is carried to the card as display-only words.
+ */
+export function startUrl(next, prompt = "login", gift = null) {
     const params = new URLSearchParams();
     params.set("next", validateNext(next, "/"));
     if (prompt === "create")
         params.set("prompt", "create");
+    if (gift)
+        params.set(GIFT_HINT_PARAM, giftHintValue(gift));
     return `/api/auth/start?${params.toString()}`;
 }
 /**

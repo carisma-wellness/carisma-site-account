@@ -18,8 +18,8 @@ export type { AllowRule } from "./routes/allowlist.js";
 export { COOKIES, parseCookies, serializeCookie, clearCookie, inlineSessionCookies } from "./routes/cookies.js";
 export { maskProfile, maskEmail, initialsFrom } from "./routes/profile.js";
 export { safeNext } from "./routes/pkce.js";
-export { buildAuthorizeUrl, buildLogoutUrl, callbackRedirectUri, validateNext, startUrl, brandStartUrl, hubStartUrl, buildSeedUrl, buildSignoutHopUrl, silentStartUrl, seedDoorUrl, signoutHopDoorUrl, } from "./urls.js";
-export type { AuthorizeParams } from "./urls.js";
+export { buildAuthorizeUrl, buildLogoutUrl, callbackRedirectUri, validateNext, startUrl, brandStartUrl, hubStartUrl, buildSeedUrl, buildSignoutHopUrl, silentStartUrl, seedDoorUrl, signoutHopDoorUrl, GIFT_HINT_PARAM, giftHintValue, readGiftHint, } from "./urls.js";
+export type { AuthorizeParams, GiftHint } from "./urls.js";
 export * from "./ui/index.js";
 export * from "./booking/index.js";
 /**
