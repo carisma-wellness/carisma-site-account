@@ -486,6 +486,73 @@ export const PORTAL_RECORDS_CSS = `
 }
 .carisma-portal .cw-rec--refer .cw-section > .cw-mnote { margin-top: 10px; }
 
+/* Refer a friend, the hub (WebReferHub, 24 Nov 2026): the promise, the link card with the brand switch and
+   every way to send it, the ladder. Marker: referral-flow-20261124 */
+.carisma-portal .cw-refer__eyebrow { color: var(--cw-account-accent-text); }
+.carisma-portal .cw-refer__title {
+  margin: 0;
+  --cw-h-font: var(--cw-account-display-font);
+  --cw-h-size: 28px;
+  --cw-h-lh: 1.2;
+  --cw-h-weight: var(--cw-account-display-weight);
+  --cw-h-case: var(--cw-account-display-case);
+  --cw-h-track: var(--cw-account-display-tracking);
+  --cw-h-color: var(--cw-account-display-ink);
+  text-wrap: balance;
+}
+.carisma-portal .cw-refer__lede { margin: 0; font-size: 15px; line-height: 23px; color: var(--cw-account-muted); max-width: 62ch; text-wrap: pretty; }
+.carisma-portal .cw-refer__card {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--cw-account-line-strong);
+  border-radius: var(--cw-account-radius);
+  background: var(--cw-account-surface-2, var(--cw-account-surface));
+}
+.carisma-portal .cw-refer__switch { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--cw-account-surface); border: 1px solid var(--cw-account-line); width: max-content; max-width: 100%; }
+.carisma-portal .cw-refer__tab {
+  min-height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 500; color: var(--cw-account-muted);
+}
+.carisma-portal .cw-refer__tab[aria-selected="true"] { background: var(--cw-account-accent-fill); color: var(--cw-account-accent-ink); }
+.carisma-portal .cw-refer__tab:focus-visible { outline: 2px solid var(--cw-account-focus); outline-offset: 2px; }
+.carisma-portal .cw-refer__panel { display: grid; gap: 14px; }
+.carisma-portal .cw-refer__panel[hidden] { display: none; }
+.carisma-portal .cw-refer__linkrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.carisma-portal .cw-refer__url {
+  flex: 1 1 220px; min-width: 0; margin: 0; padding: 12px 14px; border-radius: var(--cw-account-radius-control, 12px);
+  background: var(--cw-account-surface); border: 1px solid var(--cw-account-line);
+  font-size: 15px; line-height: 22px; color: var(--cw-account-ink); overflow-wrap: anywhere; user-select: all;
+}
+.carisma-portal .cw-refer__ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.carisma-portal .cw-refer__way {
+  display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 12px;
+  border: 1px solid var(--cw-account-line-strong); border-radius: var(--cw-account-radius-control, 12px);
+  background: var(--cw-account-surface); color: var(--cw-account-ink);
+  font: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; text-align: center;
+}
+.carisma-portal .cw-refer__way:hover { border-color: var(--cw-account-accent); }
+.carisma-portal .cw-refer__way[data-cw-refer-way="whatsapp"] { grid-column: 1 / -1; }
+.carisma-portal .cw-refer__way:focus-visible { outline: 2px solid var(--cw-account-focus); outline-offset: 2px; }
+.carisma-portal .cw-refer__preview { margin: 0; display: grid; gap: 4px; font-size: 14px; line-height: 21px; color: var(--cw-account-muted); overflow-wrap: anywhere; }
+.carisma-portal .cw-refer__typed { margin: 0; font-size: 14px; line-height: 21px; color: var(--cw-account-muted); }
+.carisma-portal .cw-refer__codeinline { color: var(--cw-account-ink); letter-spacing: 0.12em; font-weight: 600; user-select: all; }
+.carisma-portal .cw-refer__ladder { display: grid; gap: 12px; }
+.carisma-portal .cw-refer__ladderhead { margin: 0; display: flex; justify-content: space-between; gap: 12px; font-size: 15px; font-weight: 500; color: var(--cw-account-ink); }
+.carisma-portal .cw-refer__earned { color: var(--cw-account-ok-text); }
+.carisma-portal .cw-refer__steps { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
+.carisma-portal .cw-refer__step { display: grid; justify-items: center; gap: 6px; font-size: 14px; color: var(--cw-account-muted); font-variant-numeric: lining-nums tabular-nums; position: relative; }
+.carisma-portal .cw-refer__step::before { content: ""; position: absolute; top: 7px; left: -50%; right: 50%; height: 2px; background: var(--cw-account-line); }
+.carisma-portal .cw-refer__step:first-child::before { display: none; }
+.carisma-portal .cw-refer__step.is-done::before { background: var(--cw-account-accent); }
+.carisma-portal .cw-refer__dot { position: relative; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--cw-account-line-strong); background: var(--cw-account-surface); }
+.carisma-portal .cw-refer__step.is-done .cw-refer__dot { border-color: var(--cw-account-accent); background: var(--cw-account-accent); }
+.carisma-portal .cw-refer__step.is-done { color: var(--cw-account-ink); font-weight: 500; }
+.carisma-portal .cw-refer__status { margin: 0; }
+.carisma-portal .cw-refer__status--ok { color: var(--cw-account-ok-text); }
+.carisma-portal .cw-refer__remind { min-height: 40px; }
+
+
 /* ── Phones ──────────────────────────────────────────────────────────── */
 @media (max-width: 1023.98px) {
   .carisma-portal .cw-rec { gap: 40px; }
@@ -524,6 +591,11 @@ export const PORTAL_RECORDS_CSS = `
   .carisma-portal .cw-refer__big { font-size: 22px; }
   .carisma-portal .cw-refer__code { font-size: 32px; }
   .carisma-portal .cw-refer__share > .cw-btn--primary { flex: 1 1 100%; }
+  .carisma-portal .cw-refer__title { --cw-h-size: 24px; }
+  .carisma-portal .cw-refer__card { padding: 16px; }
+  .carisma-portal .cw-refer__copy { flex: 1 1 100%; }
+  .carisma-portal .cw-refer__switch { width: 100%; }
+  .carisma-portal .cw-refer__tab { flex: 1 1 0; padding: 0 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .carisma-portal :is(.cw-gift, .cw-gift:hover) { transform: none; transition: none; }

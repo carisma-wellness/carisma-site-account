@@ -981,6 +981,13 @@ export interface PortalMountOptions extends HydrateOptions {
    */
   referRail?: boolean;
   /**
+   * Refer a friend (referral-flow-20261124): this site's public Circle referral block, read by the site on its
+   * server (`earning.referral`): the ladder in cents per friend and the friend's offer. Both optional; without
+   * them the view words the reward from the programme's own text.
+   */
+  referLadder?: Array<{ friend: number; cents: number }> | null;
+  referFriendOffer?: unknown;
+  /**
    * Pay now on open membership invoices in Payments (default false). Turn on
    * once the API the site calls serves POST /client/membership/invoices/:id/pay.
    */
@@ -1823,6 +1830,8 @@ function mountAccountPortalOnce(doc: MinimalDocument, opts: PortalMountOptions):
                       contactPhone: opts.contactPhone || phoneAlreadyOnPage(doc),
                       siteBrand,
                       siteOrigin: loc?.origin,
+                      referLadder: opts.referLadder ?? null,
+                      referFriendOffer: opts.referFriendOffer ?? null,
                       invoicePay: opts.invoicePay === true,
                       // The Wallet page's Circle line is an Overview place (KIT-6).
                       circleSlot: circleOverview,
@@ -2860,6 +2869,19 @@ function mountAccountPortalOnce(doc: MinimalDocument, opts: PortalMountOptions):
       // Refer a friend: Copy puts the link or code on the clipboard; Share opens
       // the phone's share sheet, and where there is none (most desktops) copies
       // the link instead, so the button never does nothing.
+      // The brand switch (Spa · Aesthetics · Slimming): one panel shows, the tabs say which.
+      const tab = closestOf(t, "[data-cw-refer-tab]");
+      if (tab) {
+        ev.preventDefault?.();
+        const key = tab.getAttribute("data-cw-refer-tab") || "";
+        const root = closestOf(tab, '[data-cw-refer="hub"]') ?? mount;
+        for (const b of qsa(root, "[data-cw-refer-tab]")) b.setAttribute("aria-selected", b === tab ? "true" : "false");
+        for (const panel of qsa(root, "[data-cw-refer-panel]")) {
+          if (panel.getAttribute("data-cw-refer-panel") === key) panel.removeAttribute?.("hidden");
+          else panel.setAttribute("hidden", "");
+        }
+        return;
+      }
       const copyBtn = closestOf(t, "[data-cw-refer-copy]");
       if (copyBtn) {
         ev.preventDefault?.();

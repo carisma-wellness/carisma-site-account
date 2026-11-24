@@ -153,7 +153,12 @@ export function circleWaysCardsHTML(m, opts = {}) {
             ...money("Up to ", r.upToCents, r.upToPoints),
             sub: `for your first ${countWord(r.ladder.length)} friend${r.ladder.length === 1 ? "" : "s"}`,
             wide: true,
-            action: r.link ? `<button type="button" class="cc-earn-card__act" data-cw-circle-copy="${escapeHtml(r.link)}">Copy my link</button>` : "",
+            // Share opens Refer a friend (/refer): the warm message with the link, WhatsApp, email, text (referral-flow-20261124).
+            // Copy my link stays for the bare URL.
+            action: `<span class="cc-earn-card__act cc-earn-card__acts">` +
+                `<a class="cc-earn-card__btn" href="/refer" data-cw-circle-share>Share</a>` +
+                (r.link ? `<button type="button" class="cc-earn-card__btn" data-cw-circle-copy="${escapeHtml(r.link)}">Copy my link</button>` : "") +
+                `</span>`,
         });
     }
     for (const a of insta) {

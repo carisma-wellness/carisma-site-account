@@ -264,6 +264,9 @@ ${S} .cc-earn-card__fig { grid-column: 1 / -1; grid-row: 2; margin-top: 14px; fo
 ${S} .cc-earn-card__fig > b { font-weight: 600; }
 ${S} .cc-earn-card__s { grid-column: 1 / -1; grid-row: 3; font-size: 13px; line-height: 18px; color: var(--cw-circle-ink-soft, var(--cw-account-muted)); }
 ${S} button.cc-earn-card__act { font-family: inherit; background: none; cursor: pointer; }
+${S} .cc-earn-card__acts { display: inline-flex; align-items: center; gap: 14px; white-space: nowrap; }
+${S} button.cc-earn-card__btn { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+${S} a.cc-earn-card__btn { font-weight: 600; }
 @media (max-width: 760px) {
   ${S} .cc-earn__grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   ${S} .cc-earn-card, ${S} .cc-earn-card.wide { grid-column: auto; grid-template-columns: 40px minmax(0, 1fr) auto; padding: 16px; }
