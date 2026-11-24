@@ -184,6 +184,16 @@ export interface PortalMountOptions extends HydrateOptions {
      */
     referRail?: boolean;
     /**
+     * Refer a friend (referral-flow-20261124): this site's public Circle referral block, read by the site on its
+     * server (`earning.referral`): the ladder in cents per friend and the friend's offer. Both optional; without
+     * them the view words the reward from the programme's own text.
+     */
+    referLadder?: Array<{
+        friend: number;
+        cents: number;
+    }> | null;
+    referFriendOffer?: unknown;
+    /**
      * Pay now on open membership invoices in Payments (default false). Turn on
      * once the API the site calls serves POST /client/membership/invoices/:id/pay.
      */

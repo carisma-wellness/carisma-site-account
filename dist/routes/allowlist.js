@@ -90,6 +90,10 @@ export const PROXY_ALLOWLIST = [
     },
     { method: "GET", label: "account credit", match: (p) => p === "/client/credit-balance" },
     { method: "GET", label: "referrals", match: (p) => p === "/client/referrals/me" },
+    // Refer a friend (24 Nov 2026): the signed-in friend saves the gift from a /r/<CODE> link to her own
+    // account. The server runs every gate (own link, already a client) and answers one state; it can only
+    // ever attach a gift to the caller. Marker: referral-flow-20261124
+    { method: "POST", label: "referral claim", match: (p) => p === "/client/referrals/claim" },
     { method: "GET", label: "loyalty", match: (p) => p === "/client/loyalty/me" },
     // Carisma Circle (2026-11-15). Every door is an exact literal: the member's
     // own credit activity and the rewards shop (reads), and spending their own

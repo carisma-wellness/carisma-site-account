@@ -16,6 +16,25 @@
 import { escapeHtml } from "./html.js";
 import { eur, plainDate } from "./money.js";
 import { venueDateString } from "./reschedule.js";
+import {
+  REFERRAL_BRANDS,
+  REFERRAL_BRAND_NAME,
+  euroShort,
+  mailtoHref,
+  offerHeadline,
+  readFriendOffer,
+  referralBrandKey,
+  referralEmailBody,
+  referralEmailSubject,
+  referralLink,
+  referralLinkLabel,
+  referralRemindMessage,
+  referralShareMessage,
+  smsHref,
+  whatsappHref,
+  type ReferralBrandKey,
+  type ReferralFriendOffer,
+} from "./referral.js";
 
 export const MEMBER_RECORDS_QC = "account-records-20260922";
 
@@ -91,6 +110,13 @@ export interface RecordsContext {
   siteBrand?: string;
   /** This site's origin, so the shared link is this site's own (https only). */
   siteOrigin?: string;
+  /**
+   * Refer a friend (referral-flow-20261124): the sharer's ladder as the brand's public Circle status sends it
+   * (`earning.referral.ladder`, cents per friend). Absent: the view words the reward from `rewardText`.
+   */
+  referLadder?: Array<{ friend: number; cents: number }> | null;
+  /** This site's friend offer from the same public status (`earning.referral.friend`), raw. */
+  referFriendOffer?: unknown;
   /** The clock, for a voucher's expiry (tests pass one). Defaults to now. */
   now?: Date;
   /**
@@ -1016,7 +1042,7 @@ export function membershipHTML(m: MembershipModel, ctx: RecordsContext = {}): st
  * programme reason (a cap, the monthly budget, netting). `not_eligible` is for
  * a friend who did not qualify. Anything newer renders without a chip.
  */
-export type ReferFriendStatus = "joined" | "on_its_way" | "rewarded" | "no_voucher" | "not_eligible" | "withdrawn";
+export type ReferFriendStatus = "claimed" | "joined" | "on_its_way" | "rewarded" | "no_voucher" | "not_eligible" | "withdrawn";
 
 export interface ReferProgrammeView {
   brandName: string;
@@ -1041,13 +1067,21 @@ export interface ReferProgrammeView {
   canRefer: boolean;
   /** Why not, in the member's own words ("Your code starts working after your first paid visit with us."). */
   referBlockedText: string | null;
+  /** spa | aesthetics | slimming (the server's `brandKey`, else read from the name). */
+  brandKey: ReferralBrandKey | null;
+  /** The friend's offer in numbers (`programmes[].friend`), for the share message. */
+  friend: ReferralFriendOffer | null;
 }
 
 export interface ReferFriendView {
   id: string;
   /** "A." — the backend sends an initial, never a name. */
   initial: string;
+  /** First name, only for a friend who saved the gift and has not booked (`claimed`). */
+  firstName: string | null;
   brandName: string | null;
+  /** spa | aesthetics | slimming, or null. */
+  brandKey: ReferralBrandKey | null;
   /** One of ReferFriendStatus, or whatever a newer server sent (rendered without a chip). */
   status: string;
 }
@@ -1065,6 +1099,25 @@ export interface ReferModel {
   rewards: GiftCardView[];
   /** Vouchers earned and not yet issued ("€20 on its way"), in euros. */
   pending: number;
+  /** One panel per brand the member can share (Spa, Aesthetics, Slimming), this site's first. */
+  brands: ReferBrandPanel[];
+  /** The ladder (cents per friend), or null. */
+  ladder: Array<{ friend: number; cents: number }> | null;
+  /** Friends who have qualified so far (on its way or rewarded). */
+  qualified: number;
+}
+
+/** One brand's share panel on the refer view. */
+export interface ReferBrandPanel {
+  key: ReferralBrandKey;
+  brandName: string;
+  link: string | null;
+  offer: ReferralFriendOffer | null;
+  /** The programme's own words, when the server sent a card for this brand. */
+  programme: ReferProgrammeView | null;
+  canRefer: boolean;
+  blockedText: string | null;
+  termsUrl: string | null;
 }
 
 /**
@@ -1107,6 +1160,8 @@ function referProgramme(o: Record<string, unknown>): ReferProgrammeView | null {
     shareUrl: httpsUrl(o.shareUrl),
     canRefer,
     referBlockedText: canRefer ? null : str(o.referBlockedText).trim() || REFER_BLOCKED_FALLBACK,
+    brandKey: referralBrandKey(str(o.brandKey)) ?? referralBrandKey(str(o.brandSlug) || brandName),
+    friend: readFriendOffer(o.friend),
   };
 }
 
@@ -1136,29 +1191,52 @@ export function buildReferModel(body: unknown, ctx: RecordsContext = {}): ReferM
   const programme = own ?? programmes[0] ?? null;
   const others = programmes.filter((p) => p !== programme);
 
-  // This site's own link when it runs the programme (a Hair Clinic member
-  // shares carismahairclinic.com, not the Aesthetics domain). The origin must
-  // be https: a preview host or localhost falls back to the server's link.
+  // This site's own origin (https only; a preview host or localhost falls back to the brand's www).
   const origin = /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(ctx.siteOrigin || "") ? String(ctx.siteOrigin) : "";
-  // A programme that cannot refer yet has no link to share at all.
-  const shareUrl = !programme?.canRefer
-    ? null
-    : own && origin && code
-      ? `${origin}/?ref=${encodeURIComponent(code)}`
-      : programme.shareUrl ?? null;
+  const siteKey = referralBrandKey(ctx.siteBrand || "");
+  const links = (o.links && typeof o.links === "object" ? o.links : {}) as Record<string, unknown>;
 
-  // An initial, the brand and the status. Never the day: a date beside an
-  // initial narrows down who the friend is (02 §11), even if a server sends one.
-  const friends: ReferFriendView[] = list(o.friends).map((f) => ({
-    id: str(f.id),
-    initial: str(f.friendInitial).trim() || "?",
-    brandName: str(f.brandName).trim() || null,
-    status: str(f.status),
-  }));
+  // One panel per live programme on spa/aesthetics/slimming; the link is the server's `links[key]`
+  // (always <brand origin>/r/CODE), else built here the same way, so an older API still shares /r/.
+  const brands: ReferBrandPanel[] = [];
+  for (const p of programmes) {
+    const key = p.brandKey;
+    if (!key || brands.some((b) => b.key === key)) continue;
+    const serverLink = httpsUrl(links[key]);
+    const link = !p.canRefer || !code ? null : serverLink ?? referralLink(key, code, key === siteKey ? origin : null);
+    brands.push({
+      key,
+      brandName: p.brandName || REFERRAL_BRAND_NAME[key],
+      link,
+      // The programme's own numbers; this site's panel falls back to its public Circle status (API, never typed).
+      offer: p.friend ?? (key === siteKey ? readFriendOffer(ctx.referFriendOffer) : null),
+      programme: p,
+      canRefer: p.canRefer,
+      blockedText: p.canRefer ? null : p.referBlockedText,
+      termsUrl: p.termsUrl,
+    });
+  }
+  brands.sort((a, b) => (a.key === siteKey ? -1 : b.key === siteKey ? 1 : REFERRAL_BRANDS.indexOf(a.key) - REFERRAL_BRANDS.indexOf(b.key)));
 
-  // A voucher is good through the END of its Malta expiry day (02 §12), so one
-  // expiring today still shows and one that expired yesterday does not,
-  // whatever its status says. An unreadable expiry is shown, not guessed away.
+  // The compatibility shareUrl: this site's panel link, else the programme's own.
+  const lead = brands[0] ?? null;
+  const shareUrl = !programme?.canRefer ? null : lead?.link ?? programme.shareUrl ?? null;
+
+  // A first name only for a friend who saved the gift and has not booked (`claimed`); otherwise an initial,
+  // the brand and the status. Never the day, the treatment or the amount (02 §11).
+  const friends: ReferFriendView[] = list(o.friends).map((f) => {
+    const status = str(f.status);
+    const first = status === "claimed" ? str(f.friendFirstName || f.firstName).trim() : "";
+    return {
+      id: str(f.id),
+      initial: str(f.friendInitial).trim() || "?",
+      firstName: first || null,
+      brandName: str(f.brandName).trim() || null,
+      brandKey: referralBrandKey(str(f.brandKey)) ?? referralBrandKey(str(f.brandName)),
+      status,
+    };
+  });
+
   const today = venueDateString(ctx.now ?? new Date(), MALTA);
   const rewards: GiftCardView[] = list(o.rewards)
     .filter((r) => !DEAD_VOUCHER.has(str(r.status).toLowerCase()))
@@ -1176,6 +1254,11 @@ export function buildReferModel(body: unknown, ctx: RecordsContext = {}): ReferM
       referralReward: true,
     }));
 
+  const ladder = Array.isArray(ctx.referLadder) && ctx.referLadder.length
+    ? ctx.referLadder.filter((s) => s && Number.isFinite(s.cents) && s.cents >= 0).map((s, i) => ({ friend: i + 1, cents: Math.round(s.cents) }))
+    : null;
+  const qualified = friends.filter((f) => f.status === "on_its_way" || f.status === "rewarded").length;
+
   return {
     code,
     programme,
@@ -1184,183 +1267,220 @@ export function buildReferModel(body: unknown, ctx: RecordsContext = {}): ReferM
     friends,
     rewards,
     pending: Math.max(0, num(o.pendingRewardsCents)) / 100,
+    brands,
+    ladder,
+    qualified,
   };
 }
 
-/** What a share sends, before the link: "Here's €20 off your first visit (…) at Carisma Aesthetics. Use my code 7K2MX9QA when you book." */
+/**
+ * What a share sends (kept for older callers): the warm message with the link at the end.
+ * Every share button on the refer view uses `referralShareMessage` (src/ui/referral.ts).
+ */
 export function referShareText(p: ReferProgrammeView, code: string): string {
-  return `Here's ${p.offerText} at ${p.brandName}. Use my code ${code} when you book.`;
-}
-
-/** "€20 off your first visit (minimum spend €50)" → ["€20 off your first visit", "Minimum spend €50"]. */
-function splitOffer(text: string): [string, string] {
-  const m = /^(.*\S)\s*\(([^()]+)\)$/.exec(text);
-  if (!m) return [text, ""];
-  return [m[1], m[2].charAt(0).toUpperCase() + m[2].slice(1)];
-}
-
-/** The server's "€20 voucher for you" sits under a "For you" label, so the tail would say it twice. */
-function rewardHeadline(text: string): string {
-  return text.replace(/,?\s*(as a voucher )?for you\.?$/i, (m, asVoucher) => (asVoucher ? ", as a voucher" : "")).trim() || text;
-}
-
-/** "https://www.carismaaesthetics.com/?ref=7K2MX9QA" → "carismaaesthetics.com/?ref=7K2MX9QA". */
-function linkLabel(url: string): string {
-  return url.replace(/^https:\/\/(www\.)?/i, "");
+  const key = p.brandKey ?? referralBrandKey(p.brandName) ?? "spa";
+  const link = p.shareUrl ?? referralLink(key, code);
+  return referralShareMessage({ brand: key, brandName: p.brandName, offer: p.friend, link });
 }
 
 const FRIEND_CHIP: Record<ReferFriendStatus, { label: string; tone: string }> = {
+  claimed: { label: "Joined, not booked", tone: "neutral" },
   joined: { label: "Booked", tone: "neutral" },
-  on_its_way: { label: "Voucher on its way", tone: "ok" },
-  rewarded: { label: "Voucher sent", tone: "ok" },
-  no_voucher: { label: "No voucher for this one", tone: "neutral" },
+  on_its_way: { label: "On its way", tone: "ok" },
+  rewarded: { label: "Yours", tone: "ok" },
+  no_voucher: { label: "No reward for this one", tone: "neutral" },
   not_eligible: { label: "Didn't qualify", tone: "neutral" },
   withdrawn: { label: "Withdrawn", tone: "bad" },
 };
 
-function friendRowHTML(f: ReferFriendView): string {
+function friendRowHTML(f: ReferFriendView, m: ReferModel): string {
   const chip = (FRIEND_CHIP as Record<string, { label: string; tone: string } | undefined>)[f.status];
-  const meta = f.brandName || "";
-  const letter = f.initial.replace(/[^\p{L}\p{N}]/gu, "").charAt(0) || "?";
+  const name = f.firstName ? `${f.firstName}${f.initial && f.initial !== "?" ? ` ${f.initial.replace(/\.?$/, ".")}` : ""}` : f.initial;
+  const letter = (f.firstName || f.initial).replace(/[^\p{L}\p{N}]/gu, "").charAt(0) || "?";
+  // Remind: only for a friend who saved the gift and has not booked. It PREPARES a WhatsApp message the
+  // member sends herself; Carisma never messages the friend.
+  const panel = (f.brandKey ? m.brands.find((b) => b.key === f.brandKey) : null) ?? m.brands[0] ?? null;
+  const remind =
+    f.status === "claimed" && panel && panel.link
+      ? `<a class="cw-btn cw-btn--quiet cw-refer__remind" target="_blank" rel="noopener noreferrer" data-cw-refer-remind ` +
+        `href="${escapeHtml(
+          whatsappHref(
+            referralRemindMessage({ brand: panel.key, brandName: panel.brandName, offer: panel.offer, link: panel.link, friendFirstName: f.firstName }),
+          ),
+        )}">Remind<span class="cw-vh"> ${escapeHtml(f.firstName || "your friend")} on WhatsApp (opens in a new tab)</span></a>`
+      : "";
   return (
     `<div class="cw-doc cw-refer__friend" role="listitem" ${M}>` +
     `<span class="cw-refer__initial" aria-hidden="true">${escapeHtml(letter)}</span>` +
-    `<div class="cw-doc__main"><div class="cw-doc__title">${escapeHtml(f.initial)}</div>` +
-    (meta ? `<p class="cw-doc__meta">${escapeHtml(meta)}</p>` : "") +
+    `<div class="cw-doc__main"><div class="cw-doc__title">${escapeHtml(name)}</div>` +
+    (chip ? `<p class="cw-doc__meta cw-refer__status cw-refer__status--${chip.tone}">${escapeHtml(chip.label)}</p>` : "") +
+    (f.brandName && m.brands.length > 1 ? `<p class="cw-doc__meta">${escapeHtml(f.brandName)}</p>` : "") +
     `</div>` +
-    (chip ? `<span class="cw-chip cw-chip--${chip.tone}">${escapeHtml(chip.label)}</span>` : "") +
+    remind +
     `</div>`
   );
 }
 
-function shareButtonsHTML(p: ReferProgrammeView, code: string, url: string | null): string {
-  const text = referShareText(p, code);
-  const whatsapp = `https://wa.me/?text=${encodeURIComponent(url ? `${text} ${url}` : text)}`;
+/** The share row for one brand: Copy link (bare URL), WhatsApp, Email, Text, native share, Copy message. */
+function sharePanelHTML(b: ReferBrandPanel, code: string, active: boolean): string {
+  const attrs = `class="cw-refer__panel" data-cw-refer-panel="${b.key}" role="tabpanel" id="cw-refer-panel-${b.key}" aria-labelledby="cw-refer-tab-${b.key}"${active ? "" : " hidden"}`;
+  if (!b.canRefer || !b.link) {
+    return `<div ${attrs}><p class="cw-refer__blocked">${escapeHtml(b.blockedText ?? "Your code can't be shared here yet.")}</p></div>`;
+  }
+  const input = { brand: b.key, brandName: b.brandName, offer: b.offer, link: b.link };
+  const message = referralShareMessage(input);
+  const subject = referralEmailSubject(input);
   return (
-    `<div class="cw-refer__share">` +
-    `<button type="button" class="cw-btn cw-btn--primary" data-cw-refer-share ` +
-    `data-cw-refer-title="${escapeHtml(p.brandName)}" data-cw-refer-text="${escapeHtml(text)}" ` +
-    `data-cw-refer-url="${escapeHtml(url ?? "")}">Share your ${url ? "link" : "code"}</button>` +
-    `<a class="cw-btn cw-btn--secondary" href="${escapeHtml(whatsapp)}" target="_blank" rel="noopener noreferrer">` +
-    `WhatsApp<span class="cw-vh"> (opens in a new tab)</span></a>` +
-    (url
-      ? `<button type="button" class="cw-btn cw-btn--quiet" data-cw-refer-copy="${escapeHtml(url)}" data-cw-refer-done="Link copied.">Copy link</button>`
-      : "") +
-    `<button type="button" class="cw-btn cw-btn--quiet" data-cw-refer-copy="${escapeHtml(code)}" data-cw-refer-done="Code copied.">Copy code</button>` +
+    `<div ${attrs}>` +
+    `<div class="cw-refer__linkrow">` +
+    `<p class="cw-refer__url" ${M}>${escapeHtml(referralLinkLabel(b.link))}</p>` +
+    `<button type="button" class="cw-btn cw-btn--primary cw-refer__copy" data-cw-refer-copy="${escapeHtml(b.link)}" data-cw-refer-done="Link copied.">Copy link</button>` +
+    `</div>` +
+    `<div class="cw-refer__ways" role="group" aria-label="Share your ${escapeHtml(b.brandName)} link">` +
+    `<a class="cw-refer__way" data-cw-refer-way="whatsapp" href="${escapeHtml(whatsappHref(message))}" target="_blank" rel="noopener noreferrer">Share on WhatsApp<span class="cw-vh"> (opens in a new tab)</span></a>` +
+    `<a class="cw-refer__way" data-cw-refer-way="email" href="${escapeHtml(mailtoHref(subject, referralEmailBody(input)))}">Send by email</a>` +
+    `<a class="cw-refer__way" data-cw-refer-way="text" href="${escapeHtml(smsHref(message))}">Text message</a>` +
+    `<button type="button" class="cw-refer__way" data-cw-refer-share data-cw-refer-title="${escapeHtml(subject)}" ` +
+    `data-cw-refer-text="${escapeHtml(message)}" data-cw-refer-url="">More ways to share</button>` +
+    `<button type="button" class="cw-refer__way" data-cw-refer-copy="${escapeHtml(message)}" data-cw-refer-done="Message copied. Paste it anywhere.">Copy message</button>` +
+    `</div>` +
+    `<p class="cw-refer__preview" ${M}><span class="cw-label">What they'll get</span>${escapeHtml(message)}</p>` +
+    `<p class="cw-refer__typed">Or they type your code when they pay: <strong class="cw-refer__codeinline" ${M}>${escapeHtml(code)}</strong></p>` +
     `</div>`
   );
 }
 
-function termsHTML(p: ReferProgrammeView): string {
-  const when = p.releaseText ? `Your voucher arrives ${p.releaseText.charAt(0).toLowerCase()}${p.releaseText.slice(1)}` : "";
-  const valid = p.voucherValidityDays > 0 ? `valid for ${p.voucherValidityDays} days` : "";
-  const sentence = when && valid ? `${when} and is ${valid}.` : when ? `${when}.` : valid ? `Your voucher is ${valid}.` : "";
-  const terms = p.termsUrl
-    ? `<a class="cw-link" href="${escapeHtml(p.termsUrl)}" target="_blank" rel="noopener noreferrer">Full terms<span class="cw-vh"> (opens in a new tab)</span></a>`
-    : "";
-  if (!sentence && !terms) return "";
-  return `<p class="cw-refer__terms">${escapeHtml(sentence)}${sentence && terms ? " " : ""}${terms}</p>`;
+/** "Give €20. Get up to €100." + the sentence under it, from the API's numbers only. */
+function referHeadHTML(m: ReferModel, lead: ReferBrandPanel | null): string {
+  const offer = lead?.offer ?? null;
+  const give = offerHeadline(offer);
+  const giveAmount = offer?.type === "AMOUNT_OFF" && offer.valueCents ? euroShort(offer.valueCents) : null;
+  const total = m.ladder ? m.ladder.reduce((a, s) => a + s.cents, 0) : 0;
+  const title = [giveAmount ? `Give ${giveAmount}.` : give ? `Give ${give}.` : "Give a gift.", total > 0 ? `Get up to ${euroShort(total)}.` : ""]
+    .filter(Boolean)
+    .join(" ");
+  const friendLine = give
+    ? `Your friend gets ${give} their first visit${offer?.minSpendCents ? ` of ${euroShort(offer.minSpendCents)} or more` : ""}.`
+    : lead?.programme?.offerText
+      ? `Your friend gets ${lead.programme.offerText}.`
+      : "";
+  let youLine = "";
+  if (m.ladder && m.ladder.length) {
+    let run = 0;
+    const steps = m.ladder.map((s, i) => {
+      run += s.cents;
+      return i === 0 ? `${euroShort(run)} for your first friend` : `${euroShort(run)} for ${["two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][i - 1] ?? i + 1}`;
+    });
+    youLine = ` Once they've been, you get Carisma credit: ${steps.length > 1 ? `${steps.slice(0, -1).join(", ")}, ${steps[steps.length - 1]}` : steps[0]}.`;
+  } else if (lead?.programme?.rewardText) {
+    youLine = ` Once they've been, you get ${lead.programme.rewardText.replace(/\.$/, "")}.`;
+  }
+  return (
+    `<p class="cw-label cw-refer__eyebrow">Refer a friend</p>` +
+    `<h2 class="cw-refer__title">${escapeHtml(title)}</h2>` +
+    (friendLine || youLine ? `<p class="cw-refer__lede">${escapeHtml(`${friendLine}${youLine}`.trim())}</p>` : "")
+  );
 }
 
-function otherProgrammeHTML(p: ReferProgrammeView, code: string): string {
+function ladderHTML(m: ReferModel): string {
+  if (!m.ladder || !m.ladder.length) return "";
+  const n = m.ladder.length;
+  const done = Math.min(m.qualified, n);
+  let run = 0;
+  const steps = m.ladder.map((s, i) => {
+    run += s.cents;
+    return `<li class="cw-refer__step${i < done ? " is-done" : ""}"><span class="cw-refer__dot" aria-hidden="true"></span><span>${escapeHtml(euroShort(run))}</span></li>`;
+  });
+  const earned = m.ladder.slice(0, done).reduce((a, s) => a + s.cents, 0);
   return (
-    `<div class="cw-doc cw-refer__other" role="listitem">` +
-    `<span class="cw-refer__initial" aria-hidden="true">${escapeHtml(p.brandName.replace(/^Carisma\s+/i, "").charAt(0))}</span>` +
-    `<div class="cw-doc__main"><div class="cw-doc__title">${escapeHtml(p.brandName)}</div>` +
-    `<p class="cw-doc__meta">${escapeHtml(`Your friend gets ${p.offerText}`)}</p>` +
-    // Nothing to copy for a brand that cannot refer yet: the reason instead.
-    (p.canRefer ? "" : `<p class="cw-doc__meta cw-refer__blocked">${escapeHtml(p.referBlockedText ?? "")}</p>`) +
-    `</div>` +
-    (p.canRefer
-      ? `<button type="button" class="cw-btn cw-btn--quiet" data-cw-refer-copy="${escapeHtml(p.shareUrl ?? code)}" ` +
-        `data-cw-refer-done="${escapeHtml(p.shareUrl ? `${p.brandName} link copied.` : "Code copied.")}">` +
-        `Copy ${p.shareUrl ? "link" : "code"}<span class="cw-vh"> for ${escapeHtml(p.brandName)}</span></button>`
-      : "") +
-    `</div>`
+    `<section class="cw-refer__ladder" aria-label="Your rewards so far">` +
+    `<p class="cw-refer__ladderhead"><span>${done} of ${n} friend${n === 1 ? "" : "s"}</span>` +
+    (earned > 0 ? `<span class="cw-refer__earned">${escapeHtml(euroShort(earned))} yours</span>` : "") +
+    `</p>` +
+    `<ol class="cw-refer__steps" role="list">${steps.join("")}</ol>` +
+    `</section>`
+  );
+}
+
+function termsLineHTML(lead: ReferBrandPanel | null): string {
+  const name = lead?.brandName ?? "Carisma";
+  const href = lead?.termsUrl ?? "/referral-terms";
+  return (
+    `<p class="cw-refer__terms">For friends new to ${escapeHtml(name)}, 18 or over. You're rewarded after their first paid visit. ` +
+    `<a class="cw-link" href="${escapeHtml(href)}">Terms</a></p>`
   );
 }
 
 export function referHTML(m: ReferModel): string {
   const p = m.programme;
-  const live = Boolean(p && m.code);
+  const live = Boolean(p && m.code && m.brands.length);
   const hasHistory = m.friends.length > 0 || m.rewards.length > 0 || m.pending > 0;
 
   if (!live && !hasHistory) {
     return recordRoot(
       "refer",
-      emptyHTML(GIFT_ICON, "Refer a friend isn't open yet", "When it opens, your personal code will appear here, ready to share."),
+      emptyHTML(GIFT_ICON, "Refer a friend isn't open yet", "When it opens, your personal link will appear here, ready to share."),
     );
   }
 
+  const lead = m.brands[0] ?? null;
   let hero = "";
-  if (live && p) {
-    const [offer, offerSmall] = splitOffer(p.offerText);
+  if (live) {
+    const tabs =
+      m.brands.length > 1
+        ? `<div class="cw-refer__switch" role="tablist" aria-label="Which brand">` +
+          m.brands
+            .map(
+              (b, i) =>
+                `<button type="button" role="tab" class="cw-refer__tab" id="cw-refer-tab-${b.key}" aria-controls="cw-refer-panel-${b.key}" ` +
+                `aria-selected="${i === 0 ? "true" : "false"}" data-cw-refer-tab="${b.key}">${escapeHtml(b.brandName.replace(/^Carisma\s+/i, ""))}</button>`,
+            )
+            .join("") +
+          `</div>`
+        : "";
     hero =
-      `<section class="cw-refer cw-rise" aria-label="Refer a friend to ${escapeHtml(p.brandName)}">` +
-      `<p class="cw-label cw-refer__brand">${escapeHtml(p.brandName)}</p>` +
-      `<div class="cw-refer__deal">` +
-      `<div class="cw-refer__side"><p class="cw-label">For your friend</p>` +
-      `<p class="cw-refer__big">${escapeHtml(offer)}</p>` +
-      (offerSmall ? `<p class="cw-refer__small">${escapeHtml(offerSmall)}</p>` : "") +
+      `<section class="cw-refer cw-rise" data-cw-refer="hub" aria-label="Refer a friend">` +
+      referHeadHTML(m, lead) +
+      `<div class="cw-refer__card">` +
+      `<p class="cw-label">Your link</p>` +
+      tabs +
+      m.brands.map((b, i) => sharePanelHTML(b, m.code, i === 0)).join("") +
       `</div>` +
-      `<div class="cw-refer__side"><p class="cw-label">For you</p>` +
-      `<p class="cw-refer__big">${escapeHtml(rewardHeadline(p.rewardText) || "A voucher")}</p>` +
-      (p.releaseText ? `<p class="cw-refer__small">${escapeHtml(p.releaseText)}</p>` : "") +
-      `</div></div>` +
-      `<div class="cw-refer__codebox">` +
-      `<p class="cw-label" id="cw-refer-code-label">Your code</p>` +
-      `<p class="cw-refer__code" aria-labelledby="cw-refer-code-label" ${M}>${escapeHtml(m.code)}</p>` +
-      // The code is shown either way. Share, WhatsApp, Copy and the link are
-      // offered only while a friend could use it here; otherwise, the reason.
-      (p.canRefer
-        ? shareButtonsHTML(p, m.code, m.shareUrl) +
-          (m.shareUrl ? `<p class="cw-refer__link" ${M}>${escapeHtml(linkLabel(m.shareUrl))}</p>` : "")
-        : `<p class="cw-refer__blocked">${escapeHtml(p.referBlockedText ?? "")}</p>`) +
-      `</div>` +
-      termsHTML(p) +
+      ladderHTML(m) +
       `</section>`;
   } else {
     hero =
       `<section class="cw-settled cw-rise">` +
       `<span class="cw-settled__icon">${GIFT_ICON}</span>` +
       `<div><p class="cw-settled__title">Refer a friend is paused.</p>` +
-      `<p class="cw-settled__sub">Vouchers you've already earned are still yours to spend.</p></div>` +
+      `<p class="cw-settled__sub">Rewards you've already earned are still yours to spend.</p></div>` +
       `</section>`;
   }
-
-  const others =
-    live && m.others.length
-      ? `<section class="cw-section cw-rise">` +
-        sectionHead("Your code works here too") +
-        `<div class="cw-docs" role="list">${m.others.map((o) => otherProgrammeHTML(o, m.code)).join("")}</div>` +
-        `</section>`
-      : "";
 
   const vouchers =
     m.rewards.length || m.pending > 0
       ? `<section class="cw-section cw-rise">` +
-        sectionHead("Your vouchers", m.rewards.length || undefined) +
-        (m.pending > 0
-          ? `<p class="cw-refer__pending" ${M}>${escapeHtml(eur(m.pending))} on its way</p>`
-          : "") +
+        sectionHead("Your rewards", m.rewards.length || undefined) +
+        (m.pending > 0 ? `<p class="cw-refer__pending" ${M}>${escapeHtml(eur(m.pending))} on its way</p>` : "") +
         (m.rewards.length
-          ? `<ul class="cw-gifts" tabindex="0" role="list" aria-label="Referral vouchers">${m.rewards.map(giftCardHTML).join("")}</ul>`
+          ? `<ul class="cw-gifts" tabindex="0" role="list" aria-label="Referral rewards">${m.rewards.map(giftCardHTML).join("")}</ul>`
           : "") +
         `</section>`
       : "";
 
   const friends = m.friends.length
     ? `<section class="cw-section cw-rise">` +
-      sectionHead("Friends", m.friends.length) +
-      `<div class="cw-docs" role="list">${m.friends.map(friendRowHTML).join("")}</div>` +
-      `<p class="cw-mnote">You'll only ever see a friend's initial.</p>` +
+      sectionHead("Your friends", m.friends.length) +
+      `<div class="cw-docs" role="list">${m.friends.map((f) => friendRowHTML(f, m)).join("")}</div>` +
+      `<p class="cw-mnote">You'll only see a friend's first name until they book, then an initial. Never what they booked.</p>` +
       `</section>`
     : live
       ? `<section class="cw-section cw-rise">` +
-        sectionHead("Friends") +
-        `<p class="cw-mnote">When a friend books with your code, they'll appear here.</p>` +
+        sectionHead("Your friends") +
+        `<p class="cw-mnote">When a friend saves your gift or books with your link, they'll appear here.</p>` +
         `</section>`
       : "";
 
-  return recordRoot("refer", hero + vouchers + friends + others);
+  return recordRoot("refer", hero + friends + vouchers + (live ? termsLineHTML(lead) : ""));
 }
+

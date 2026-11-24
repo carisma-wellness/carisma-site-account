@@ -1,3 +1,4 @@
+import { type ReferralBrandKey, type ReferralFriendOffer } from "./referral.js";
 export declare const MEMBER_RECORDS_QC = "account-records-20260922";
 /**
  * What a record view may know about the page around it. Optional: bodyFor is
@@ -17,6 +18,16 @@ export interface RecordsContext {
     siteBrand?: string;
     /** This site's origin, so the shared link is this site's own (https only). */
     siteOrigin?: string;
+    /**
+     * Refer a friend (referral-flow-20261124): the sharer's ladder as the brand's public Circle status sends it
+     * (`earning.referral.ladder`, cents per friend). Absent: the view words the reward from `rewardText`.
+     */
+    referLadder?: Array<{
+        friend: number;
+        cents: number;
+    }> | null;
+    /** This site's friend offer from the same public status (`earning.referral.friend`), raw. */
+    referFriendOffer?: unknown;
     /** The clock, for a voucher's expiry (tests pass one). Defaults to now. */
     now?: Date;
     /**
@@ -242,7 +253,7 @@ export declare function membershipHTML(m: MembershipModel, ctx?: RecordsContext)
  * programme reason (a cap, the monthly budget, netting). `not_eligible` is for
  * a friend who did not qualify. Anything newer renders without a chip.
  */
-export type ReferFriendStatus = "joined" | "on_its_way" | "rewarded" | "no_voucher" | "not_eligible" | "withdrawn";
+export type ReferFriendStatus = "claimed" | "joined" | "on_its_way" | "rewarded" | "no_voucher" | "not_eligible" | "withdrawn";
 export interface ReferProgrammeView {
     brandName: string;
     /** "aesthetics" | "slimming" | "spa" | …: which site family runs this programme. */
@@ -266,12 +277,20 @@ export interface ReferProgrammeView {
     canRefer: boolean;
     /** Why not, in the member's own words ("Your code starts working after your first paid visit with us."). */
     referBlockedText: string | null;
+    /** spa | aesthetics | slimming (the server's `brandKey`, else read from the name). */
+    brandKey: ReferralBrandKey | null;
+    /** The friend's offer in numbers (`programmes[].friend`), for the share message. */
+    friend: ReferralFriendOffer | null;
 }
 export interface ReferFriendView {
     id: string;
     /** "A." — the backend sends an initial, never a name. */
     initial: string;
+    /** First name, only for a friend who saved the gift and has not booked (`claimed`). */
+    firstName: string | null;
     brandName: string | null;
+    /** spa | aesthetics | slimming, or null. */
+    brandKey: ReferralBrandKey | null;
     /** One of ReferFriendStatus, or whatever a newer server sent (rendered without a chip). */
     status: string;
 }
@@ -288,6 +307,27 @@ export interface ReferModel {
     rewards: GiftCardView[];
     /** Vouchers earned and not yet issued ("€20 on its way"), in euros. */
     pending: number;
+    /** One panel per brand the member can share (Spa, Aesthetics, Slimming), this site's first. */
+    brands: ReferBrandPanel[];
+    /** The ladder (cents per friend), or null. */
+    ladder: Array<{
+        friend: number;
+        cents: number;
+    }> | null;
+    /** Friends who have qualified so far (on its way or rewarded). */
+    qualified: number;
+}
+/** One brand's share panel on the refer view. */
+export interface ReferBrandPanel {
+    key: ReferralBrandKey;
+    brandName: string;
+    link: string | null;
+    offer: ReferralFriendOffer | null;
+    /** The programme's own words, when the server sent a card for this brand. */
+    programme: ReferProgrammeView | null;
+    canRefer: boolean;
+    blockedText: string | null;
+    termsUrl: string | null;
 }
 /**
  * Which site family a brand belongs to. Hair Clinic has no programme of its
@@ -296,7 +336,10 @@ export interface ReferModel {
  */
 export declare function referFamily(brand: string): string;
 export declare function buildReferModel(body: unknown, ctx?: RecordsContext): ReferModel;
-/** What a share sends, before the link: "Here's €20 off your first visit (…) at Carisma Aesthetics. Use my code 7K2MX9QA when you book." */
+/**
+ * What a share sends (kept for older callers): the warm message with the link at the end.
+ * Every share button on the refer view uses `referralShareMessage` (src/ui/referral.ts).
+ */
 export declare function referShareText(p: ReferProgrammeView, code: string): string;
 export declare function referHTML(m: ReferModel): string;
 //# sourceMappingURL=records.d.ts.map

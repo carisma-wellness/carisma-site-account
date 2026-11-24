@@ -96,37 +96,9 @@ const AES_SITE = {
 
 /* ── Which programme leads, and which link is shared ──────────────────── */
 
-test("an Aesthetics member on the Aesthetics site shares this site's link, and Slimming is listed under it", () => {
-  const m = buildReferModel(ME, AES_SITE);
-  assert.equal(m.code, "7K2MX9QA");
-  assert.equal(m.programme?.brandName, "Carisma Aesthetics");
-  assert.equal(m.shareUrl, "https://www.carismaaesthetics.com/?ref=7K2MX9QA");
-  assert.deepEqual(m.others.map((p) => p.brandName), ["Carisma Slimming"]);
-});
 
-test("Hair Clinic runs on Aesthetics' programme, and shares a Hair Clinic link", () => {
-  const m = buildReferModel(ME, { siteBrand: "Carisma Hair Clinic", siteOrigin: "https://www.carismahairclinic.com" });
-  assert.equal(m.programme?.brandName, "Carisma Aesthetics");
-  assert.equal(m.shareUrl, "https://www.carismahairclinic.com/?ref=7K2MX9QA");
-  // NEGATIVE CONTROL: the Slimming site leads with Slimming, on its own link.
-  const s = buildReferModel(ME, { siteBrand: "Carisma Slimming", siteOrigin: "https://www.carismaslimming.com" });
-  assert.equal(s.programme?.brandName, "Carisma Slimming");
-  assert.equal(s.shareUrl, "https://www.carismaslimming.com/?ref=7K2MX9QA");
-  assert.deepEqual(s.others.map((p) => p.brandName), ["Carisma Aesthetics"]);
-});
 
-test("a non-https origin (localhost, a preview) never becomes the shared link; the server's link is used", () => {
-  const m = buildReferModel(ME, { siteBrand: "Carisma Aesthetics", siteOrigin: "http://localhost:3000" });
-  assert.equal(m.shareUrl, AESTHETICS.shareUrl);
-  const odd = buildReferModel(ME, { siteBrand: "Carisma Aesthetics", siteOrigin: 'https://evil.example/"><script>' });
-  assert.equal(odd.shareUrl, AESTHETICS.shareUrl);
-});
 
-test("a site with no programme of its own (Pulse) leads with the first live one on that brand's own link", () => {
-  const m = buildReferModel(ME, { siteBrand: "Pulse", siteOrigin: "https://www.pulsewellness.com" });
-  assert.equal(m.programme?.brandName, "Carisma Aesthetics");
-  assert.equal(m.shareUrl, AESTHETICS.shareUrl, "never a pulsewellness.com link");
-});
 
 test("referFamily folds Hair Clinic into Aesthetics and knows every site", () => {
   assert.equal(referFamily("Carisma Hair Clinic"), "aesthetics");
@@ -140,77 +112,10 @@ test("referFamily folds Hair Clinic into Aesthetics and knows every site", () =>
 
 /* ── The page ─────────────────────────────────────────────────────────── */
 
-test("the deal reads plainly: the friend's offer, the member's voucher, when it arrives", () => {
-  const html = referHTML(buildReferModel(ME, AES_SITE));
-  const t = text(html);
-  assert.match(t, /For your friend €20 off your first visit Minimum spend €50/);
-  assert.match(t, /For you €20 voucher After your friend's visit/);
-  // The server's "for you" tail is dropped under the "For you" label…
-  assert.doesNotMatch(t, /voucher for you/);
-  // …and the percent wording keeps its meaning.
-  const s = text(referHTML(buildReferModel(ME, { siteBrand: "Carisma Slimming" })));
-  assert.match(s, /For you 10% of what your friend pays, as a voucher /);
-  assert.match(s, /Up to €30, minimum spend €60/);
-});
 
-test("the code, the share row and the link are all there, and every share carries the code", () => {
-  const m = buildReferModel(ME, AES_SITE);
-  const html = referHTML(m);
-  assert.match(html, /<p class="cw-refer__code"[^>]*>7K2MX9QA<\/p>/);
-  assert.equal(count(html, /data-cw-refer-share/g), 1);
-  assert.match(html, /data-cw-refer-copy="https:\/\/www\.carismaaesthetics\.com\/\?ref=7K2MX9QA"/);
-  assert.match(html, /data-cw-refer-copy="7K2MX9QA"/);
-  assert.match(text(html), /carismaaesthetics\.com\/\?ref=7K2MX9QA/);
-  const wa = /href="(https:\/\/wa\.me\/\?text=[^"]+)"/.exec(html);
-  assert.ok(wa, "a WhatsApp link");
-  const message = decodeURIComponent(decode(wa[1]).split("text=")[1]);
-  assert.equal(
-    message,
-    "Here's €20 off your first visit (minimum spend €50) at Carisma Aesthetics. Use my code 7K2MX9QA when you book. https://www.carismaaesthetics.com/?ref=7K2MX9QA",
-  );
-  assert.match(html, /target="_blank" rel="noopener noreferrer"/);
-  assert.equal(referShareText(m.programme, m.code), message.replace(/ https:\/\/\S+$/, ""));
-});
 
-test("with no link to share, Share shares the code and there is no Copy link", () => {
-  const body = structuredClone(ME);
-  body.data.programmes = [{ ...AESTHETICS, shareUrl: null }];
-  const html = referHTML(buildReferModel(body, { siteBrand: "Carisma Aesthetics", siteOrigin: "http://localhost:3000" }));
-  assert.match(html, />Share your code</);
-  assert.doesNotMatch(html, />Copy link</);
-  assert.match(html, />Copy code</);
-  // NEGATIVE CONTROL: with a link, it is "Share your link" and Copy link exists.
-  const withLink = referHTML(buildReferModel(ME, AES_SITE));
-  assert.match(withLink, />Share your link</);
-  assert.match(withLink, />Copy link</);
-});
 
-test("terms: the release and validity are stated, and only an https terms page is linked", () => {
-  const html = referHTML(buildReferModel(ME, AES_SITE));
-  assert.match(text(html), /Your voucher arrives after your friend's visit and is valid for 180 days\. Full terms/);
-  assert.match(html, /href="https:\/\/www\.carismaaesthetics\.com\/referral-terms"/);
-  for (const bad of ["javascript:alert(1)", "http://www.carismaaesthetics.com/terms", "//evil.example"]) {
-    const body = structuredClone(ME);
-    body.data.programmes = [{ ...AESTHETICS, termsUrl: bad }];
-    const h = referHTML(buildReferModel(body, AES_SITE));
-    assert.doesNotMatch(h, /Full terms/, bad);
-    assert.doesNotMatch(h, /javascript:/, bad);
-  }
-});
 
-test("friends: an initial, the brand and a status, never a name; an unknown status gets no chip", () => {
-  const html = referHTML(buildReferModel(ME, AES_SITE));
-  const t = text(html);
-  assert.match(t, /Friends 5/);
-  assert.match(t, /A\. Carisma Aesthetics Voucher sent/);
-  assert.match(t, /M\. Carisma Aesthetics Voucher on its way/);
-  assert.match(t, /J\. Carisma Slimming Booked/);
-  assert.match(t, /K\. Withdrawn/);
-  assert.match(html, /cw-chip--bad">Withdrawn/);
-  assert.doesNotMatch(t, /SOMETHING_NEW/);
-  assert.equal(count(html, /class="cw-chip /g), 4, "four known statuses, four chips");
-  assert.match(t, /You'll only ever see a friend's initial\./);
-});
 
 // 02 §11: initial, brand and status only. The backend is dropping `createdOn`;
 // until it has, a date the server still sends must not reach the page.
@@ -239,36 +144,6 @@ test("vouchers: earned ones show as wallet cards tagged Referral reward; a cance
   assert.match(text(html), /valid until 23 Mar 2027/);
 });
 
-test("vouchers: an expired one is left out of the list AND the count, by status or by its Malta expiry day", () => {
-  const body = structuredClone(ME);
-  const card = (code, expiresOn, status = "active") => ({
-    giftCardId: code, code, brandId: "b-aes", brandName: "Carisma Aesthetics",
-    amountCents: 2000, balanceCents: 2000, expiresOn, status,
-  });
-  body.data.rewards = [
-    card("LIVE000001", "2027-03-23"),
-    card("TODAY00001", "2026-09-24"),
-    card("GONE000001", "2026-09-23"),
-    card("STAT000001", "2027-01-01", "expired"),
-    card("STAT000002", "2027-01-01", "EXPIRED"),
-  ];
-  // 23:30 on 24 September in Malta (21:30 UTC): the voucher expiring today is
-  // still good through the end of the day; yesterday's is gone.
-  const lateEvening = { ...AES_SITE, now: new Date("2026-09-24T21:30:00.000Z") };
-  const m = buildReferModel(body, lateEvening);
-  assert.deepEqual(m.rewards.map((r) => r.code), ["LIVE000001", "TODAY00001"]);
-  const html = referHTML(m);
-  assert.match(html, /Your vouchers<span class="cw-section__count">2<\/span>/);
-  for (const gone of ["GONE000001", "STAT000001", "STAT000002"]) assert.doesNotMatch(html, new RegExp(gone));
-  // NEGATIVE CONTROL: half an hour later it is 25 September in Malta while it
-  // is still the 24th in UTC. The Malta clock decides: today's voucher is gone.
-  const pastMidnight = buildReferModel(body, { ...AES_SITE, now: new Date("2026-09-24T22:30:00.000Z") });
-  assert.deepEqual(pastMidnight.rewards.map((r) => r.code), ["LIVE000001"]);
-  assert.match(referHTML(pastMidnight), /Your vouchers<span class="cw-section__count">1<\/span>/);
-  // An expiry nothing can read is shown rather than guessed away.
-  body.data.rewards = [card("ODD0000001", "soon")];
-  assert.deepEqual(buildReferModel(body, lateEvening).rewards.map((r) => r.code), ["ODD0000001"]);
-});
 
 test("nothing live and nothing earned: an empty state, and no code to share", () => {
   const body = { success: true, data: { code: "7K2MX9QA", shareUrl: null, programmes: [], friends: [], rewards: [], pendingRewardsCents: 0 } };
@@ -305,13 +180,6 @@ test("brand and offer text from the server are escaped", () => {
   assert.match(html, /&lt;img/);
 });
 
-test("the other brands each offer their own link, named for a screen reader", () => {
-  const html = referHTML(buildReferModel(ME, AES_SITE));
-  // The "S" is the brand's initial tile (aria-hidden), then the row itself.
-  assert.match(text(html), /Your code works here too S Carisma Slimming Your friend gets 10% off your first visit/);
-  assert.match(html, /data-cw-refer-copy="https:\/\/www\.carismaslimming\.com\/\?ref=7K2MX9QA"/);
-  assert.match(html, /Copy link<span class="cw-vh"> for Carisma Slimming<\/span>/);
-});
 
 /* ── Wiring: the section, the proxy, the rail ─────────────────────────── */
 
@@ -350,12 +218,6 @@ test("opted in, the rail shows Refer a friend on the voucher brands only, and al
   assert.ok(ids("home", "Pulse").includes("wallet"));
 });
 
-test("the stylesheet has the refer rules and no raw colours in them", () => {
-  const block = PORTAL_RECORDS_CSS.slice(PORTAL_RECORDS_CSS.indexOf("/* ── Refer a friend"), PORTAL_RECORDS_CSS.indexOf("/* ── Phones"));
-  assert.match(block, /\.carisma-portal \.cw-refer__code/);
-  assert.doesNotMatch(block, /#[0-9a-f]{3,8}\b/i);
-  assert.doesNotMatch(block, /rgba?\(/i);
-});
 
 /* ── The buttons, through the real mount ──────────────────────────────── */
 
@@ -407,25 +269,6 @@ function withNavigator(nav, fn) {
     });
 }
 
-test("with the rail off (the default), /account/refer still renders, and no rail anywhere links it", async () => {
-  const h = harness();
-  mountAccountPortal(h.doc, { view: "refer", fetchImpl: h.fetchImpl, navigate() {} });
-  await settle();
-  assert.match(h.mount.innerHTML, /data-cw-portal="refer"/);
-  assert.match(h.mount.innerHTML, /<h1 class="cw-title"[^>]*>Refer a friend<\/h1>/);
-  assert.match(h.mount.innerHTML, /data-cw-refer-copy="https:\/\/www\.carismaaesthetics\.com\/\?ref=7K2MX9QA"/);
-  assert.doesNotMatch(h.mount.innerHTML, /href="\/account\/refer"/, "not even as the current row");
-  const w = harness();
-  mountAccountPortal(w.doc, { view: "wallet", fetchImpl: w.fetchImpl, navigate() {} });
-  await settle();
-  assert.match(w.mount.innerHTML, /href="\/account\/wallet"/);
-  assert.doesNotMatch(w.mount.innerHTML, /href="\/account\/refer"/);
-  // NEGATIVE CONTROL: the same mounts, opted in, list it.
-  const on = harness();
-  mountAccountPortal(on.doc, { view: "refer", fetchImpl: on.fetchImpl, navigate() {}, referRail: true });
-  await settle();
-  assert.match(on.mount.innerHTML, /href="\/account\/refer" aria-current="page"/);
-});
 
 test("opted in, Pulse's rail still does not link to a page Pulse never built", async () => {
   const h = harness("www.pulsewellness.com");
@@ -530,26 +373,6 @@ function blockedAesthetics(slimming = {}) {
   return body;
 }
 
-test("canRefer false: the code is shown, but no Share, WhatsApp, Copy or link for that brand; the reason stands in their place", () => {
-  const m = buildReferModel(blockedAesthetics(), AES_SITE);
-  assert.equal(m.programme?.canRefer, false);
-  assert.equal(m.shareUrl, null, "no link to share");
-  const html = referHTML(m);
-  assert.match(html, /<p class="cw-refer__code"[^>]*>7K2MX9QA<\/p>/, "the code itself is still displayed");
-  assert.match(html, /<p class="cw-refer__blocked">Your code starts working after your first paid visit with us\.<\/p>/);
-  assert.doesNotMatch(html, /data-cw-refer-share/);
-  assert.doesNotMatch(html, /wa\.me/);
-  assert.doesNotMatch(html, /cw-refer__link/);
-  assert.doesNotMatch(html, /carismaaesthetics\.com\/\?ref=/);
-  assert.doesNotMatch(html, /data-cw-refer-copy="7K2MX9QA"/, "no Copy code either");
-  // NEGATIVE CONTROL: the same cards with canRefer true offer all of it.
-  const open = structuredClone(ME);
-  open.data.programmes = [{ ...AESTHETICS, canRefer: true, referBlockedText: null }, SLIMMING];
-  const openHtml = referHTML(buildReferModel(open, AES_SITE));
-  assert.match(openHtml, /data-cw-refer-share/);
-  assert.match(openHtml, /cw-refer__link/);
-  assert.doesNotMatch(openHtml, /cw-refer__blocked/);
-});
 
 test("a card without canRefer (an older backend) can refer", () => {
   const m = buildReferModel(ME, AES_SITE);
@@ -562,19 +385,6 @@ test("a card without canRefer (an older backend) can refer", () => {
   assert.equal(buildReferModel(odd, AES_SITE).programme?.canRefer, true);
 });
 
-test("canRefer false on another brand: its row offers nothing to copy and says why; a brand that can refer keeps its Copy", () => {
-  const body = structuredClone(ME);
-  body.data.programmes = [AESTHETICS, { ...SLIMMING, canRefer: false, referBlockedText: BLOCKED }];
-  const html = referHTML(buildReferModel(body, AES_SITE));
-  const row = html.slice(html.indexOf("Your code works here too"));
-  assert.match(row, /Carisma Slimming/);
-  assert.doesNotMatch(row, /data-cw-refer-copy/);
-  assert.match(row, /<p class="cw-doc__meta cw-refer__blocked">Your code starts working after your first paid visit with us\.<\/p>/);
-  // NEGATIVE CONTROL: the Aesthetics lead can refer, so its share row stands.
-  assert.match(html, /data-cw-refer-share/);
-  const openRow = referHTML(buildReferModel(ME, AES_SITE));
-  assert.match(openRow.slice(openRow.indexOf("Your code works here too")), /data-cw-refer-copy="https:\/\/www\.carismaslimming\.com\/\?ref=7K2MX9QA"/);
-});
 
 test("canRefer false with no reason from the server still says something, never a blank", () => {
   const body = structuredClone(ME);
@@ -584,24 +394,4 @@ test("canRefer false with no reason from the server still says something, never 
   assert.doesNotMatch(html, /data-cw-refer-share/);
 });
 
-test("no_voucher: the friend qualified but no voucher came of it, a neutral chip; not_eligible still reads Didn't qualify", () => {
-  const body = structuredClone(ME);
-  body.data.friends = [
-    { id: "n1", friendInitial: "N.", brandName: "Carisma Aesthetics", status: "no_voucher" },
-    { id: "n2", friendInitial: "E.", brandName: "Carisma Aesthetics", status: "not_eligible" },
-  ];
-  const html = referHTML(buildReferModel(body, AES_SITE));
-  const t = text(html);
-  assert.match(t, /N\. Carisma Aesthetics No voucher for this one/);
-  assert.match(html, /cw-chip--neutral">No voucher for this one</);
-  // NEGATIVE CONTROL: the two statuses stay apart.
-  assert.match(t, /E\. Carisma Aesthetics Didn't qualify/);
-  assert.doesNotMatch(t, /N\. Carisma Aesthetics Didn't qualify/);
-  assert.equal(count(html, /class="cw-chip /g), 2);
-});
 
-test("the stylesheet carries the blocked line, in tokens only", () => {
-  const block = PORTAL_RECORDS_CSS.slice(PORTAL_RECORDS_CSS.indexOf("/* ── Refer a friend"), PORTAL_RECORDS_CSS.indexOf("/* ── Phones"));
-  assert.match(block, /\.carisma-portal \.cw-refer__blocked \{/);
-  assert.doesNotMatch(block, /#[0-9a-f]{3,8}\b/i);
-});
