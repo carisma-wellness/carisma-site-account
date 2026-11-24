@@ -16,7 +16,7 @@
 import { escapeHtml } from "./html.js";
 import { eur, plainDate } from "./money.js";
 import { venueDateString } from "./reschedule.js";
-import { REFERRAL_BRANDS, REFERRAL_BRAND_NAME, euroShort, mailtoHref, offerHeadline, readFriendOffer, referralBrandKey, referralEmailBody, referralEmailSubject, referralLink, referralLinkLabel, referralRemindMessage, referralShareMessage, smsHref, whatsappHref, } from "./referral.js";
+import { REFERRAL_BRANDS, REFERRAL_BRAND_NAME, euroShort, mailtoHref, offerHeadline, readFriendOffer, referralBrandKey, referralEmailBody, referralEmailSubject, referralLink, referralLadderTotals, referralLinkLabel, referralRemindMessage, referralShareMessage, smsHref, whatsappHref, } from "./referral.js";
 export const MEMBER_RECORDS_QC = "account-records-20260922";
 const M = 'data-clarity-mask="True"';
 /**
@@ -946,13 +946,10 @@ function referHeadHTML(m, lead) {
             ? `Your friend gets ${lead.programme.offerText}.`
             : "";
     let youLine = "";
-    if (m.ladder && m.ladder.length) {
-        let run = 0;
-        const steps = m.ladder.map((s, i) => {
-            run += s.cents;
-            return i === 0 ? `${euroShort(run)} for your first friend` : `${euroShort(run)} for ${["two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][i - 1] ?? i + 1}`;
-        });
-        youLine = ` Once they've been, you get Carisma credit: ${steps.length > 1 ? `${steps.slice(0, -1).join(", ")}, ${steps[steps.length - 1]}` : steps[0]}.`;
+    const totals = m.ladder && m.ladder.length ? referralLadderTotals(m.ladder.map((s) => s.cents)) : null;
+    if (totals) {
+        // Running totals, never a list that reads as a sum (QC 24 Nov 2026).
+        youLine = ` Once they've been, you get Carisma credit: ${totals}.`;
     }
     else if (lead?.programme?.rewardText) {
         youLine = ` Once they've been, you get ${lead.programme.rewardText.replace(/\.$/, "")}.`;

@@ -44,6 +44,18 @@ export declare function euroShort(cents: number): string;
 export declare function offerHeadline(o: ReferralFriendOffer | null): string | null;
 /** "€20" — the amount alone, for "Claim my €20". Null for a percentage or none. */
 export declare function offerAmount(o: ReferralFriendOffer | null): string | null;
+/**
+ * The sharer's ladder in words, totals that can never be read as a sum (QC 24 Nov 2026: "€20, then €50, then €100
+ * for three friends" read as €170). Takes the API's ladder PER FRIEND in cents (€20, €30, €50) and words the running
+ * totals: "€20 for your first friend, €50 in total for two, €100 in total for three". Null for an empty ladder.
+ * Every figure comes from the API (§39); this only words them.
+ */
+export declare function referralLadderTotals(perFriendCents: ReadonlyArray<number> | null | undefined): string | null;
+/**
+ * The one quiet line above a sign-up or sign-in form for a friend who came by a /r/<CODE> link with the code
+ * saved (QC 24 Nov 2026). The amount is the one the landing read from the API; without one, no figure.
+ */
+export declare function referralGiftSavedLine(valueCents: number | null | undefined): string;
 export interface ShareInput {
     brand: ReferralBrandKey;
     link: string;

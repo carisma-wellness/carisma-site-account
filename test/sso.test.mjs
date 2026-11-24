@@ -707,3 +707,16 @@ test("head script: a host name with a script-closing tag cannot break out", () =
   const src = earlySsoProbeScript({ hosts: ["x</script><script>alert(1)"] });
   assert.doesNotMatch(src, /<\/script/i);
 });
+
+/* ── Refer a friend, QC 24 Nov 2026: the start door forwards a valid gift hint to the card ── */
+
+test("start forwards a valid gift hint to /authorize, drops a bad one, and never sends it silently", async () => {
+  const loc = async (q) => new URL((await routes().start(new Request(`${SITE}/api/auth/start?${q}`))).headers.get("location"));
+  assert.equal((await loc("prompt=create&next=/r/NPAAD04J&gift=2000")).searchParams.get("gift"), "2000");
+  assert.equal((await loc("prompt=login&next=/r/NPAAD04J&gift=yes")).searchParams.get("gift"), "yes");
+  // Negative controls: a forged figure or words never reach the card; a silent check carries nothing.
+  assert.equal((await loc("prompt=create&next=/x&gift=999999999")).searchParams.get("gift"), null);
+  assert.equal((await loc("prompt=create&next=/x&gift=%3Cb%3EFree%3C%2Fb%3E")).searchParams.get("gift"), null);
+  assert.equal((await loc("prompt=create&next=/x")).searchParams.get("gift"), null);
+  assert.equal((await loc("prompt=none&next=/x&gift=2000")).searchParams.get("gift"), null);
+});

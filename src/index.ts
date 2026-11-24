@@ -36,8 +36,11 @@ export {
   silentStartUrl,
   seedDoorUrl,
   signoutHopDoorUrl,
+  GIFT_HINT_PARAM,
+  giftHintValue,
+  readGiftHint,
 } from "./urls.js";
-export type { AuthorizeParams } from "./urls.js";
+export type { AuthorizeParams, GiftHint } from "./urls.js";
 
 // The account UI surface (WP-PKG-2). Also available at "@carisma/site-account/ui".
 export * from "./ui/index.js";

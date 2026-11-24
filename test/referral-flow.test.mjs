@@ -21,6 +21,8 @@ import {
   friendGiftFrom,
   ownCodeFrom,
   claimStateText,
+  referralLadderTotals,
+  referralGiftSavedLine,
   REFERRAL_FLOW_MARKER,
 } from "../dist/ui/index.js";
 import { PORTAL_RECORDS_CSS } from "../dist/ui/styles/index.js";
@@ -119,7 +121,9 @@ test("the hub: this site's brand first, a panel per brand, every way to share se
   const html = referHTML(m);
   const t = text(html);
   assert.match(t, /Give €20\. Get up to €100\./);
-  assert.match(t, /€20 for your first friend, €50 for two, €100 for three/);
+  // Running totals that never read as a sum (QC 24 Nov 2026: "€20, then €50, then €100" read as €170).
+  assert.match(t, /Once they've been, you get Carisma credit: €20 for your first friend, €50 in total for two, €100 in total for three\./);
+  assert.doesNotMatch(t, /€50 for two/);
   assert.match(t, /carismaspa\.com\/r\/NPAAD04J/);
   // Only the first panel is visible; the switch names each brand.
   assert.equal((html.match(/data-cw-refer-panel="[a-z]+"[^>]*hidden/g) || []).length, 2);
@@ -231,4 +235,25 @@ test("an API still on /?ref= links (before REFERRAL_SHORT_LINKS): the hub shares
   const m = buildReferModel(body, SPA);
   assert.deepEqual(m.brands.map((b) => b.link), ["https://www.carismaspa.com/r/NPAAD04J", "https://www.carismaaesthetics.com/r/NPAAD04J"]);
   assert.doesNotMatch(referHTML(m), /\?ref=/);
+});
+
+/* ── QC 24 Nov 2026: the ladder as totals, the gift line, the gift hint on the account door ── */
+
+test("the ladder words running totals from the per-friend steps, never a list that adds up", () => {
+  assert.equal(referralLadderTotals([2000, 3000, 5000]), "€20 for your first friend, €50 in total for two, €100 in total for three");
+  // The amounts come from the steps: other figures, other words (nothing typed).
+  assert.equal(referralLadderTotals([1500, 1500]), "€15 for your first friend, €30 in total for two");
+  assert.equal(referralLadderTotals([2000]), "€20 for your first friend");
+  assert.equal(referralLadderTotals([]), null);
+  assert.equal(referralLadderTotals(null), null);
+  // Negative control: the old wording is gone.
+  assert.doesNotMatch(referralLadderTotals([2000, 3000, 5000]), /then/);
+});
+
+test("the gift line says the amount when it is known, and never invents one", () => {
+  assert.equal(referralGiftSavedLine(2000), "Your €20 gift will be saved to your account.");
+  assert.equal(referralGiftSavedLine(2050), "Your €20.50 gift will be saved to your account.");
+  assert.equal(referralGiftSavedLine(null), "Your gift will be saved to your account.");
+  assert.equal(referralGiftSavedLine(0), "Your gift will be saved to your account.");
+  assert.equal(referralGiftSavedLine(-500), "Your gift will be saved to your account.");
 });

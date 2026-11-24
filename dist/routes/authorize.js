@@ -3,7 +3,7 @@ import { COOKIES, parseCookies, serializeCookie, clearCookie } from "./cookies.j
 import { maskProfile } from "./profile.js";
 import { appendSetSession, hintCookieOptions, json, unwrapEnvelope } from "./http.js";
 import { pkcePair, randomToken, safeNext, signService, visitorIp } from "./pkce.js";
-import { buildAuthorizeUrl, buildSeedUrl, buildSignoutHopUrl, callbackRedirectUri } from "../urls.js";
+import { buildAuthorizeUrl, buildSeedUrl, buildSignoutHopUrl, callbackRedirectUri, GIFT_HINT_PARAM, readGiftHint } from "../urls.js";
 import { upstream } from "./upstream.js";
 /**
  * The OIDC errors only a prompt=none request can produce. A callback carrying one of
@@ -26,7 +26,7 @@ function beginAuthorize(cfg, origin, opts) {
     const sealedTxn = seal(txn, cfg.sessionSecret, cfg.rpId);
     // The identity-origin /authorize URL is assembled in urls.ts — the ONE place an
     // identity URL is built (scripts/verify-account-boundary.mjs enforces it).
-    const authUrl = buildAuthorizeUrl(cfg, { origin, state, challenge, prompt: opts.prompt });
+    const authUrl = buildAuthorizeUrl(cfg, { origin, state, challenge, prompt: opts.prompt, gift: opts.gift ?? null });
     const txnCookie = serializeCookie(COOKIES.txn, sealedTxn, {
         path: "/api/auth",
         maxAge: 600,
@@ -66,7 +66,10 @@ export function makeStart(cfg) {
         if (prompt === "none" && parseCookies(req)[COOKIES.ssoOff] === "1") {
             return quietReturn(next, []);
         }
-        const { txnCookie, authUrl } = beginAuthorize(cfg, origin, { next, prompt, keep });
+        // A friend's gift saved on this browser (Refer a friend, QC 24 Nov 2026): display-only words for the card,
+        // validated to whole cents or "yes"; anything else is dropped. Never on a silent check (no card is drawn).
+        const gift = prompt === "none" ? null : readGiftHint(url.searchParams.get(GIFT_HINT_PARAM));
+        const { txnCookie, authUrl } = beginAuthorize(cfg, origin, { next, prompt, keep, gift });
         const headers = new Headers({ "cache-control": "private, no-store", location: authUrl });
         headers.append("set-cookie", txnCookie);
         // Belt and braces: the browser helper stamps this before it navigates, but a

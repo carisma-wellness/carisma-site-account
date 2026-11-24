@@ -25,6 +25,38 @@ export interface AuthorizeParams {
   challenge: string;
   /** `none` is the silent cross-brand check: a code or `error=login_required`, never a card. */
   prompt: "login" | "create" | "none";
+  /**
+   * A friend's gift waiting on this browser (Refer a friend, QC 24 Nov 2026): the card says "Your €20 gift will be
+   * saved to your account." Display only; never sent with `prompt=none` (no card is drawn).
+   */
+  gift?: GiftHint | null;
+}
+
+/* ── the friend's gift hint (Refer a friend, QC 24 Nov 2026) ───────────── */
+
+/** The query parameter, on the site's /api/auth/start door and on the identity origin's /authorize. */
+export const GIFT_HINT_PARAM = "gift";
+
+/** `{ cents: 2000 }` = "Your €20 gift…"; `{ cents: null }` = "Your gift…" (the amount is not known). */
+export interface GiftHint {
+  cents: number | null;
+}
+
+/** The largest amount a hint may carry (€1,000): anything bigger is not a friend's gift and is dropped. */
+const GIFT_HINT_MAX_CENTS = 100_000;
+
+/** A hint as the parameter carries it: whole cents ("2000"), or "yes" without an amount. */
+export function giftHintValue(hint: GiftHint): string {
+  const c = hint.cents;
+  return typeof c === "number" && Number.isInteger(c) && c > 0 && c <= GIFT_HINT_MAX_CENTS ? String(c) : "yes";
+}
+
+/** Read the parameter: "2000" → { cents: 2000 }, "yes" → { cents: null }, anything else → null (dropped, never an error). */
+export function readGiftHint(raw: string | null | undefined): GiftHint | null {
+  if (raw === "yes") return { cents: null };
+  if (typeof raw !== "string" || !/^[1-9][0-9]{0,5}$/.test(raw)) return null;
+  const cents = Number(raw);
+  return cents <= GIFT_HINT_MAX_CENTS ? { cents } : null;
 }
 
 /** The site's own first-party callback. redirect_uri is never the identity origin. */
@@ -48,6 +80,7 @@ export function buildAuthorizeUrl(
   u.searchParams.set("code_challenge", p.challenge);
   u.searchParams.set("code_challenge_method", "S256");
   u.searchParams.set("prompt", p.prompt);
+  if (p.gift && p.prompt !== "none") u.searchParams.set(GIFT_HINT_PARAM, giftHintValue(p.gift));
   return u.toString();
 }
 
@@ -125,14 +158,19 @@ export function validateNext(next: string | null | undefined, fallback = "/"): s
   return next;
 }
 
-/** The site's own /api/auth/start door. `next` is validated; `prompt=create` optional. */
+/**
+ * The site's own /api/auth/start door. `next` is validated; `prompt=create` optional; `gift` (a friend's gift saved
+ * on this browser) is carried to the card as display-only words.
+ */
 export function startUrl(
   next: string | null | undefined,
   prompt: "login" | "create" = "login",
+  gift: GiftHint | null = null,
 ): string {
   const params = new URLSearchParams();
   params.set("next", validateNext(next, "/"));
   if (prompt === "create") params.set("prompt", "create");
+  if (gift) params.set(GIFT_HINT_PARAM, giftHintValue(gift));
   return `/api/auth/start?${params.toString()}`;
 }
 

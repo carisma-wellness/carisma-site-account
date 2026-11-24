@@ -104,6 +104,35 @@ export function offerHeadline(o) {
 export function offerAmount(o) {
     return o && o.type === "AMOUNT_OFF" && o.valueCents ? euroShort(o.valueCents) : null;
 }
+/* ── The sharer's rewards, as running totals ───────────────────────────── */
+const COUNT_WORD = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+/**
+ * The sharer's ladder in words, totals that can never be read as a sum (QC 24 Nov 2026: "€20, then €50, then €100
+ * for three friends" read as €170). Takes the API's ladder PER FRIEND in cents (€20, €30, €50) and words the running
+ * totals: "€20 for your first friend, €50 in total for two, €100 in total for three". Null for an empty ladder.
+ * Every figure comes from the API (§39); this only words them.
+ */
+export function referralLadderTotals(perFriendCents) {
+    const steps = (perFriendCents ?? []).filter((c) => typeof c === "number" && Number.isFinite(c) && c >= 0);
+    if (!steps.length)
+        return null;
+    let run = 0;
+    return steps
+        .map((c, i) => {
+        run += Math.round(c);
+        return i === 0 ? `${euroShort(run)} for your first friend` : `${euroShort(run)} in total for ${COUNT_WORD[i + 1] ?? String(i + 1)}`;
+    })
+        .join(", ");
+}
+/* ── The friend's gift, kept across sign-up and sign-in ───────────────── */
+/**
+ * The one quiet line above a sign-up or sign-in form for a friend who came by a /r/<CODE> link with the code
+ * saved (QC 24 Nov 2026). The amount is the one the landing read from the API; without one, no figure.
+ */
+export function referralGiftSavedLine(valueCents) {
+    const c = posInt(valueCents);
+    return c ? `Your ${euroShort(c)} gift will be saved to your account.` : "Your gift will be saved to your account.";
+}
 /**
  * "I've been going to Carisma Spa and I think you'd love it. Here's €20 off your first visit
  * (anything from €50) with my link: https://www.carismaspa.com/r/NPAAD04J"
