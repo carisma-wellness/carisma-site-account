@@ -108,6 +108,35 @@ export const PORTAL_SHELL_CSS = `
     -webkit-mask-image: linear-gradient(to right, black calc(100% - 40px), transparent);
     mask-image: linear-gradient(to right, black calc(100% - 40px), transparent);
   }
+  /* UX-15: a row with tabs off an edge fades that edge and shows a chevron there (browser.ts markTabScroll). */
+  .carisma-portal .cw-rail { position: relative; }
+  .carisma-portal .cw-rail[data-cw-more-end] .cw-nav {
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 72px), transparent calc(100% - 20px));
+    mask-image: linear-gradient(to right, black calc(100% - 72px), transparent calc(100% - 20px));
+  }
+  .carisma-portal .cw-rail[data-cw-more-start] .cw-nav {
+    -webkit-mask-image: linear-gradient(to right, transparent 20px, black 72px);
+    mask-image: linear-gradient(to right, transparent 20px, black 72px);
+  }
+  .carisma-portal .cw-rail[data-cw-more-start][data-cw-more-end] .cw-nav {
+    -webkit-mask-image: linear-gradient(to right, transparent 20px, black 72px, black calc(100% - 72px), transparent calc(100% - 20px));
+    mask-image: linear-gradient(to right, transparent 20px, black 72px, black calc(100% - 72px), transparent calc(100% - 20px));
+  }
+  .carisma-portal .cw-rail[data-cw-more-end]::after,
+  .carisma-portal .cw-rail[data-cw-more-start]::before {
+    content: "";
+    position: absolute;
+    top: 24px;
+    width: 7px;
+    height: 7px;
+    margin-top: -4px;
+    border: solid var(--cw-account-ink);
+    border-width: 0 1.5px 1.5px 0;
+    pointer-events: none;
+  }
+  .carisma-portal .cw-rail[data-cw-more-end]::after { right: 10px; transform: rotate(-45deg); }
+  .carisma-portal .cw-rail[data-cw-more-start]::before { left: 10px; transform: rotate(135deg); }
+  .carisma-portal .cw-nav { scroll-padding: 0 48px; }
   .carisma-portal .cw-nav::-webkit-scrollbar { display: none; }
   .carisma-portal .cw-nav__group { display: contents; }
   .carisma-portal .cw-nav__group + .cw-nav__group { margin: 0; }

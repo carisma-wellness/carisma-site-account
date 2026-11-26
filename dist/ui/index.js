@@ -49,7 +49,9 @@ export { circlePartsCSS } from "./styles/circle.js";
 export { resolveBrandLink, installBrandLinkInterceptor } from "./linkInterceptor.js";
 export { hydrateAccountMark, hydrateAccountMarks, mountAccountPanel, mountAccountPortal, hydrateAll, loadAccountMarkPhoto, accountMarkPhotoUrl, paymentReturnNote, 
 // ADDENDUM KIT-6: the clinic host options' two readers.
-circleOnFor, circlePlacesOf, } from "./browser.js";
+circleOnFor, circlePlacesOf, 
+// QC-CEO-1126 UX-15: the phone tab row's scroll cue.
+markTabScroll, } from "./browser.js";
 export { AVATAR_CACHE_KEY, AVATAR_CACHE_TTL_MS, sanitizeAvatarUrl, avatarUrlFromSession, accountMarkPhotoHTML, } from "./avatar.js";
 export { ssoProbeDecision, runSsoProbe, earlySsoProbeScript, isPaidLanding, SSO_PROBE_SKIP_PREFIXES, SSO_PAID_LANDING_PREFIXES, SSO_PROBE_TTL_SECONDS, PAID_CLICK_PARAM, } from "./ssoProbe.js";
 // Refer a friend, the 24 Nov 2026 flow (referral-flow-20261124): one share message, the /r/ link, the claim.
