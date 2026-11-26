@@ -1180,6 +1180,36 @@ function revealCurrentTab(mount: MinimalElement): void {
   navEl.scrollLeft = Math.max(0, (navEl.scrollLeft ?? 0) + delta);
 }
 
+/**
+ * QC-CEO-1126 UX-15: the phone's tab row says it scrolls. The rail carries `data-cw-more-start` /
+ * `data-cw-more-end` while there are tabs off either edge; the styles fade that edge and show a
+ * chevron, so a cut label always comes with a cue. Re-marked on every scroll of the row.
+ */
+export function markTabScroll(mount: MinimalElement): void {
+  type Row = {
+    scrollWidth?: number;
+    clientWidth?: number;
+    scrollLeft?: number;
+    addEventListener?: (t: string, f: () => void, o?: unknown) => void;
+  };
+  const navEl = qs(mount, ".cw-nav") as unknown as Row | null;
+  const rail = qs(mount, ".cw-rail");
+  if (!navEl || !rail) return;
+  const mark = () => {
+    const over = (navEl.scrollWidth ?? 0) - (navEl.clientWidth ?? 0);
+    const left = navEl.scrollLeft ?? 0;
+    const start = over > 1 && left > 2;
+    const end = over > 1 && left < over - 2;
+    if (start) rail.setAttribute("data-cw-more-start", "");
+    else rail.removeAttribute?.("data-cw-more-start");
+    if (end) rail.setAttribute("data-cw-more-end", "");
+    else rail.removeAttribute?.("data-cw-more-end");
+  };
+  mark();
+  navEl.addEventListener?.("scroll", mark, { passive: true });
+  (globalThis as unknown as { addEventListener?: (t: string, f: () => void) => void }).addEventListener?.("resize", mark);
+}
+
 /** Put text on the clipboard. False when the browser has none or refuses (an http page, a denied permission). */
 function clipboardWrite(text: string): Promise<boolean> {
   const nav = (globalThis as unknown as { navigator?: { clipboard?: { writeText?: (t: string) => Promise<void> } } })
@@ -1608,6 +1638,7 @@ function mountAccountPortalOnce(doc: MinimalDocument, opts: PortalMountOptions):
     disposeCircleJewels(mount);
     mount.innerHTML = html;
     revealCurrentTab(mount);
+    markTabScroll(mount);
     fillCircle();
     markMixed();
     // The Credit & rewards page draws its own jewels (Hero, track, ladder) and its Instagram rows.

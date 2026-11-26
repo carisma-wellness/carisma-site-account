@@ -437,6 +437,8 @@ export {
   // ADDENDUM KIT-6: the clinic host options' two readers.
   circleOnFor,
   circlePlacesOf,
+  // QC-CEO-1126 UX-15: the phone tab row's scroll cue.
+  markTabScroll,
 } from "./browser.js";
 export type { HydrateOptions, FetchLike, StorageLike } from "./browser.js";
 

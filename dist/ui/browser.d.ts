@@ -213,6 +213,12 @@ export declare function classifyRead(ok: boolean, status: number, body: unknown)
 /** The brand a host serves, for the cross-brand label on a card. "" when unknown. */
 export declare function siteBrandFromHost(host: string): string;
 /**
+ * QC-CEO-1126 UX-15: the phone's tab row says it scrolls. The rail carries `data-cw-more-start` /
+ * `data-cw-more-end` while there are tabs off either edge; the styles fade that edge and show a
+ * chevron, so a cut label always comes with a cue. Re-marked on every scroll of the row.
+ */
+export declare function markTabScroll(mount: MinimalElement): void;
+/**
  * Mount the account portal. Returns its unmount (React's effect cleanup): every live jewel the portal drew is
  * disposed and a read that answers later mounts none (a dead tab never holds GPU buffers or the shared
  * WebGL context).
